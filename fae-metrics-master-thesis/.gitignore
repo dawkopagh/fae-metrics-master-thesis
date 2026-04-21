@@ -1,0 +1,14 @@
+results/
+.venv/
+*.zip
+weights/*.pth
+weights/*.th
+!weights/.gitkeep
+attributions_cache/
+data/isic2017/
+results/
+!results/vertical_slice.csv
+__pycache__/
+*.pyc
+.DS_Store
+._*
