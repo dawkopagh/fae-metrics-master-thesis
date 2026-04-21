@@ -1,14 +1,52 @@
-results/
-.venv/
-*.zip
-weights/*.pth
-weights/*.th
-!weights/.gitkeep
-attributions_cache/
-data/isic2017/
-results/
-!results/vertical_slice.csv
+# ============================================================
+# Python
+# ============================================================
 __pycache__/
 *.pyc
+*.pyo
+.venv/
+venv/
+
+# ============================================================
+# macOS
+# ============================================================
 .DS_Store
 ._*
+
+# ============================================================
+# Code project artifacts (this .gitignore lives inside
+# fae-metrics-master-thesis/, so paths are relative to HERE)
+# ============================================================
+
+# Model weights — large binaries
+weights/**
+!weights/
+!weights/.gitkeep
+!weights/README.md
+
+# Legacy weights — small, historical, OK to keep tracked
+!legacy/weights/**
+
+# Attribution cache — regenerable
+attributions_cache/
+
+# Full ISIC 2017 dataset — downloaded, never committed (24 GB local)
+data/images/
+data/masks/
+data/isic2017/
+
+# But keep the repo-level data/ directory tracked so new clones get
+# an empty scaffold where the download script can write
+!data/
+!data/.gitkeep
+!data/README.md
+
+# Results: allow small text outputs, ignore everything else
+results/**
+!results/
+!results/*.csv
+!results/*.md
+!results/.gitkeep
+
+# Zip archives
+*.zip
