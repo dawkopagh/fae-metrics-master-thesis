@@ -1,0 +1,298 @@
+\chapter{Literature Review}
+\label{ch:sota}
+
+The field of Explainable Artificial Intelligence (XAI) has expanded rapidly in response to the opacity of modern Deep Learning (DL) architectures. While early research focused primarily on generating visually appealing explanations, recent scholarship has shifted towards rigorous quantification of explanation quality. This chapter provides a taxonomy of Feature Attribution Explanation (FAE) methods, analyzes the "Crisis of Evaluation" precipitated by the lack of ground truth, and systematizes the mathematical frameworks used to measure Faithfulness, Robustness, and Complexity. Finally, it reviews the theoretical foundations of XAI Ensembling as a mechanism to mitigate the limitations of individual estimators.
+
+\section{Feature Attribution Explanation (FAE) Methods}
+
+Feature attribution methods, often referred to as saliency maps in computer vision, aim to assign a scalar relevance score $R_i$ to each input feature $x_i$ (e.g., a pixel), representing its contribution to the model's output $f(x)$ for a specific target class $c$. Formally, an explanation method $\Phi$ takes a model $f$ and an input $x$ to produce a map $E = \Phi(f, x)$, where $E \in \mathbb{R}^{d}$ and $d$ is the dimensionality of the input.
+
+Current literature broadly categorizes these methods based on their access to the model's internal parameters: Gradient-based (White-box) and Perturbation-based (Black-box) approaches.
+\studentinline{link relevant citation above}
+
+
+\subsection{Gradient-based Methods (White-box)}
+Gradient-based methods exploit the differentiable nature of neural networks. They require access to the model's weights and gradients, operating on the intuition that the gradient of the output with respect to the input represents the model's sensitivity to feature changes.
+
+
+
+\subsubsection{Saliency Maps }
+The foundational approach, proposed by Simonyan et al., computes the gradient of the class score $S_c$ with respect to the input image $I$ \cite{selvaraju2017grad}. The relevance map is defined as:
+\begin{equation}
+    E_{Vanilla} = \left| \frac{\partial S_c}{\partial I} \right|
+\end{equation}
+While computationally efficient, vanilla gradients often suffer from "shattered gradients," resulting in noisy visualizations that lack class-discriminativeness. Furthermore, they are susceptible to the "saturation problem," where a feature may strongly contribute to a prediction, but its gradient is zero because the activation is saturated (e.g., in a ReLU function) \cite{sundararajan2017axiomatic}.
+
+\subsubsection{Integrated Gradients (IG)}
+To address gradient saturation, Sundararajan et al. introduced Integrated Gradients, which fundamentally relies on the \textit{Axiom of Completeness}. IG accumulates gradients along a linear path from a baseline input $x'$ (usually a black image) to the actual input $x$ \cite{sundararajan2017axiomatic}. The attribution for the $i$-th feature is given by:
+\begin{equation}
+    IG_i(x) = (x_i - x'_i) \times \int_{\alpha=0}^{1} \frac{\partial f(x' + \alpha(x - x'))}{\partial x_i} d\alpha
+\end{equation}
+This method ensures that the sum of attributions equals the difference between the model output at the input and the baseline, providing a theoretical guarantee missing in vanilla gradients.
+
+\subsubsection{Grad-CAM}
+Gradient-weighted Class Activation Mapping (Grad-CAM) moves away from pixel-space gradients to feature-space gradients. It utilizes the gradients flowing into the final convolutional layer of a CNN to produce a coarse localization map \cite{selvaraju2017grad}. Global Average Pooling is applied to the gradients to obtain neuron importance weights $\alpha_k^c$:
+\begin{equation}
+    \alpha_k^c = \frac{1}{Z} \sum_i \sum_j \frac{\partial y^c}{\partial A_{ij}^k}
+\end{equation}
+where $A^k$ is the $k$-th feature map. The final map is a ReLU-activated linear combination of these maps. Grad-CAM is highly effective for localization but lacks fine-grained pixel detail, often necessitating combination with Guided Backpropagation (Guided Grad-CAM).
+
+\subsection{Perturbation-based Methods (Black-box)}
+Perturbation-based methods operate under a model-agnostic paradigm. They estimate feature importance by systematically modifying (perturbing) the input and observing the resulting changes in the model's output prediction.
+
+
+
+\subsubsection{LIME (Local Interpretable Model-agnostic Explanations)}
+LIME creates a surrogate model $g$ (e.g., a linear regression) that is locally faithful to the complex model $f$ around the instance $x$ \cite{ribeiro2016why}. It generates a neighborhood of perturbed samples $\mathcal{Z}$ weighted by a proximity kernel $\pi_x$. The explanation is found by minimizing the loss $\mathcal{L}$:
+\begin{equation}
+    \xi(x) = \operatorname*{argmin}_{g \in G} \mathcal{L}(f, g, \pi_x) + \Omega(g)
+\end{equation}
+where $\Omega(g)$ penalizes the complexity of the explanation. While LIME is versatile, its reliance on random sampling introduces instability, where repeated runs on the same input can yield different explanations \cite{hryniewska2024normensemblexai}.
+
+\subsubsection{SHAP (SHapley Additive exPlanations)}
+SHAP adapts cooperative game theory to XAI, treating features as players in a coalition. The attribution of a feature is its Shapley value - the average marginal contribution of the feature value across all possible feature coalitions \cite{lundberg2017unified}. The SHAP value $\phi_i$ is defined as:
+\begin{equation}
+    \phi_i(f, x) = \sum_{z' \subseteq x'} \frac{|z'|! (M - |z'| - 1)!}{M!} [f_x(z') - f_x(z' \setminus i)]
+\end{equation}
+SHAP is the only method that satisfies the axioms of \textit{Efficiency}, \textit{Symmetry}, \textit{Dummy}, and \textit{Additivity}. However, exact computation is NP-hard, leading to approximation methods like GradientSHAP or KernelSHAP, which reintroduce estimation noise.
+
+\subsection{Localization metrics - pointing game and relevance mass}
+
+\studentinline{TODO: Fill subsection on localizatiion metrics}
+
+\section{The Crisis of Evaluation}
+
+A critical challenge in XAI research is the absence of "ground truth." Unlike classification tasks where a label $y$ is known, there is rarely a verified map of which pixels a neural network \textit{actually} used. This ambiguity led to a reliance on "Plausibility" - visual assessment by humans - which proved deceptive.
+
+A seminal study by Adebayo et al., titled "Sanity Checks for Saliency Maps," demonstrated that visual quality does not imply faithfulness \cite{adebayo2018sanity}. They introduced the \textbf{Model Parameter Randomization Test}, where model weights are progressively randomized from the output layer to the input layer. A valid explanation method should degrade to noise as the model's knowledge is destroyed.
+\begin{itemize}
+    \item \textbf{Failure of Guided Backpropagation:} The study revealed that methods like Guided Backpropagation and DeconvNet produced nearly identical heatmaps for a trained model and a random network. This indicates these methods act as edge detectors independent of the model's learned representations.
+    \item \textbf{Implication:} This finding established a "Crisis of Evaluation" \cite{hedstrom2023quantus}, necessitating a shift from human-grounded evaluation (which measures trust/plausibility) to functionally-grounded evaluation (which measures mathematical properties like fidelity).
+\end{itemize}
+
+\section{Taxonomy of Evaluation Metrics}
+
+To rigorously assess FAE models, recent literature proposes a modular taxonomy of metrics. This thesis adopts the framework formalized by Quantus \cite{hedstrom2023quantus}, focusing on Faithfulness, Robustness, and Complexity.
+
+\subsection{Faithfulness (Fidelity)}
+Faithfulness quantifies how accurately the explanation reflects the model's internal decision logic, regardless of human intelligibility.
+
+\subsubsection{Deletion and Insertion (AUC)}
+Proposed by Petsiuk et al., these metrics measure the degradation (or improvement) of the model's score as features are removed (or added) based on their importance ranking \cite{petsiuk2018rise}.
+\begin{itemize}
+    \item \textbf{Deletion (AOPC):} Measures the Area Over the Perturbation Curve. A steeper drop implies the method correctly identified critical features.
+    \item \textbf{Insertion:} Measures the Area Under the Curve as features are introduced to a baseline canvas.
+\end{itemize}
+The Deletion score for an image $x$ with $N$ pixels is calculated as:
+\begin{equation}
+    \text{Deletion}(x) = \sum_{k=1}^{N} (f(x) - f(x^{(k)}))
+\end{equation}
+where $x^{(k)}$ is the image with the top $k$ most important pixels masked.
+
+\subsubsection{Infidelity}
+Yeh et al. formulated Infidelity as the expected mean squared error between a perturbation in the input space $I$ and the dot product of the perturbation with the explanation $E$ \cite{hedstrom2023quantus}. A faithful explanation should satisfy $I^T E \approx f(x) - f(x - I)$.
+\begin{equation}
+    \text{Infidelity} = \mathbb{E}_{I \sim \mu} \left[ (I^T E - (f(x) - f(x - I)))^2 \right]
+\end{equation}
+
+\subsection{Robustness (Stability)}
+Robustness ensures that slight, non-semantic changes to the input (e.g., Gaussian noise) do not cause disproportionate changes in the explanation. This is crucial for user trust and defense against adversarial attacks.
+
+\subsubsection{Local Lipschitz Estimate}
+Based on the Lipschitz continuity condition, this metric finds the maximum change in the explanation $\|\Phi(x) - \Phi(x')\|$ relative to the change in input $\|x - x'\|$ within a neighborhood $\mathcal{N}_\epsilon(x)$ \cite{alvarez2018robustness}:
+\begin{equation}
+    L(x) = \max_{x' \in \mathcal{N}_\epsilon(x)} \frac{\|\Phi(x) - \Phi(x')\|_2}{\|x - x'\|_2}
+\end{equation}
+A lower Lipschitz constant indicates a more stable and robust explanation method.
+
+\subsection{Complexity and Sparsity}
+Complexity metrics adhere to the principle of Occam's Razor: simpler explanations are generally preferred for human cognition.
+\begin{itemize}
+    \item \textbf{Sparsity:} Measures the fraction of features with zero or near-zero attribution.
+    \item \textbf{Effective Complexity:} Often calculated using the Shannon entropy of the normalized attribution distribution. High entropy indicates a diffuse explanation, while low entropy indicates a focused, sparse explanation.
+\end{itemize}
+
+\section{Ensemble XAI: Theoretical Foundations}
+
+Given the trade-offs between these metrics - where Gradient methods often excel in Faithfulness but fail in Robustness, and LIME excels in Local Interpretability but fails in Stability - single-method reliance is increasingly viewed as insufficient.
+
+Ensembling in XAI draws inspiration from predictive ensembles (e.g., Random Forests), operating on the hypothesis that aggregating uncorrelated estimators reduces variance and bias \cite{hryniewska2024normensemblexai}.
+\begin{equation}
+    E_{Ensemble} = \mathcal{A}(\mathcal{N}(\Phi_1(x)), \mathcal{N}(\Phi_2(x)), \dots, \mathcal{N}(\Phi_k(x)))
+\end{equation}
+where $\mathcal{N}$ is a normalization function and $\mathcal{A}$ is an aggregation function.
+
+Hryniewska-Guzik et al. identify that the primary challenge in XAI ensembling is the heterogeneous scale of attributions (e.g., SHAP values are additive log-odds, while Grad-CAM is feature activation) \cite{hryniewska2024normensemblexai}. They propose \textbf{NormEnsembleXAI}, which utilizes robust normalization techniques such as Second Moment Scaling to align these diverse explanations before aggregation via Mean, Max, or Minimum functions. This thesis builds upon this framework to evaluate whether ensembling can simultaneously optimize the conflicting objectives of Faithfulness and Robustness.
+
+\section{Multi-Metric Aggregation and Evaluation Pipelines}
+\label{sec:multi-metric-aggregation}
+
+The taxonomy presented in Section~\ref{sec:taxonomy} provides a principled
+vocabulary for assessing individual properties of explanations. In practice,
+however, no single metric suffices to characterize an FAE method: Faithfulness
+captures fidelity to the model, Robustness captures stability under
+perturbation, and Complexity captures cognitive tractability---and these axes
+are neither independent nor unidirectional. A method may score favorably on one
+while deteriorating on another, producing rankings that are sensitive to the
+choice of metric \citep{krishna2024disagreement, hedstrom2024metaquantus}. This
+section addresses three questions that arise once multiple metrics enter the
+evaluation: (i)~whether the available metrics are mutually informative or
+merely redundant, (ii)~how to validate the metrics themselves, and (iii)~how
+to aggregate non-redundant, validated metrics into a coherent scalar
+assessment suitable for method comparison.
+
+\subsection{The Metric Redundancy Problem}
+\label{subsec:redundancy}
+
+The proliferation of evaluation metrics within libraries such as Quantus
+\citep{hedstrom2023quantus} raises a concern that has attracted growing
+attention: the superset of available metrics contains substantial redundancy,
+which inflates the apparent rigor of an evaluation without adding information.
+Formally, given a set of $K$ metrics $\{M_1, M_2, \dots, M_K\}$ applied to an
+explanation $\Phi(f, x)$, one can compute the empirical correlation matrix
+across a test set $\mathcal{D}$:
+$$
+\rho_{ij} \;=\; \operatorname{corr}_{x \sim \mathcal{D}}\!\Bigl(
+    M_i\bigl(\Phi, f, x\bigr),\; M_j\bigl(\Phi, f, x\bigr)
+\Bigr).
+$$
+\citet{tomsett2020sanity} were among the first to quantify this empirically,
+reporting that metrics within the same category---Faithfulness in
+particular---exhibit surprisingly low pairwise correlation when applied to
+image classifiers, despite purporting to measure the same underlying property.
+This finding has since been replicated across modalities:
+\citet{bommer2024finding} observed metric-dependent rankings of XAI methods in
+a climate-science benchmark, and \citet{schwalbe2024systematic} demonstrated
+systematic rank reversals between faithfulness operationalizations on a
+large-scale computer vision benchmark. \citet{kadir2024evaluating} argue that
+this proliferation is counterproductive: many widely-used metrics either
+duplicate information already captured by simpler alternatives or are
+ineffective by their own operational definition, and recommend a deliberate
+reduction to a representative subset.
+
+Two practical consequences follow. First, reporting scores across all metrics
+in a category overstates evidence: a method that wins on five correlated
+metrics has, in effect, won once. Second, aggregation schemes that treat
+metrics as independent voters (e.g., averaging ranks across all available
+faithfulness metrics) are biased toward whichever operational family is most
+heavily represented in the chosen library. A principled evaluation must
+therefore begin with a redundancy analysis and proceed with a reduced,
+justified subset.
+
+\subsection{Meta-Evaluation: Validating the Validators}
+\label{subsec:meta-evaluation}
+
+The redundancy problem reveals that metrics disagree with each other; a deeper
+problem is that it is not always clear which metric is \emph{correct}. Since
+no ground-truth explanation exists against which to calibrate a metric, the
+standard evaluation paradigm lacks the reference signal used elsewhere in
+supervised machine learning. \citet{hedstrom2024metaquantus} formalize this as
+the \emph{meta-evaluation problem}: how does one evaluate a metric that is
+itself supposed to evaluate an explanation? Their proposed framework,
+MetaQuantus, subjects each metric to two stress tests grounded in plausible
+failure modes:
+
+\begin{itemize}
+    \item \textbf{Noise Resilience (NR)}: under controlled, semantically
+    meaningless perturbations of model inputs or weights, a reliable metric
+    should yield stable scores. High score variance under noise indicates
+    that the metric is responding to spurious signal.
+    \item \textbf{Adversarial Reactivity (AR)}: under controlled degradation
+    of the explanation itself (e.g.,\ partial randomization), a reliable
+    metric should show a monotonic drop in score. A metric that remains
+    unchanged under explanation degradation is not tracking explanation
+    quality.
+\end{itemize}
+
+A metric that performs poorly on either test is deprioritized as an unreliable
+signal, regardless of its theoretical motivation. This meta-evaluation layer
+is essential for the framework proposed in this thesis, as it provides a
+principled criterion for the \emph{selection} of metrics in Phase~2,
+complementing the correlation-based redundancy analysis of
+Section~\ref{subsec:redundancy}.
+
+\subsection{Normalization and Aggregation Strategies}
+\label{subsec:aggregation-strategies}
+
+Once a non-redundant, meta-validated subset $\{M_1, \dots, M_k\}$ is selected,
+the individual scores must be combined into a scalar that supports method
+comparison. Two technical obstacles arise: heterogeneous scales and
+heterogeneous directions. A Faithfulness Correlation score lies in $[-1, 1]$;
+a Max-Sensitivity score is unbounded above and lower-is-better; a Sparseness
+score is in $[0, 1]$ and higher-is-better. Direct averaging is meaningless
+without rectification.
+
+Let $M_k(\Phi)$ denote the raw score of metric $k$ for explanation $\Phi$, and
+let $s_k \in \{+1, -1\}$ encode the direction convention ($+1$ for
+higher-is-better). A normalized score $\tilde{M}_k$ is obtained via
+$$
+\tilde{M}_k(\Phi) \;=\; s_k \cdot \psi_k\!\bigl(M_k(\Phi)\bigr),
+$$
+where $\psi_k$ is a scale-rectifying transformation. Three choices dominate
+the literature:
+\begin{enumerate}
+    \item \textbf{Min--max normalization}:
+    $\psi_k(x) = (x - \min_k) / (\max_k - \min_k)$, mapping scores to $[0, 1]$.
+    Sensitive to outliers.
+    \item \textbf{$z$-score normalization}:
+    $\psi_k(x) = (x - \mu_k) / \sigma_k$, centering on the mean with unit
+    variance.
+    \item \textbf{Second Moment Scaling}:
+    $\psi_k(x) = x / \sqrt{\mathbb{E}[x^2]}$, employed by
+    \citet{hryniewska2024normensemblexai} in the NormEnsembleXAI framework to
+    align explanations of heterogeneous origin (e.g.,\ SHAP's log-odds
+    contributions vs.\ Grad-CAM's activation magnitudes) prior to ensemble
+    aggregation.
+\end{enumerate}
+
+Once normalized, aggregation proceeds via a scalar combinator $\mathcal{A}$:
+$$
+E_{\text{agg}}(\Phi) \;=\; \mathcal{A}\!\Bigl(
+    \tilde{M}_1(\Phi),\; \tilde{M}_2(\Phi),\; \dots,\; \tilde{M}_k(\Phi)
+\Bigr).
+$$
+Common choices for $\mathcal{A}$ include the weighted arithmetic mean
+$\sum_k w_k \tilde{M}_k$, the minimum $\min_k \tilde{M}_k$ (a conservative
+operator favoring methods acceptable on all criteria), and the geometric mean
+(penalizing methods that fail severely on any single axis). The minimum
+operator corresponds to evaluating a method by its worst dimension and has a
+natural interpretation in safety-critical domains: a method that is faithful
+but unstable is ineligible regardless of how high its faithfulness score is.
+
+\subsection{Evaluation Pipelines and the Autoweighted System}
+\label{subsec:evaluation-pipelines}
+
+The framework introduced above---(i)~redundancy-aware metric selection,
+(ii)~meta-validation, (iii)~direction rectification and scale normalization,
+(iv)~aggregation---constitutes an \emph{evaluation pipeline}. The pipeline
+abstraction is significant because it isolates configuration decisions (which
+metrics, which normalization, which aggregator, which weights) from the XAI
+method under evaluation, enabling reproducible, principled comparison across
+studies.
+
+A key design choice within this pipeline is the weight vector
+$\mathbf{w} = (w_1, \dots, w_k)$. Fixed equal weighting assumes all retained
+criteria contribute equally---a strong assumption that the redundancy analysis
+alone does not validate. \citet{hryniewska2024normensemblexai} introduce the
+\emph{Autoweighted} mechanism, in which weights are derived from each metric's
+own ensemble score: explanations that agree more strongly with the ensemble
+consensus contribute more heavily to the aggregated assessment. Formally, if
+$\mathrm{ES}_k$ denotes the ensemble score assigned to the explanation by
+metric $k$, then
+$$
+w_k \;=\; \frac{\mathrm{ES}_k}{\sum_{j} \mathrm{ES}_j},
+$$
+producing a data-adaptive convex combination in which dominant, trustworthy
+signals receive higher weight without manual tuning. This mechanism provides
+the theoretical foundation for the evaluation framework proposed in
+Chapter~\ref{ch:methodology}, which extends the Autoweighted concept by
+integrating the meta-evaluation criterion of \citet{hedstrom2024metaquantus}
+into the weight derivation: a metric's weight is discounted not only by its
+ensemble disagreement but also by its MetaQuantus failure rate.
+
+Recent work has emphasized that evaluation pipelines are themselves a
+compliance instrument. \citet{hedstrom2025bridging} argue that standardized,
+reproducible pipelines---rather than ad-hoc metric selection---are a
+prerequisite for operationalizing the transparency requirements of the EU AI
+Act, aligning the technical contribution of this thesis with the regulatory
+motivation established in Section~\ref{sec:motivation}.

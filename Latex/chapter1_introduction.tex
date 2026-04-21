@@ -1,0 +1,49 @@
+
+
+\chapter{Research contributions}
+\label{sec:celePracy}
+\promoterinline{test command}
+\studentinline{test command}
+
+The essence of this thesis revolves around the critical evaluation of Feature Attribution Explanation (FAE) models and the development of a robust, multi-objective framework for their assessment. As Deep Learning (DL) models are increasingly deployed in high-stakes domains, the reliance on single, unverified explanation methods has proven insufficient. This research contributes to the field of Explainable AI (XAI) by moving beyond qualitative visual inspection towards rigorous, quantitative validation.
+
+The primary contributions of this work are defined as follows:
+\begin{enumerate}
+    \item \textbf{Taxonomy of Evaluation Metrics:} A theoretical systematization of state-of-the-art metrics, categorized into functional groups: Faithfulness, Robustness, Localization, and Complexity \cite{hedstrom2023quantus, paccotacya2024explanations}.
+    \item \textbf{Multi-Objective Evaluation Framework:} The development of a methodological approach that evaluates FAE methods not on a single dimension, but through a weighted aggregation of conflicting criteria (e.g., balancing the trade-off between Faithfulness and Plausibility) \cite{hryniewska2024normensemblexai}.
+    \item \textbf{Adaptation of Ensemble Techniques:} The application and validation of the \textit{NormEnsembleXAI} method \cite{hryniewska2024normensemblexai}, demonstrating that normalizing and aggregating diverse explanation methods (such as SHAP, LIME, and Gradient-based approaches) yields results that are statistically more stable and reliable than individual methods.
+    \item \textbf{Empirical Validation on Medical Data:} A practical assessment of the proposed framework using standard benchmarks (ImageNet) and domain-specific medical datasets (e.g., skin lesion classification), highlighting the "Ground Truth" problem in medical XAI \cite{sangwan2024quantifying}.
+\end{enumerate}
+\studentinline{subject to change, will see if it should be trimmed or extended}
+
+\section{Research motivation}
+\label{cha:introduction}
+
+The evolution of Deep Learning has led to a paradigm shift in artificial intelligence, where model performance often comes at the cost of transparency - a phenomenon known as the "Interpretability-Performance Trade-off" \cite{doshi2017rigorous}. While modern neural networks achieve superhuman accuracy, their decision-making processes remain opaque "black boxes" \cite{adebayo2018sanity}.
+
+The motivation for this research is driven by two critical factors:
+
+\subsection{The Legal and Ethical Imperative}
+Transparency is no longer merely a technical feature but a regulatory requirement. The \textbf{EU AI Act (2024)} mandates that high-risk AI systems must be sufficiently transparent to enable users to interpret the system's output \cite{eu2024aiact}. Furthermore, the \textbf{GDPR} establishes a "Right to Explanation," giving individuals the right to understand algorithmic decisions affecting them \cite{eu2016gdpr}. In medical diagnostics, the lack of auditability prevents the clinical adoption of potentially life-saving tools, as physicians cannot trust predictions they cannot verify \cite{sangwan2024quantifying}.
+
+\studentinline{Add more volume to subsections, if they are not large just merge them into bigger sections.}
+
+\subsection{The Crisis of Evaluation}
+Despite the proliferation of XAI methods, the field faces a "crisis of evaluation" \cite{hedstrom2023quantus}. Studies have shown that many popular methods, such as standard Saliency Maps, fail basic "Sanity Checks" - producing identical explanations even when the model's weights are randomized \cite{adebayo2018sanity}. Furthermore, individual methods often yield contradictory results; for instance, LIME might highlight different features than SHAP for the same prediction \cite{hryniewska2024normensemblexai}. This inconsistency necessitates a move towards \textbf{Ensemble XAI} approaches, which mitigate the biases of individual estimators \cite{hryniewska2024normensemblexai}, and requires a multi-objective metric system to objectively measure improvement.
+
+%---------------------------------------------------------------------------
+
+\section{Thesis contents}
+
+The remainder of this thesis is structured as follows:
+
+\begin{itemize}
+    \item \textbf{Chapter 2: Literature Review} – Provides a comprehensive overview of the current state-of-the-art in Feature Attribution Explanation (FAE) methods. It details the taxonomy of gradient-based \cite{selvaraju2017grad} and perturbation-based \cite{ribeiro2016why} approaches. This chapter establishes the "Crisis of Evaluation" \cite{hedstrom2023quantus} by discussing the failure of traditional saliency maps to pass model-sensitive sanity checks \cite{adebayo2018sanity}. Furthermore, it defines the mathematical foundations of atomic metrics—including Faithfulness, Robustness, and Complexity - that serve as the building blocks for modular evaluation \cite{hedstrom2023quantus, alvarez2018robustness}.
+    
+    \item \textbf{Chapter 3: Methodology} - Introduces the proposed modular evaluation framework and custom XAI pipelines. This chapter details the \textit{NormEnsembleXAI} algorithm \cite{hryniewska2024normensemblexai}, explaining how diverse outputs from multiple explainers are unified through Second Moment Scaling normalization and aggregation functions (Mean, Max, Min). It further describes the design of custom evaluation pipelines that utilize an \textit{Autoweighted} system to balance conflicting criteria based on individual estimator scores \cite{hryniewska2024normensemblexai}.
+    
+    \item \textbf{Chapter 4: Experiments and Results} – Presents the empirical validation of the proposed framework and library \cite{hryniewska2024normensemblexai}. Utilizing the \textit{EnsembleXAI} library, the performance of the custom pipelines is assessed on general benchmarks (ImageNet-S) and high-stakes medical datasets (HAM10000) \cite{hryniewska2024normensemblexai, sangwan2024quantifying}. This section provides a quantitative analysis of the "Ground Truth" problem in medical XAI and demonstrates how ensembling yields more stable and reliable insights than individual baseline methods.
+    
+    \item \textbf{Chapter 5: Conclusions and Future Work} – Summarizes the findings regarding the efficacy of multi-objective, pipeline-based evaluation. It discusses the trade-offs between interpretability and performance \cite{doshi2017rigorous}, addresses limitations such as computational and memory complexity \cite{hryniewska2024normensemblexai}, and outlines future research into automated validation and regulatory compliance within the scope of the EU AI Act.
+\end{itemize}
+\studentinline{Assumed for now, might change later depending on outcomes}
