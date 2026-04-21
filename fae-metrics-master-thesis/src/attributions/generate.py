@@ -182,6 +182,10 @@ def compute_or_load(
         if cached is not None:
             return cached
 
+    # Ensure target is available to compute_fn even when stripped from
+    # **compute_kwargs to avoid duplicate keyword arguments.
+    if "target" not in compute_kwargs:
+        compute_kwargs["target"] = target
     attr = compute_fn(**compute_kwargs)
 
     if cache is not None:

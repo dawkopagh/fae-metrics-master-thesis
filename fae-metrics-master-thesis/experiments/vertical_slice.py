@@ -32,17 +32,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Vertical-slice evaluation")
     parser.add_argument("--no-cache", action="store_true",
                         help="Disable attribution disk cache")
+    parser.add_argument("--output-csv", type=str, default="results/vertical_slice.csv",
+                        help="Path for the output CSV (default: results/vertical_slice.csv)")
     args = parser.parse_args()
 
     t0 = time.time()
 
     df = run_vertical_slice(
         data_root="data",
-        resnet_weights="resnet_skin.pth",
-        squeezenet_weights="squeezenet_skin.pth",
+        resnet_weights="weights/resnet18_isic2017.pth",
+        squeezenet_weights="weights/squeezenet_isic2017.pth",
         split="test",
         device=None,
-        output_csv="results/vertical_slice.csv",
+        output_csv=args.output_csv,
         seed=42,
         use_cache=not args.no_cache,
     )
@@ -69,7 +71,7 @@ def main() -> None:
     print(f"\nFirst 10 rows:")
     print(df.head(10).to_string(index=False))
 
-    print(f"\nCSV written to: results/vertical_slice.csv")
+    print(f"\nCSV written to: {args.output_csv}")
     print("=" * 72)
 
 

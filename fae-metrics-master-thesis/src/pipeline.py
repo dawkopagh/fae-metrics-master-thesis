@@ -92,8 +92,8 @@ def _make_explain_func(
 
 def run_vertical_slice(
     data_root: str = "data",
-    resnet_weights: str = "resnet_skin.pth",
-    squeezenet_weights: str = "squeezenet_skin.pth",
+    resnet_weights: str = "weights/resnet18_isic2017.pth",
+    squeezenet_weights: str = "weights/squeezenet_isic2017.pth",
     split: str = "test",
     device: Optional[str] = None,
     output_csv: str = "results/vertical_slice.csv",
@@ -197,22 +197,22 @@ def run_vertical_slice(
                     target_layer = get_gradcam_target_layer(model, arch)
                     fae_hyperparams: dict = {"image_size": 224}
                     compute_kwargs = dict(
-                        model=model, image=image_tensor, target=target,
-                        target_layer=target_layer, device=device,
+                        model=model, image=image_tensor,
+                        target_layer=target_layer, target=target, device=device,
                     )
                     compute_fn = compute_gradcam
                 elif fae_name == "integrated_gradients":
                     fae_hyperparams = {"n_steps": 50}
                     compute_kwargs = dict(
-                        model=model, image=image_tensor, target=target,
-                        device=device, n_steps=50,
+                        model=model, image=image_tensor,
+                        target=target, device=device, n_steps=50,
                     )
                     compute_fn = compute_integrated_gradients
                 else:
                     fae_hyperparams = {}
                     compute_kwargs = dict(
-                        model=model, image=image_tensor, target=target,
-                        device=device,
+                        model=model, image=image_tensor,
+                        target=target, device=device,
                     )
                     compute_fn = FAE_METHODS[fae_name]
 
@@ -224,7 +224,7 @@ def run_vertical_slice(
                     image_id=image_id,
                     target=target,
                     fae_hyperparams=fae_hyperparams,
-                    **compute_kwargs,
+                    **{k: v for k, v in compute_kwargs.items() if k != 'target'},
                 )
 
                 attr_np = attr_tensor.numpy()  # (3, 224, 224)
