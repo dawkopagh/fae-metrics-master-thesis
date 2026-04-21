@@ -6,6 +6,7 @@ a summary of the resulting DataFrame.
 
 from __future__ import annotations
 
+import argparse
 import logging
 import sys
 import time
@@ -28,6 +29,11 @@ logging.basicConfig(
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Vertical-slice evaluation")
+    parser.add_argument("--no-cache", action="store_true",
+                        help="Disable attribution disk cache")
+    args = parser.parse_args()
+
     t0 = time.time()
 
     df = run_vertical_slice(
@@ -38,6 +44,7 @@ def main() -> None:
         device=None,
         output_csv="results/vertical_slice.csv",
         seed=42,
+        use_cache=not args.no_cache,
     )
 
     elapsed = time.time() - t0

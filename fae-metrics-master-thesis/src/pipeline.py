@@ -28,8 +28,10 @@ from src.attributions.generate import (
     FAE_METHODS,
     compute_gradcam,
     compute_integrated_gradients,
+    compute_or_load,
     compute_saliency,
 )
+from src.attributions.cache import AttributionCache
 from src.data.isic_dataset import ISIC2017Dataset
 from src.metrics.quantus_wrapper import compute_three_metrics
 from src.models.classifiers import (
@@ -96,6 +98,7 @@ def run_vertical_slice(
     device: Optional[str] = None,
     output_csv: str = "results/vertical_slice.csv",
     seed: int = 42,
+    use_cache: bool = True,
 ) -> pd.DataFrame:
     """Run the vertical-slice evaluation: 2 models × 3 FAE × 3 metrics.
 
@@ -126,6 +129,9 @@ def run_vertical_slice(
         Path for the output CSV. Parent directories are created if needed.
     seed : int
         Random seed for reproducibility.
+    use_cache : bool
+        If ``True`` (default), cache attribution maps to disk under
+        ``attributions_cache/``. If ``False``, always recompute.
 
     Returns
     -------
@@ -143,6 +149,14 @@ def run_vertical_slice(
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
     logger.info("Device: %s | Seed: %d", device, seed)
+
+    # --- Attribution cache ---
+    cache: Optional[AttributionCache] = None
+    if use_cache:
+        cache = AttributionCache(root="attributions_cache")
+        logger.info("Attribution cache enabled (root=%s)", cache.root)
+    else:
+        logger.info("Attribution cache disabled")
 
     # --- Load models ---
     models_dict: dict[str, tuple[nn.Module, str]] = {
@@ -178,16 +192,40 @@ def run_vertical_slice(
                 target = int(logits.argmax(dim=1).item())
 
             for fae_name in fae_method_names:
-                # Compute attribution
+                # Build compute kwargs and hyperparams for cache key
                 if fae_name == "gradcam":
                     target_layer = get_gradcam_target_layer(model, arch)
-                    attr_tensor = compute_gradcam(
-                        model, image_tensor, target, target_layer, device=device
+                    fae_hyperparams: dict = {"image_size": 224}
+                    compute_kwargs = dict(
+                        model=model, image=image_tensor, target=target,
+                        target_layer=target_layer, device=device,
                     )
+                    compute_fn = compute_gradcam
+                elif fae_name == "integrated_gradients":
+                    fae_hyperparams = {"n_steps": 50}
+                    compute_kwargs = dict(
+                        model=model, image=image_tensor, target=target,
+                        device=device, n_steps=50,
+                    )
+                    compute_fn = compute_integrated_gradients
                 else:
-                    attr_tensor = FAE_METHODS[fae_name](
-                        model, image_tensor, target, device=device
+                    fae_hyperparams = {}
+                    compute_kwargs = dict(
+                        model=model, image=image_tensor, target=target,
+                        device=device,
                     )
+                    compute_fn = FAE_METHODS[fae_name]
+
+                attr_tensor = compute_or_load(
+                    cache=cache,
+                    compute_fn=compute_fn,
+                    model_arch=arch,
+                    fae_method=fae_name,
+                    image_id=image_id,
+                    target=target,
+                    fae_hyperparams=fae_hyperparams,
+                    **compute_kwargs,
+                )
 
                 attr_np = attr_tensor.numpy()  # (3, 224, 224)
 

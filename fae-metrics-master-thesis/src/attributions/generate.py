@@ -14,11 +14,13 @@ or metric computation (see metrics/).
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Optional
 
 import torch
 import torch.nn as nn
 from captum.attr import IntegratedGradients, LayerAttribution, LayerGradCam, Saliency
+
+from src.attributions.cache import AttributionCache
 
 
 def compute_integrated_gradients(
@@ -136,3 +138,53 @@ FAE_METHODS: dict[str, Callable[..., torch.Tensor]] = {
     "saliency": compute_saliency,
     "gradcam": compute_gradcam,
 }
+
+
+def compute_or_load(
+    cache: Optional[AttributionCache],
+    compute_fn: Callable[..., torch.Tensor],
+    model_arch: str,
+    fae_method: str,
+    image_id: str,
+    target: int,
+    fae_hyperparams: dict,
+    **compute_kwargs,
+) -> torch.Tensor:
+    """Return a cached attribution or compute, cache, and return it.
+
+    Parameters
+    ----------
+    cache : AttributionCache or None
+        If ``None``, caching is bypassed and *compute_fn* is always called.
+    compute_fn : callable
+        The attribution function to call on a cache miss.  Called as
+        ``compute_fn(**compute_kwargs)``.
+    model_arch : str
+        Architecture name for the cache key.
+    fae_method : str
+        FAE method name for the cache key.
+    image_id : str
+        Image identifier for the cache key.
+    target : int
+        Target class index for the cache key.
+    fae_hyperparams : dict
+        Method hyperparameters whose hash guards against stale entries.
+    **compute_kwargs
+        Forwarded to *compute_fn* on a cache miss.
+
+    Returns
+    -------
+    torch.Tensor
+        Attribution map, typically shape ``(3, H, W)``.
+    """
+    if cache is not None:
+        cached = cache.get(model_arch, fae_method, image_id, target, fae_hyperparams)
+        if cached is not None:
+            return cached
+
+    attr = compute_fn(**compute_kwargs)
+
+    if cache is not None:
+        cache.put(model_arch, fae_method, image_id, target, fae_hyperparams, attr)
+
+    return attr
