@@ -107,7 +107,9 @@ def all_metric_scores(model, image_np, ig_attribution, target, mask_np, explain_
 # Test: each metric returns a finite float on IG attribution
 # ---------------------------------------------------------------------------
 
-_ALL_METRIC_NAMES = [
+# Metrics that are finite in the default (fast) run.
+# NonSensitivity is excluded by default (too slow) and tested separately.
+_FAST_METRIC_NAMES = [
     "faithfulness_correlation",
     "pixel_flipping",
     "max_sensitivity",
@@ -119,17 +121,24 @@ _ALL_METRIC_NAMES = [
     "model_parameter_randomisation",
     "random_logit",
     "completeness",
-    "non_sensitivity",
 ]
+
+_ALL_METRIC_NAMES = _FAST_METRIC_NAMES + ["non_sensitivity"]
 
 
 class TestAllMetricsFinite:
-    @pytest.mark.parametrize("metric_name", _ALL_METRIC_NAMES)
+    @pytest.mark.parametrize("metric_name", _FAST_METRIC_NAMES)
     def test_metric_returns_finite_float(self, metric_name, all_metric_scores):
         """Each metric should return a finite float for IG (completeness-satisfying)."""
         val = all_metric_scores[metric_name]
         assert isinstance(val, float), f"{metric_name} should be float, got {type(val)}"
         assert np.isfinite(val), f"{metric_name} returned non-finite: {val}"
+
+    def test_non_sensitivity_nan_by_default(self, all_metric_scores):
+        """NonSensitivity is skipped (NaN) in the default fast run."""
+        val = all_metric_scores["non_sensitivity"]
+        assert isinstance(val, float)
+        assert np.isnan(val)
 
     def test_all_12_keys_present(self, all_metric_scores):
         assert len(all_metric_scores) == 12

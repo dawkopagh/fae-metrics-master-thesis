@@ -51,8 +51,14 @@ def compute_all_metrics(
     explain_func_kwargs: Optional[dict] = None,
     fae_method: Optional[str] = None,
     num_classes: int = 3,
+    include_non_sensitivity: bool = False,
 ) -> dict[str, float]:
-    """Compute all 12 evaluation metrics for a single image attribution.
+    """Compute evaluation metrics for a single image attribution.
+
+    By default computes 11 metrics. NonSensitivity is excluded because
+    it requires ~9k forward passes per image (Quantus features_in_step
+    bug forces features_in_step=1). Set ``include_non_sensitivity=True``
+    to include it at the cost of significant runtime.
 
     Parameters
     ----------
@@ -404,7 +410,12 @@ def compute_all_metrics(
     # Quantus shape bug), it runs one forward pass per feature.
     # At 224x224x3 that is 150k passes — infeasible per image.
     # Workaround: downsample both input and attribution to 56x56 for
-    # this metric only (9408 features → ~9k passes, ~15s per image).
+    # this metric only (9408 features → ~9k passes, ~34s per image).
+    # Skipped by default; enable via include_non_sensitivity=True.
+    if not include_non_sensitivity:
+        results["non_sensitivity"] = float("nan")
+        return results
+
     try:
         from scipy.ndimage import zoom
 
