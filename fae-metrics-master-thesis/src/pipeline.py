@@ -37,7 +37,7 @@ from src.attributions.generate import (
 )
 from src.attributions.cache import AttributionCache
 from src.data.isic_dataset import ISIC2017Dataset
-from src.metrics.quantus_wrapper import compute_three_metrics
+from src.metrics.quantus_wrapper import compute_all_metrics
 from src.models.classifiers import (
     get_gradcam_target_layer,
     load_resnet18,
@@ -262,14 +262,15 @@ def run_vertical_slice(
                 explain_func = _make_explain_func(fae_name, model, arch, device)
 
                 # Compute metrics
-                scores = compute_three_metrics(
+                scores = compute_all_metrics(
                     model=model,
                     image=image_np,
                     attribution=attr_np,
-                    mask=mask_np,
                     target=target,
+                    mask=mask_np,
                     device=device,
                     explain_func=explain_func,
+                    fae_method=fae_name,
                 )
 
                 for metric_name, score in scores.items():

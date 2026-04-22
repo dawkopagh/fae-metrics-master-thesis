@@ -30,9 +30,24 @@ import pandas as pd
 # Expand this registry whenever a new metric is introduced upstream.
 # See docs/thesis_plan.md §5 for planned additions.
 METRIC_DIRECTIONS: dict[str, int] = {
+    # Faithfulness
     "faithfulness_correlation": +1,  # higher = better
+    "pixel_flipping": +1,  # AUC, higher = better
+    # Robustness
     "max_sensitivity": -1,  # lower = better
+    "avg_sensitivity": -1,  # lower = better
+    # Localization
     "relevance_mass_accuracy": +1,  # higher = better
+    "pointing_game": +1,  # higher = better
+    # Complexity
+    "sparseness": +1,  # higher = better (Gini-like)
+    "complexity": -1,  # lower = better (entropy)
+    # Randomization
+    "model_parameter_randomisation": -1,  # lower = better
+    "random_logit": -1,  # lower = better
+    # Axiomatic
+    "completeness": -1,  # lower = better (deviation from axiom)
+    "non_sensitivity": -1,  # lower = better
 }
 
 
