@@ -34,6 +34,8 @@ def main() -> None:
                         help="Disable attribution disk cache")
     parser.add_argument("--output-csv", type=str, default="results/vertical_slice.csv",
                         help="Path for the output CSV (default: results/vertical_slice.csv)")
+    parser.add_argument("--max-images", type=int, default=None,
+                        help="Limit to first N images (default: all)")
     args = parser.parse_args()
 
     t0 = time.time()
@@ -47,6 +49,7 @@ def main() -> None:
         output_csv=args.output_csv,
         seed=42,
         use_cache=not args.no_cache,
+        max_images=args.max_images,
     )
 
     elapsed = time.time() - t0

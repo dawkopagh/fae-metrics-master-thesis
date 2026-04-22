@@ -26,8 +26,12 @@ import torch.nn as nn
 
 from src.attributions.generate import (
     FAE_METHODS,
+    compute_deep_lift,
     compute_gradcam,
+    compute_guided_backprop,
     compute_integrated_gradients,
+    compute_lrp,
+    compute_occlusion,
     compute_or_load,
     compute_saliency,
 )
@@ -82,6 +86,14 @@ def _make_explain_func(
             elif fae_method == "gradcam":
                 target_layer = get_gradcam_target_layer(model, arch)
                 a = compute_gradcam(model, img_t, tgt, target_layer, device=device)
+            elif fae_method == "deep_lift":
+                a = compute_deep_lift(model, img_t, tgt, device=device)
+            elif fae_method == "guided_backprop":
+                a = compute_guided_backprop(model, img_t, tgt, device=device)
+            elif fae_method == "lrp":
+                a = compute_lrp(model, img_t, tgt, device=device)
+            elif fae_method == "occlusion":
+                a = compute_occlusion(model, img_t, tgt, device=device)
             else:
                 raise ValueError(f"Unknown FAE method: {fae_method}")
             attrs.append(a.numpy())
@@ -99,8 +111,9 @@ def run_vertical_slice(
     output_csv: str = "results/vertical_slice.csv",
     seed: int = 42,
     use_cache: bool = True,
+    max_images: Optional[int] = None,
 ) -> pd.DataFrame:
-    """Run the vertical-slice evaluation: 2 models × 3 FAE × 3 metrics.
+    """Run the vertical-slice evaluation: 2 models × N FAE × 3 metrics.
 
     Iterates over every image in the requested split and, for each
     (image, model, FAE method) triple, computes the attribution and
@@ -132,6 +145,9 @@ def run_vertical_slice(
     use_cache : bool
         If ``True`` (default), cache attribution maps to disk under
         ``attributions_cache/``. If ``False``, always recompute.
+    max_images : int or None
+        If set, limit evaluation to the first *max_images* images
+        in the split. ``None`` (default) evaluates all images.
 
     Returns
     -------
@@ -171,11 +187,12 @@ def run_vertical_slice(
     )
     logger.info("Dataset split='%s': %d images", split, len(dataset))
 
+    n_images = len(dataset) if max_images is None else min(max_images, len(dataset))
     fae_method_names = list(FAE_METHODS.keys())
     rows: list[dict] = []
     t_start = time.time()
 
-    for img_idx in range(len(dataset)):
+    for img_idx in range(n_images):
         sample = dataset[img_idx]
         image_tensor: torch.Tensor = sample["image"]      # (3, 224, 224)
         mask_tensor = sample["mask"]                        # (1, 224, 224) or None
@@ -208,6 +225,18 @@ def run_vertical_slice(
                         target=target, device=device, n_steps=50,
                     )
                     compute_fn = compute_integrated_gradients
+                elif fae_name == "occlusion":
+                    fae_hyperparams = {
+                        "sliding_window_shapes": (3, 15, 15),
+                        "strides": (3, 8, 8),
+                    }
+                    compute_kwargs = dict(
+                        model=model, image=image_tensor,
+                        target=target, device=device,
+                        sliding_window_shapes=(3, 15, 15),
+                        strides=(3, 8, 8),
+                    )
+                    compute_fn = compute_occlusion
                 else:
                     fae_hyperparams = {}
                     compute_kwargs = dict(
@@ -257,7 +286,7 @@ def run_vertical_slice(
                 logger.info(
                     "[%d/%d] %s | %s | %s — done",
                     img_idx + 1,
-                    len(dataset),
+                    n_images,
                     image_id,
                     model_name,
                     fae_name,
