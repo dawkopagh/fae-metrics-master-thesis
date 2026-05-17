@@ -37,13 +37,11 @@
 ## Legacy Weights
 
 Old 75-image weights preserved at `legacy/weights/` for reference:
-- `resnet_skin_75img.pth` — ResNet-18 trained on 75-image subset
-- `squeezenet_skin_75img.pth` — SqueezeNet trained on 75-image subset
 
-**Note**: The old weights (`resnet_skin.pth`, `squeezenet_skin.pth`) in the
-project root are the same 75-image weights and should be moved to
-`legacy/weights/` via:
-```
-git mv resnet_skin.pth   legacy/weights/resnet_skin_75img.pth
-git mv squeezenet_skin.pth legacy/weights/squeezenet_skin_75img.pth
-```
+| Filename | SHA-256 | Notes |
+|---|---|---|
+| `resnet_skin_75img.pth` | `49c65a38ec9449edfc2b04bdbbf5ceae29499434e91fbf26e84620a04abeacc1` | ResNet-18 trained on 75-image subset (pre-thesis scope) |
+| `squeezenet_skin_75img.pth` | `d0f07aecabcd78b2b4bd8e7c13a8f9eac626820e216ae3db45d4f6633997d9ef` | SqueezeNet trained on 75-image subset (pre-thesis scope) |
+
+These files were previously at the project root as `resnet_skin.pth` and
+`squeezenet_skin.pth` and moved to `legacy/weights/` on 2026-05-17.
