@@ -23,6 +23,7 @@ meta-validation (see meta_evaluation/), or aggregation (see aggregation/).
 from __future__ import annotations
 
 import logging
+import time
 from typing import Callable, Optional
 
 import numpy as np
@@ -52,7 +53,8 @@ def compute_all_metrics(
     fae_method: Optional[str] = None,
     num_classes: int = 3,
     include_non_sensitivity: bool = False,
-) -> dict[str, float]:
+    return_timings: bool = False,
+) -> dict[str, float] | tuple[dict[str, float], dict[str, float]]:
     """Compute evaluation metrics for a single image attribution.
 
     By default computes 11 metrics. NonSensitivity is excluded because
@@ -89,10 +91,11 @@ def compute_all_metrics(
 
     Returns
     -------
-    dict[str, float]
+    dict[str, float] or tuple[dict[str, float], dict[str, float]]
         Keys are metric snake_case names. Values are floats or
         ``float('nan')`` on failure or intentional skip (Completeness
-        on non-completeness methods).
+        on non-completeness methods). If ``return_timings=True``, also
+        returns a dict mapping metric name to elapsed seconds.
     """
     # Quantus expects batched arrays: (1, C, H, W)
     x_batch = image[np.newaxis, ...]        # (1, 3, H, W)
@@ -111,12 +114,14 @@ def compute_all_metrics(
     ef_kwargs = explain_func_kwargs or {}
 
     results: dict[str, float] = {}
+    timings: dict[str, float] = {}
 
     # =====================================================================
     # FAITHFULNESS
     # =====================================================================
 
     # --- FaithfulnessCorrelation (direction: +1) ---
+    t0 = time.perf_counter()
     try:
         fc = quantus.FaithfulnessCorrelation(
             nr_runs=100,
@@ -139,8 +144,11 @@ def compute_all_metrics(
     except Exception as exc:
         logger.warning("FaithfulnessCorrelation failed: %s: %s", type(exc).__name__, exc)
         results["faithfulness_correlation"] = float("nan")
+    finally:
+        timings["faithfulness_correlation"] = time.perf_counter() - t0
 
     # --- PixelFlipping (direction: +1, AUC — higher means more faithful) ---
+    t0 = time.perf_counter()
     try:
         pf = quantus.PixelFlipping(
             features_in_step=224,
@@ -163,12 +171,15 @@ def compute_all_metrics(
     except Exception as exc:
         logger.warning("PixelFlipping failed: %s: %s", type(exc).__name__, exc)
         results["pixel_flipping"] = float("nan")
+    finally:
+        timings["pixel_flipping"] = time.perf_counter() - t0
 
     # =====================================================================
     # ROBUSTNESS
     # =====================================================================
 
     # --- MaxSensitivity (direction: -1) ---
+    t0 = time.perf_counter()
     try:
         ms = quantus.MaxSensitivity(
             nr_samples=10,
@@ -192,8 +203,11 @@ def compute_all_metrics(
     except Exception as exc:
         logger.warning("MaxSensitivity failed: %s: %s", type(exc).__name__, exc)
         results["max_sensitivity"] = float("nan")
+    finally:
+        timings["max_sensitivity"] = time.perf_counter() - t0
 
     # --- AvgSensitivity (direction: -1) ---
+    t0 = time.perf_counter()
     try:
         avgs = quantus.AvgSensitivity(
             nr_samples=10,
@@ -217,12 +231,15 @@ def compute_all_metrics(
     except Exception as exc:
         logger.warning("AvgSensitivity failed: %s: %s", type(exc).__name__, exc)
         results["avg_sensitivity"] = float("nan")
+    finally:
+        timings["avg_sensitivity"] = time.perf_counter() - t0
 
     # =====================================================================
     # LOCALIZATION
     # =====================================================================
 
     # --- RelevanceMassAccuracy (direction: +1) ---
+    t0 = time.perf_counter()
     try:
         rma = quantus.RelevanceMassAccuracy(
             normalise=True,
@@ -243,8 +260,11 @@ def compute_all_metrics(
     except Exception as exc:
         logger.warning("RelevanceMassAccuracy failed: %s: %s", type(exc).__name__, exc)
         results["relevance_mass_accuracy"] = float("nan")
+    finally:
+        timings["relevance_mass_accuracy"] = time.perf_counter() - t0
 
     # --- PointingGame (direction: +1) ---
+    t0 = time.perf_counter()
     try:
         pg = quantus.PointingGame(
             normalise=True,
@@ -265,12 +285,15 @@ def compute_all_metrics(
     except Exception as exc:
         logger.warning("PointingGame failed: %s: %s", type(exc).__name__, exc)
         results["pointing_game"] = float("nan")
+    finally:
+        timings["pointing_game"] = time.perf_counter() - t0
 
     # =====================================================================
     # COMPLEXITY
     # =====================================================================
 
     # --- Sparseness (direction: +1, Gini-like) ---
+    t0 = time.perf_counter()
     try:
         sp = quantus.Sparseness(
             abs=True,
@@ -290,8 +313,11 @@ def compute_all_metrics(
     except Exception as exc:
         logger.warning("Sparseness failed: %s: %s", type(exc).__name__, exc)
         results["sparseness"] = float("nan")
+    finally:
+        timings["sparseness"] = time.perf_counter() - t0
 
     # --- Complexity (direction: -1, entropy of normalized abs attribution) ---
+    t0 = time.perf_counter()
     try:
         cx = quantus.Complexity(
             abs=True,
@@ -311,6 +337,8 @@ def compute_all_metrics(
     except Exception as exc:
         logger.warning("Complexity failed: %s: %s", type(exc).__name__, exc)
         results["complexity"] = float("nan")
+    finally:
+        timings["complexity"] = time.perf_counter() - t0
 
     # =====================================================================
     # RANDOMIZATION
@@ -319,6 +347,7 @@ def compute_all_metrics(
     # --- ModelParameterRandomisation (direction: -1) ---
     # Returns correlation between original and randomised-model explanations.
     # Lower = better (more different from random → more dependent on params).
+    t0 = time.perf_counter()
     try:
         mprt = quantus.ModelParameterRandomisation(
             layer_order="top_down",
@@ -342,10 +371,13 @@ def compute_all_metrics(
     except Exception as exc:
         logger.warning("ModelParameterRandomisation failed: %s: %s", type(exc).__name__, exc)
         results["model_parameter_randomisation"] = float("nan")
+    finally:
+        timings["model_parameter_randomisation"] = time.perf_counter() - t0
 
     # --- RandomLogit (direction: -1) ---
     # Correlation between attribution for true target and random target.
     # Lower = better (explanation changes when target changes).
+    t0 = time.perf_counter()
     try:
         rl = quantus.RandomLogit(
             num_classes=num_classes,
@@ -368,6 +400,8 @@ def compute_all_metrics(
     except Exception as exc:
         logger.warning("RandomLogit failed: %s: %s", type(exc).__name__, exc)
         results["random_logit"] = float("nan")
+    finally:
+        timings["random_logit"] = time.perf_counter() - t0
 
     # =====================================================================
     # AXIOMATIC
@@ -377,12 +411,15 @@ def compute_all_metrics(
     # |sum(attr) - (f(x) - f(baseline))|. Only meaningful for methods that
     # claim completeness: IG, DeepLift, LRP. For others, return NaN.
     if fae_method is not None and fae_method not in _COMPLETENESS_METHODS:
+        t0 = time.perf_counter()
         logger.debug(
             "Completeness skipped for '%s' (not a completeness-satisfying method).",
             fae_method,
         )
         results["completeness"] = float("nan")
+        timings["completeness"] = time.perf_counter() - t0
     else:
+        t0 = time.perf_counter()
         try:
             comp = quantus.Completeness(
                 abs=False,
@@ -403,6 +440,8 @@ def compute_all_metrics(
         except Exception as exc:
             logger.warning("Completeness failed: %s: %s", type(exc).__name__, exc)
             results["completeness"] = float("nan")
+        finally:
+            timings["completeness"] = time.perf_counter() - t0
 
     # --- NonSensitivity (direction: -1) ---
     # NonSensitivity checks if attributions change when features are
@@ -413,9 +452,14 @@ def compute_all_metrics(
     # this metric only (9408 features → ~9k passes, ~34s per image).
     # Skipped by default; enable via include_non_sensitivity=True.
     if not include_non_sensitivity:
+        t0 = time.perf_counter()
         results["non_sensitivity"] = float("nan")
+        timings["non_sensitivity"] = time.perf_counter() - t0
+        if return_timings:
+            return results, timings
         return results
 
+    t0 = time.perf_counter()
     try:
         from scipy.ndimage import zoom
 
@@ -447,5 +491,10 @@ def compute_all_metrics(
     except Exception as exc:
         logger.warning("NonSensitivity failed: %s: %s", type(exc).__name__, exc)
         results["non_sensitivity"] = float("nan")
+    finally:
+        timings["non_sensitivity"] = time.perf_counter() - t0
+
+    if return_timings:
+        return results, timings
 
     return results
