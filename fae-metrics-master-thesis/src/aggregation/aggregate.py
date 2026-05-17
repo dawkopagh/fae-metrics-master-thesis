@@ -28,10 +28,16 @@ import pandas as pd
 
 def weighted_mean(normalized: np.ndarray,
                   weights: np.ndarray | None = None) -> float:
-    r"""Weighted arithmetic mean of normalised scores.
+    r"""Weighted arithmetic mean of normalised scores, skipping NaN entries.
 
     .. math::
-        E = \sum_{k=1}^{K} w_k \, \tilde{s}_k
+        E = \sum_{k \in \mathcal{V}} w_k' \, \tilde{s}_k
+
+    where :math:`\mathcal{V}` is the set of non-NaN indices and
+    :math:`w_k' = w_k / \sum_{j \in \mathcal{V}} w_j` are the renormalised
+    weights over valid entries. If *weights* is ``None``, uniform weights are
+    used before renormalisation (equivalent to ``np.nanmean``). If **all**
+    inputs are NaN, returns ``float('nan')``.
 
     Parameters
     ----------
@@ -39,12 +45,14 @@ def weighted_mean(normalized: np.ndarray,
         1-D array of normalised metric scores for one group.
     weights : np.ndarray or None
         Per-metric weights summing to 1. If ``None``, uniform weights
-        :math:`w_k = 1/K` are used.
+        :math:`w_k = 1/K` are used. Weights are renormalised over non-NaN
+        entries, so the original weights need only sum to 1 over all K entries.
 
     Returns
     -------
     float
-        Aggregated effectiveness index.
+        Aggregated effectiveness index, or ``float('nan')`` if all inputs
+        are NaN.
 
     Raises
     ------
@@ -53,21 +61,31 @@ def weighted_mean(normalized: np.ndarray,
     """
     s = np.asarray(normalized, dtype=np.float64)
     if weights is None:
-        return float(np.mean(s))
+        if np.all(np.isnan(s)):
+            return float("nan")
+        return float(np.nanmean(s))
     w = np.asarray(weights, dtype=np.float64)
     if abs(w.sum() - 1.0) > 1e-6:
         raise ValueError(
             f"Weights must sum to 1.0, got {w.sum():.8f}."
         )
-    return float(np.dot(w, s))
+    valid = ~np.isnan(s)
+    if not valid.any():
+        return float("nan")
+    w_valid = w[valid]
+    w_renorm = w_valid / w_valid.sum()
+    return float(np.dot(w_renorm, s[valid]))
 
 
 def minimum(normalized: np.ndarray,
             weights: np.ndarray | None = None) -> float:
-    r"""Minimum (worst-case) aggregation.
+    r"""Minimum (worst-case) aggregation, skipping NaN entries.
 
     .. math::
-        E = \min_k \tilde{s}_k
+        E = \min_{k \in \mathcal{V}} \tilde{s}_k
+
+    where :math:`\mathcal{V}` is the set of non-NaN indices. Returns
+    ``float('nan')`` if all inputs are NaN.
 
     The *weights* parameter is accepted for API uniformity with
     :func:`weighted_mean` but is ignored: the minimum is an
@@ -83,49 +101,64 @@ def minimum(normalized: np.ndarray,
     Returns
     -------
     float
-        The smallest normalised score in the group.
+        The smallest non-NaN normalised score in the group, or
+        ``float('nan')`` if all are NaN.
     """
-    return float(np.min(np.asarray(normalized, dtype=np.float64)))
+    s = np.asarray(normalized, dtype=np.float64)
+    if np.all(np.isnan(s)):
+        return float("nan")
+    return float(np.nanmin(s))
 
 
 def geometric_mean(normalized: np.ndarray,
                    weights: np.ndarray | None = None) -> float:
-    r"""Weighted geometric mean of normalised scores.
+    r"""Weighted geometric mean of normalised scores, skipping NaN entries.
 
     .. math::
-        E = \exp\!\Bigl(\sum_{k=1}^{K} w_k \ln(\tilde{s}_k + \epsilon)\Bigr)
+        E = \exp\!\Bigl(\sum_{k \in \mathcal{V}} w_k' \ln(\tilde{s}_k + \epsilon)\Bigr)
 
-    with :math:`\epsilon = 10^{-12}` to avoid :math:`\ln(0)`.
+    where :math:`\mathcal{V}` is the set of non-NaN indices,
+    :math:`w_k' = w_k / \sum_{j \in \mathcal{V}} w_j` are renormalised weights,
+    and :math:`\epsilon = 10^{-12}` avoids :math:`\ln(0)`. Returns
+    ``float('nan')`` if all inputs are NaN.
 
     Parameters
     ----------
     normalized : np.ndarray
-        1-D array of normalised scores. Must be ≥ 0.
+        1-D array of normalised scores. Non-NaN entries must be ≥ 0.
     weights : np.ndarray or None
-        Per-metric weights summing to 1. ``None`` → uniform.
+        Per-metric weights summing to 1. ``None`` → uniform. Weights are
+        renormalised over non-NaN entries.
 
     Returns
     -------
     float
-        Aggregated effectiveness index.
+        Aggregated effectiveness index, or ``float('nan')`` if all inputs
+        are NaN.
 
     Raises
     ------
     ValueError
-        If any element of *normalized* is negative.
+        If any non-NaN element of *normalized* is negative.
     """
     s = np.asarray(normalized, dtype=np.float64)
-    if np.any(s < 0):
+    valid = ~np.isnan(s)
+    if not valid.any():
+        return float("nan")
+    s_valid = s[valid]
+    if np.any(s_valid < 0):
         raise ValueError(
             "geometric_mean requires all normalised scores >= 0. "
-            f"Got min = {s.min():.6f}."
+            f"Got min = {s_valid.min():.6f}."
         )
     eps = 1e-12
     if weights is None:
-        w = np.full_like(s, 1.0 / len(s))
+        w_valid = np.full(valid.sum(), 1.0 / valid.sum())
     else:
         w = np.asarray(weights, dtype=np.float64)
-    return float(np.exp(np.sum(w * np.log(s + eps))))
+        w_sub = w[valid]
+        w_valid = w_sub / w_sub.sum()
+    return float(np.exp(np.sum(w_valid * np.log(s_valid + eps))))
 
 
 # ---------------------------------------------------------------------------

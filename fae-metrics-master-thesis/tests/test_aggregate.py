@@ -38,6 +38,25 @@ class TestWeightedMean:
         with pytest.raises(ValueError, match="sum to 1.0"):
             weighted_mean(s, w)
 
+    def test_nan_uniform_skipped(self):
+        """NaN entry skipped; result equals mean of non-NaN values."""
+        s = np.array([0.5, float("nan"), 0.7])
+        assert weighted_mean(s) == pytest.approx((0.5 + 0.7) / 2)
+
+    def test_nan_with_weights_renormalised(self):
+        """[0.5, NaN, 0.7] with weights [0.2, 0.3, 0.5].
+        Non-NaN weights: [0.2, 0.5], renormed to [0.2/0.7, 0.5/0.7].
+        Result = 0.5 * (0.2/0.7) + 0.7 * (0.5/0.7).
+        """
+        s = np.array([0.5, float("nan"), 0.7])
+        w = np.array([0.2, 0.3, 0.5])
+        expected = 0.5 * (0.2 / 0.7) + 0.7 * (0.5 / 0.7)
+        assert weighted_mean(s, w) == pytest.approx(expected)
+
+    def test_all_nan_returns_nan(self):
+        s = np.array([float("nan"), float("nan"), float("nan")])
+        assert np.isnan(weighted_mean(s))
+
 
 # ── Scalar: minimum ──────────────────────────────────────────────────────
 
@@ -51,6 +70,15 @@ class TestMinimum:
         w = np.array([0.0, 0.0, 1.0])
         # Should still return 0.1 despite weight on 0.5
         assert minimum(s, w) == pytest.approx(0.1)
+
+    def test_nan_skipped(self):
+        """NaN is ignored; minimum of non-NaN values is returned."""
+        s = np.array([0.3, float("nan"), 0.5])
+        assert minimum(s) == pytest.approx(0.3)
+
+    def test_all_nan_returns_nan(self):
+        s = np.array([float("nan"), float("nan")])
+        assert np.isnan(minimum(s))
 
 
 # ── Scalar: geometric_mean ───────────────────────────────────────────────
@@ -73,6 +101,15 @@ class TestGeometricMean:
         s = np.array([0.5, -0.1, 0.3])
         with pytest.raises(ValueError, match="normalised scores >= 0"):
             geometric_mean(s)
+
+    def test_nan_skipped(self):
+        """geometric_mean([1, NaN, 1]) should equal 1."""
+        s = np.array([1.0, float("nan"), 1.0])
+        assert geometric_mean(s) == pytest.approx(1.0, abs=1e-9)
+
+    def test_all_nan_returns_nan(self):
+        s = np.array([float("nan"), float("nan")])
+        assert np.isnan(geometric_mean(s))
 
     def test_with_weights(self):
         """[4, 16] with weights [0.75, 0.25].
