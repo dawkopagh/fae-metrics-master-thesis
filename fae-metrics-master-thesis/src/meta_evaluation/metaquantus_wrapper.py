@@ -18,10 +18,14 @@ or final aggregation (see aggregation/).
 from __future__ import annotations
 
 import copy
+import datetime
 import logging
+import time
+from pathlib import Path
 from typing import Callable
 
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 from scipy.stats import spearmanr
@@ -395,3 +399,281 @@ def meta_evaluate_metric(
         "ar": ar_result,
         "combined_reliability": combined,
     }
+
+
+# ---------------------------------------------------------------------------
+# Pre-screening
+# ---------------------------------------------------------------------------
+
+def screen_meta_eval_candidates(
+    vertical_slice_df: pd.DataFrame,
+    min_valid_fraction: float = 0.5,
+) -> pd.DataFrame:
+    """Determine which (model, fae_method, metric) triples should run meta-evaluation.
+
+    Skips triples where the underlying metric is mostly NaN in the input data,
+    which would make NR and AR scores meaningless and waste Colab GPU time.
+
+    Parameters
+    ----------
+    vertical_slice_df : pd.DataFrame
+        Long-format DataFrame with columns: model, image_id, fae_method,
+        metric, score.  Typically ``results/vertical_slice_7fae_12metrics.csv``.
+    min_valid_fraction : float
+        Minimum fraction of non-NaN scores required for a triple to be
+        eligible.  Default ``0.5`` — triples with fewer than half their
+        images producing a valid score are skipped.
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns: model, fae_method, metric, n_valid_images, total_images,
+        valid_fraction, run_meta_eval (bool).
+        One row per unique (model, fae_method, metric) triple found in
+        *vertical_slice_df*.  ``run_meta_eval`` is True iff
+        ``valid_fraction >= min_valid_fraction``.
+
+    Examples
+    --------
+    MPR × GradCAM × SqueezeNet has 0/12 valid scores in the 12-image slice
+    (100% NaN due to SqueezeNet architecture incompatibility) →
+    ``run_meta_eval = False``.
+    """
+    rows: list[dict] = []
+    for (model, fae, metric), grp in vertical_slice_df.groupby(
+        ["model", "fae_method", "metric"]
+    ):
+        total = len(grp)
+        n_valid = int(grp["score"].notna().sum())
+        valid_fraction = n_valid / total if total > 0 else 0.0
+        rows.append(
+            {
+                "model": model,
+                "fae_method": fae,
+                "metric": metric,
+                "n_valid_images": n_valid,
+                "total_images": total,
+                "valid_fraction": valid_fraction,
+                "run_meta_eval": valid_fraction >= min_valid_fraction,
+            }
+        )
+
+    if not rows:
+        return pd.DataFrame(
+            columns=[
+                "model", "fae_method", "metric", "n_valid_images",
+                "total_images", "valid_fraction", "run_meta_eval",
+            ]
+        )
+
+    return pd.DataFrame(rows)
+
+
+# ---------------------------------------------------------------------------
+# Full orchestrator
+# ---------------------------------------------------------------------------
+
+def run_meta_evaluation_full(
+    vertical_slice_df: pd.DataFrame,
+    models: dict[str, nn.Module],
+    metric_fns: dict[str, Callable],
+    fae_methods: dict[str, Callable],
+    images: list,
+    targets: list[int],
+    device: str = "cuda",
+    n_seeds: int = 5,
+    n_levels: int = 5,
+    output_csv: str = "results/meta_evaluation_reliability.csv",
+    progress_log: str | None = "results/meta_eval_progress.log",
+) -> pd.DataFrame:
+    """Orchestrate the full meta-evaluation over all eligible (model, fae, metric) triples.
+
+    Runs :func:`screen_meta_eval_candidates`, then iterates over every eligible
+    triple calling :func:`meta_evaluate_metric`.  Rows are appended to
+    *output_csv* after each (model, fae) pair completes so that a Colab session
+    timeout does not lose all progress.
+
+    Resume behaviour: if *output_csv* already exists, triples that have a
+    ``status`` of ``'completed'`` or ``'skipped_nan'`` are skipped.
+
+    Parameters
+    ----------
+    vertical_slice_df : pd.DataFrame
+        Long-format results used by :func:`screen_meta_eval_candidates`.
+    models : dict[str, nn.Module]
+        Mapping from model name to a loaded, eval-mode classifier.
+    metric_fns : dict[str, Callable]
+        Mapping from metric name to a pre-configured Quantus metric instance.
+    fae_methods : dict[str, Callable]
+        Mapping from FAE method name to an attribution function with Quantus
+        signature ``(model, inputs, targets, **kwargs) -> np.ndarray``.
+    images : list of array-like or torch.Tensor
+        Test images, each of shape ``(C, H, W)``.
+    targets : list of int
+        Target class indices paired with *images*.
+    device : str
+        Compute device.  Default ``'cuda'`` for Colab; use ``'cpu'`` locally.
+    n_seeds : int
+        NR perturbation seeds.
+    n_levels : int
+        AR degradation levels.
+    output_csv : str
+        Path for incremental CSV output.  Parent directory is created if needed.
+    progress_log : str or None
+        Path for a timestamped progress log.  Set to ``None`` to disable.
+        Each completed or failed triple appends one line.
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns: model, fae_method, metric, nr_score, ar_score,
+        combined_reliability, n_valid_inputs, runtime_seconds, status.
+        ``status`` is one of ``'completed'``, ``'skipped_nan'``, ``'failed'``.
+    """
+    _RESULT_COLS = [
+        "model", "fae_method", "metric", "nr_score", "ar_score",
+        "combined_reliability", "n_valid_inputs", "runtime_seconds", "status",
+    ]
+
+    candidates = screen_meta_eval_candidates(vertical_slice_df)
+
+    output_path = Path(output_csv)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    log_path = Path(progress_log) if progress_log else None
+    if log_path:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Resume: collect triples already written with a terminal status
+    done_triples: set[tuple[str, str, str]] = set()
+    if output_path.exists():
+        try:
+            existing = pd.read_csv(output_path)
+            for _, row in existing.iterrows():
+                if row.get("status") in ("completed", "skipped_nan"):
+                    done_triples.add(
+                        (str(row["model"]), str(row["fae_method"]), str(row["metric"]))
+                    )
+            if done_triples:
+                logger.info("Resume: %d triples already done.", len(done_triples))
+        except Exception as exc:
+            logger.warning("Could not read existing CSV for resume: %s", exc)
+
+    imgs_np = [_to_numpy(img) for img in images]
+    x_stack = np.stack(imgs_np)            # (B, C, H, W)
+    y_array = np.array(targets, dtype=np.int64)
+
+    all_rows: list[dict] = []
+
+    for (model_name, fae_name), group_df in candidates.groupby(
+        ["model", "fae_method"]
+    ):
+        if model_name not in models:
+            logger.warning("Model '%s' not found in models dict; skipping.", model_name)
+            continue
+        if fae_name not in fae_methods:
+            logger.warning("FAE '%s' not found in fae_methods dict; skipping.", fae_name)
+            continue
+
+        model = models[model_name]
+        explain_fn = fae_methods[fae_name]
+
+        # Compute baseline attributions for this (model, fae) pair once
+        try:
+            attrs_batch = explain_fn(model, x_stack, y_array)  # (B, C, H, W)
+            attributions = [attrs_batch[i] for i in range(len(imgs_np))]
+        except Exception as exc:
+            logger.error(
+                "Attribution failed for (%s, %s): %s — using zeros.",
+                model_name, fae_name, exc,
+            )
+            attributions = [np.zeros_like(img) for img in imgs_np]
+
+        group_rows: list[dict] = []
+
+        for _, cand_row in group_df.iterrows():
+            metric_name = str(cand_row["metric"])
+            run = bool(cand_row["run_meta_eval"])
+            n_valid = int(cand_row["n_valid_images"])
+            triple = (model_name, fae_name, metric_name)
+
+            if triple in done_triples:
+                logger.debug("Skipping already-done triple %s.", triple)
+                continue
+
+            t0 = time.perf_counter()
+
+            if not run:
+                status = "skipped_nan"
+                nr_s = ar_s = combined = float("nan")
+                elapsed = 0.0
+
+            elif metric_name not in metric_fns:
+                logger.warning("Metric '%s' not in metric_fns dict.", metric_name)
+                status = "failed"
+                nr_s = ar_s = combined = float("nan")
+                elapsed = 0.0
+
+            else:
+                try:
+                    result = meta_evaluate_metric(
+                        metric_name=metric_name,
+                        metric_fn=metric_fns[metric_name],
+                        model=model,
+                        images=imgs_np,
+                        attributions=attributions,
+                        targets=targets,
+                        explain_fn=explain_fn,
+                        device=device,
+                        n_seeds=n_seeds,
+                        n_levels=n_levels,
+                    )
+                    nr_s = result["nr"]["nr_score"]
+                    ar_s = result["ar"]["ar_score"]
+                    combined = result["combined_reliability"]
+                    status = "completed"
+                except Exception as exc:
+                    logger.error(
+                        "meta_evaluate_metric failed (%s, %s, %s): %s",
+                        model_name, fae_name, metric_name, exc,
+                    )
+                    nr_s = ar_s = combined = float("nan")
+                    status = "failed"
+
+                elapsed = time.perf_counter() - t0
+
+            out_row = {
+                "model": model_name,
+                "fae_method": fae_name,
+                "metric": metric_name,
+                "nr_score": nr_s,
+                "ar_score": ar_s,
+                "combined_reliability": combined,
+                "n_valid_inputs": n_valid,
+                "runtime_seconds": round(elapsed, 3),
+                "status": status,
+            }
+            group_rows.append(out_row)
+
+            if log_path and status != "skipped_nan":
+                ts = datetime.datetime.now().isoformat(timespec="seconds")
+                with open(log_path, "a") as lf:
+                    lf.write(
+                        f"{ts} | {model_name:15s} | {fae_name:25s} | "
+                        f"{metric_name:40s} | {status:12s} | {elapsed:.1f}s\n"
+                    )
+
+        # Incremental write: append this (model, fae) pair's rows to CSV
+        if group_rows:
+            batch_df = pd.DataFrame(group_rows)
+            write_header = not output_path.exists()
+            batch_df.to_csv(output_path, mode="a", header=write_header, index=False)
+            logger.info(
+                "Appended %d rows for (%s, %s) → %s",
+                len(group_rows), model_name, fae_name, output_csv,
+            )
+            all_rows.extend(group_rows)
+
+    if all_rows:
+        return pd.DataFrame(all_rows)
+    return pd.DataFrame(columns=_RESULT_COLS)

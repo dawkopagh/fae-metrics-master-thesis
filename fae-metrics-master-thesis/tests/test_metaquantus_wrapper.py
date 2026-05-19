@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pytest
 import torch
 import torch.nn as nn
@@ -21,6 +22,8 @@ from src.meta_evaluation.metaquantus_wrapper import (
     adversarial_reactivity_test,
     meta_evaluate_metric,
     noise_resilience_test,
+    run_meta_evaluation_full,
+    screen_meta_eval_candidates,
 )
 
 
@@ -482,3 +485,188 @@ class TestEdgeCases:
                 n_levels=5,
             )
             assert 0.0 <= result["ar_score"] <= 1.0
+
+
+# ---------------------------------------------------------------------------
+# screen_meta_eval_candidates
+# ---------------------------------------------------------------------------
+
+def _make_slice_df(
+    model: str,
+    fae: str,
+    metric: str,
+    scores: list,
+) -> pd.DataFrame:
+    """Build a minimal long-format slice DataFrame for one (model, fae, metric) triple."""
+    return pd.DataFrame(
+        [
+            {
+                "model": model,
+                "image_id": f"ISIC_{i:07d}",
+                "fae_method": fae,
+                "metric": metric,
+                "score": s,
+            }
+            for i, s in enumerate(scores)
+        ]
+    )
+
+
+class TestScreenMetaEvalCandidates:
+    def test_all_valid_returns_run_true(self):
+        """12/12 valid scores → run_meta_eval = True."""
+        df = _make_slice_df("resnet18", "saliency", "faithfulness_correlation",
+                             scores=[0.5] * 12)
+        result = screen_meta_eval_candidates(df, min_valid_fraction=0.5)
+        assert len(result) == 1
+        assert bool(result.iloc[0]["run_meta_eval"]) is True
+        assert result.iloc[0]["n_valid_images"] == 12
+        assert result.iloc[0]["total_images"] == 12
+
+    def test_all_nan_returns_run_false(self):
+        """0/12 valid scores (all NaN) → run_meta_eval = False."""
+        df = _make_slice_df("squeezenet", "gradcam", "model_parameter_randomisation",
+                             scores=[float("nan")] * 12)
+        result = screen_meta_eval_candidates(df, min_valid_fraction=0.5)
+        assert len(result) == 1
+        assert bool(result.iloc[0]["run_meta_eval"]) is False
+        assert result.iloc[0]["n_valid_images"] == 0
+        assert result.iloc[0]["valid_fraction"] == pytest.approx(0.0)
+
+    def test_half_valid_at_threshold_returns_run_true(self):
+        """6/12 valid (valid_fraction = 0.5) → run_meta_eval = True at threshold 0.5."""
+        scores = [0.3] * 6 + [float("nan")] * 6
+        df = _make_slice_df("resnet18", "lrp", "completeness", scores=scores)
+        result = screen_meta_eval_candidates(df, min_valid_fraction=0.5)
+        assert len(result) == 1
+        assert bool(result.iloc[0]["run_meta_eval"]) is True
+        assert result.iloc[0]["valid_fraction"] == pytest.approx(0.5)
+
+    def test_returns_expected_columns(self):
+        df = _make_slice_df("resnet18", "saliency", "sparseness", scores=[1.0] * 5)
+        result = screen_meta_eval_candidates(df)
+        expected_cols = {
+            "model", "fae_method", "metric", "n_valid_images",
+            "total_images", "valid_fraction", "run_meta_eval",
+        }
+        assert expected_cols.issubset(set(result.columns))
+
+    def test_multiple_triples(self):
+        """Three triples with different coverage → correct run_meta_eval per triple."""
+        df = pd.concat(
+            [
+                _make_slice_df("resnet18", "saliency", "sparseness", [0.5] * 12),
+                _make_slice_df("resnet18", "saliency", "non_sensitivity",
+                               [float("nan")] * 12),
+                _make_slice_df("resnet18", "saliency", "complexity", [0.3] * 6 + [float("nan")] * 6),
+            ],
+            ignore_index=True,
+        )
+        result = screen_meta_eval_candidates(df, min_valid_fraction=0.5)
+        assert len(result) == 3
+        by_metric = result.set_index("metric")["run_meta_eval"]
+        assert bool(by_metric["sparseness"]) is True
+        assert bool(by_metric["non_sensitivity"]) is False
+        assert bool(by_metric["complexity"]) is True
+
+
+# ---------------------------------------------------------------------------
+# run_meta_evaluation_full
+# ---------------------------------------------------------------------------
+
+class TestRunMetaEvaluationFull:
+    def test_runs_and_produces_csv_with_status(self, tmp_path):
+        """2 models × 1 FAE × 1 metric × 2 images, n_seeds=2, n_levels=2."""
+        rng = np.random.default_rng(7)
+        images_t = [
+            torch.tensor(rng.random((3, 8, 8)).astype(np.float32))
+            for _ in range(2)
+        ]
+        targets = [0, 1]
+
+        # Build a minimal slice with all valid scores for 2 models
+        rows = []
+        for model_name in ("model_a", "model_b"):
+            for img_idx in range(2):
+                rows.append(
+                    {
+                        "model": model_name,
+                        "image_id": f"img_{img_idx:03d}",
+                        "fae_method": "fake_fae",
+                        "metric": "test_metric",
+                        "score": float(rng.random()),
+                    }
+                )
+        slice_df = pd.DataFrame(rows)
+
+        output_csv = str(tmp_path / "meta_eval.csv")
+        progress_log = str(tmp_path / "progress.log")
+
+        result_df = run_meta_evaluation_full(
+            vertical_slice_df=slice_df,
+            models={"model_a": _DummyModel(), "model_b": _DummyModel()},
+            metric_fns={"test_metric": _ConstantMetric()},
+            fae_methods={"fake_fae": _explain_zeros},
+            images=images_t,
+            targets=targets,
+            device="cpu",
+            n_seeds=2,
+            n_levels=2,
+            output_csv=output_csv,
+            progress_log=progress_log,
+        )
+
+        # Return value is a DataFrame with expected columns
+        assert isinstance(result_df, pd.DataFrame)
+        required_cols = {
+            "model", "fae_method", "metric", "nr_score", "ar_score",
+            "combined_reliability", "n_valid_inputs", "runtime_seconds", "status",
+        }
+        assert required_cols.issubset(set(result_df.columns))
+
+        # All rows should be 'completed' (constant metric, all valid scores)
+        assert set(result_df["status"].unique()) == {"completed"}, (
+            f"Expected all 'completed', got: {result_df['status'].value_counts().to_dict()}"
+        )
+
+        # CSV must exist and contain the same rows
+        assert Path(output_csv).exists()
+        csv_df = pd.read_csv(output_csv)
+        assert len(csv_df) == len(result_df)
+        assert "status" in csv_df.columns
+
+        # Covers both models
+        assert set(result_df["model"].unique()) == {"model_a", "model_b"}
+
+    def test_skipped_nan_triples_recorded(self, tmp_path):
+        """Triples with 0/2 valid scores appear in output with status='skipped_nan'."""
+        rows = [
+            {
+                "model": "resnet18",
+                "image_id": f"img_{i}",
+                "fae_method": "saliency",
+                "metric": "all_nan_metric",
+                "score": float("nan"),
+            }
+            for i in range(2)
+        ]
+        slice_df = pd.DataFrame(rows)
+        images_t = [torch.zeros(3, 8, 8) for _ in range(2)]
+
+        result_df = run_meta_evaluation_full(
+            vertical_slice_df=slice_df,
+            models={"resnet18": _DummyModel()},
+            metric_fns={"all_nan_metric": _ConstantMetric()},
+            fae_methods={"saliency": _explain_zeros},
+            images=images_t,
+            targets=[0, 0],
+            device="cpu",
+            n_seeds=2,
+            n_levels=2,
+            output_csv=str(tmp_path / "out.csv"),
+            progress_log=None,
+        )
+
+        assert len(result_df) == 1
+        assert result_df.iloc[0]["status"] == "skipped_nan"
+        assert np.isnan(result_df.iloc[0]["nr_score"])
