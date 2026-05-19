@@ -7,8 +7,7 @@ The field of Explainable Artificial Intelligence (XAI) has expanded rapidly in r
 
 Feature attribution methods, often referred to as saliency maps in computer vision, aim to assign a scalar relevance score $R_i$ to each input feature $x_i$ (e.g., a pixel), representing its contribution to the model's output $f(x)$ for a specific target class $c$. Formally, an explanation method $\Phi$ takes a model $f$ and an input $x$ to produce a map $E = \Phi(f, x)$, where $E \in \mathbb{R}^{d}$ and $d$ is the dimensionality of the input.
 
-Current literature broadly categorizes these methods based on their access to the model's internal parameters: Gradient-based (White-box) and Perturbation-based (Black-box) approaches.
-\studentinline{link relevant citation above}
+Current literature broadly categorizes these methods based on their access to the model's internal parameters: Gradient-based (White-box) and Perturbation-based (Black-box) approaches \cite{hedstrom2023quantus}.
 
 
 \subsection{Gradient-based Methods (White-box)}
@@ -56,9 +55,28 @@ SHAP adapts cooperative game theory to XAI, treating features as players in a co
 \end{equation}
 SHAP is the only method that satisfies the axioms of \textit{Efficiency}, \textit{Symmetry}, \textit{Dummy}, and \textit{Additivity}. However, exact computation is NP-hard, leading to approximation methods like GradientSHAP or KernelSHAP, which reintroduce estimation noise.
 
-\subsection{Localization metrics - pointing game and relevance mass}
+\subsection{Localization Metrics}
+\label{subsec:localization-metrics}
 
-\studentinline{TODO: Fill subsection on localizatiion metrics}
+Localization metrics assess whether the regions highlighted by an attribution map correspond to semantically meaningful areas of the input. Unlike Faithfulness metrics, which probe the model's response to perturbation, Localization metrics require an external ground-truth mask delineating the object or region of interest. Two widely adopted metrics in this family are the Pointing Game and Relevance Mass Accuracy.
+
+\subsubsection{Pointing Game}
+The Pointing Game evaluates whether the single most salient pixel in the attribution map falls within the annotated region of interest. Given an explanation $E$ and a binary segmentation mask $\mathcal{M}$, the Pointing Game score for a single image is defined as:
+\begin{equation}
+    \text{PG} = \begin{cases} 1 & \text{if } \operatorname{argmax}_{i}|E_i| \in \mathcal{M}, \\ 0 & \text{otherwise.} \end{cases}
+\end{equation}
+The metric is typically averaged across the test set to produce a hit rate. Its binary nature makes it interpretable but coarse: a method that assigns high attribution to many pixels inside the mask but whose global maximum lies just outside receives a score of zero \cite{MISSING-pg}.
+\studentinline{VERIFY citation: find Zhou et al.\ 2016 Pointing Game paper (Learning Deep Features for Discriminative Localization).}
+
+\subsubsection{Relevance Mass Accuracy}
+Relevance Mass Accuracy (RMA) captures the fraction of total positive attribution mass that falls within the segmentation mask:
+\begin{equation}
+    \text{RMA} = \frac{\sum_{i \in \mathcal{M}} \max(E_i, 0)}{\sum_{i} \max(E_i, 0)}.
+\end{equation}
+RMA ranges from $0$ (no positive attribution inside the mask) to $1$ (all positive attribution is localized). Unlike the Pointing Game, RMA evaluates the entire attribution distribution rather than a single pixel, providing a smoother and more discriminative signal \cite{hedstrom2023quantus}.
+
+\subsubsection{Role of Segmentation Masks}
+Both Pointing Game and RMA require a binary segmentation mask aligned with the input image. This requirement limits Localization evaluation to datasets that provide pixel-level annotations. The ISIC 2017 dataset (Task~1) includes expert-annotated lesion boundaries for every image, enabling Localization assessment without any additional labeling effort. Many commonly used benchmarks lack such masks, which is one reason Localization metrics are underreported in the literature despite their intuitive appeal.
 
 \section{The Crisis of Evaluation}
 
@@ -77,40 +95,90 @@ To rigorously assess FAE models, recent literature proposes a modular taxonomy o
 \subsection{Faithfulness (Fidelity)}
 Faithfulness quantifies how accurately the explanation reflects the model's internal decision logic, regardless of human intelligibility.
 
-\subsubsection{Deletion and Insertion (AUC)}
-Proposed by Petsiuk et al., these metrics measure the degradation (or improvement) of the model's score as features are removed (or added) based on their importance ranking \cite{petsiuk2018rise}.
-\begin{itemize}
-    \item \textbf{Deletion (AOPC):} Measures the Area Over the Perturbation Curve. A steeper drop implies the method correctly identified critical features.
-    \item \textbf{Insertion:} Measures the Area Under the Curve as features are introduced to a baseline canvas.
-\end{itemize}
-The Deletion score for an image $x$ with $N$ pixels is calculated as:
+\subsubsection{Pixel Flipping (AUC)}
+Pixel Flipping, introduced by Samek et al., evaluates faithfulness by iteratively removing the most important features (as ranked by the attribution map) and measuring the resulting degradation in the model's output \cite{MISSING-pixelflip}.
+\studentinline{VERIFY citation: Samek et al.\ 2017 --- ``Evaluating the Visualization of What a Deep Neural Network Has Learned.''}
+Pixels are replaced in descending order of attribution magnitude with a baseline value (e.g., black). The metric aggregates the output change across all removal steps into an area-under-the-curve (AUC) score:
 \begin{equation}
-    \text{Deletion}(x) = \sum_{k=1}^{N} (f(x) - f(x^{(k)}))
+    \text{PixelFlipping}(x) = \frac{1}{N} \sum_{k=1}^{N} \bigl(f(x) - f(x^{(k)})\bigr),
 \end{equation}
-where $x^{(k)}$ is the image with the top $k$ most important pixels masked.
+where $x^{(k)}$ is the image with the top $k$ most important features replaced. A steeper drop (higher AUC) indicates that the attribution method correctly identified the features most critical to the model's prediction. The Quantus implementation groups features into steps of configurable size (\texttt{features\_in\_step}), making the metric tractable for high-resolution inputs \cite{hedstrom2023quantus}.
 
-\subsubsection{Infidelity}
-Yeh et al. formulated Infidelity as the expected mean squared error between a perturbation in the input space $I$ and the dot product of the perturbation with the explanation $E$ \cite{hedstrom2023quantus}. A faithful explanation should satisfy $I^T E \approx f(x) - f(x - I)$.
+This formulation generalizes Deletion and Insertion curves \cite{petsiuk2018rise}: Deletion corresponds to removal in descending attribution order, while Insertion reverses the process by adding features to a blank canvas.
+
+\subsubsection{Faithfulness Correlation}
+Faithfulness Correlation, as implemented in Quantus, measures the Pearson correlation between attribution magnitude and the change in model output when features are masked in random subsets \cite{hedstrom2023quantus}. Given \texttt{nr\_runs} randomly sampled subsets $S_1, \dots, S_R$ of features:
 \begin{equation}
-    \text{Infidelity} = \mathbb{E}_{I \sim \mu} \left[ (I^T E - (f(x) - f(x - I)))^2 \right]
+    \text{FC} = r\!\left(\left\{\sum_{i \in S_j} |E_i|\right\}_{j=1}^{R},\; \left\{f(x) - f(x_{\setminus S_j})\right\}_{j=1}^{R}\right),
 \end{equation}
+where $r(\cdot, \cdot)$ denotes the Pearson correlation coefficient and $x_{\setminus S_j}$ is the input with features in $S_j$ replaced by a baseline. A high positive correlation ($\text{FC} \to +1$) indicates that regions with large attribution values are indeed the regions whose removal most degrades the model's prediction.
+
+A related measure, Infidelity (Yeh et al.), computes the expected squared error $\mathbb{E}[(I^T E - \Delta f)^2]$ between the attribution-weighted perturbation and the actual output change. Although theoretically motivated, Infidelity is not used in the evaluation framework of this thesis; Faithfulness Correlation provides a comparable signal while being more interpretable and directly comparable across methods.
 
 \subsection{Robustness (Stability)}
+\label{subsec:robustness}
 Robustness ensures that slight, non-semantic changes to the input (e.g., Gaussian noise) do not cause disproportionate changes in the explanation. This is crucial for user trust and defense against adversarial attacks.
 
-\subsubsection{Local Lipschitz Estimate}
-Based on the Lipschitz continuity condition, this metric finds the maximum change in the explanation $\|\Phi(x) - \Phi(x')\|$ relative to the change in input $\|x - x'\|$ within a neighborhood $\mathcal{N}_\epsilon(x)$ \cite{alvarez2018robustness}:
+The theoretical foundation for explanation robustness is Lipschitz continuity: a method $\Phi$ is robust if the ratio $\|\Phi(x) - \Phi(x')\| / \|x - x'\|$ remains bounded for inputs $x'$ in a neighborhood of $x$ \cite{alvarez2018robustness}. The metrics adopted in this thesis operationalize this principle via sensitivity analysis under random perturbations.
+
+\subsubsection{Max-Sensitivity}
+Max-Sensitivity, proposed by Yeh et al., measures the worst-case explanation change under small random perturbations of the input \cite{MISSING-yeh2019}.
+\studentinline{VERIFY citation: Yeh et al.\ 2019 --- ``On the (In)fidelity and Sensitivity of Explanations.''}
+Given $N$ perturbation samples $\delta_1, \dots, \delta_N$ drawn from $\mathcal{N}(0, \sigma^2 I)$ with $\|\delta_j\| \leq \varepsilon$:
 \begin{equation}
-    L(x) = \max_{x' \in \mathcal{N}_\epsilon(x)} \frac{\|\Phi(x) - \Phi(x')\|_2}{\|x - x'\|_2}
+    \text{MaxSens}(\Phi, x) = \max_{j = 1, \dots, N} \frac{\|\Phi(x + \delta_j) - \Phi(x)\|}{\|\delta_j\|}.
 \end{equation}
-A lower Lipschitz constant indicates a more stable and robust explanation method.
+The implementation uses \texttt{nr\_samples}$= 10$ perturbation draws with \texttt{lower\_bound}$= 0.2$ controlling the perturbation magnitude. Lower values indicate a more stable explanation method.
+
+\subsubsection{Avg-Sensitivity}
+Avg-Sensitivity replaces the maximum with the mean across the same set of perturbations:
+\begin{equation}
+    \text{AvgSens}(\Phi, x) = \frac{1}{N} \sum_{j=1}^{N} \frac{\|\Phi(x + \delta_j) - \Phi(x)\|}{\|\delta_j\|}.
+\end{equation}
+Lower is better. Together, Max-Sensitivity and Avg-Sensitivity provide complementary views: the former captures the tail behavior (susceptibility to worst-case perturbations), while the latter captures the expected behavior. Both are implemented in Quantus \cite{hedstrom2023quantus} and share hyperparameters in this thesis for comparability.
 
 \subsection{Complexity and Sparsity}
+\label{subsec:complexity}
 Complexity metrics adhere to the principle of Occam's Razor: simpler explanations are generally preferred for human cognition.
 \begin{itemize}
-    \item \textbf{Sparsity:} Measures the fraction of features with zero or near-zero attribution.
-    \item \textbf{Effective Complexity:} Often calculated using the Shannon entropy of the normalized attribution distribution. High entropy indicates a diffuse explanation, while low entropy indicates a focused, sparse explanation.
+    \item \textbf{Sparseness:} Quantifies the concentration of the attribution distribution using a Gini-like coefficient. A perfectly sparse explanation assigns all relevance to a single feature (score $\to 1$), while a uniform explanation scores $0$. Higher is better.
+    \item \textbf{Complexity:} Calculated as the Shannon entropy of the normalized absolute attribution distribution. High entropy indicates a diffuse explanation, while low entropy indicates a focused, sparse explanation. Lower is better.
 \end{itemize}
+Both metrics are computed directly from the attribution map without model access, making them applicable to any FAE method regardless of its generation mechanism \cite{hedstrom2023quantus}.
+
+\subsection{Randomization}
+\label{subsec:randomization}
+Randomization tests assess whether an explanation method genuinely relies on learned model parameters rather than spurious input statistics. If an explanation remains unchanged after the model's parameters are destroyed, the method is not faithfully reflecting the model's decision process.
+
+\subsubsection{Model Parameter Randomisation Test (MPRT)}
+Proposed by Adebayo et al.\ as part of the ``Sanity Checks for Saliency Maps'' study \cite{adebayo2018sanity}, MPRT progressively randomizes the model's weights layer by layer, proceeding from the output layer toward the input (top-down order). After each randomization step, the explanation is recomputed and its similarity to the original explanation is measured via Spearman or Pearson correlation. The metric reports the average correlation across all randomization depths:
+\begin{equation}
+    \text{MPRT}(\Phi) = \frac{1}{L} \sum_{\ell=1}^{L} \rho\bigl(\Phi(f, x),\; \Phi(f^{(\ell)}, x)\bigr),
+\end{equation}
+where $f^{(\ell)}$ denotes the model with the top $\ell$ layers randomized and $\rho$ is the chosen correlation measure. Lower average correlation indicates a better method---one that is genuinely sensitive to the model's learned parameters. As discussed in Section~\ref{sec:crisis}, Guided Backpropagation and DeconvNet fail this test, producing nearly identical maps for trained and randomized models.
+
+\subsubsection{Random Logit Test}
+The Random Logit test complements MPRT by perturbing the explanation target rather than the model weights. The target class index is replaced with a randomly sampled alternative class, and the resulting explanation is compared to the original. The metric computes the correlation between the two explanation maps:
+\begin{equation}
+    \text{RandomLogit}(\Phi) = \rho\bigl(\Phi(f, x, c),\; \Phi(f, x, c')\bigr), \quad c' \neq c.
+\end{equation}
+A lower correlation indicates that the explanation is genuinely class-discriminative---it changes when the target class changes---rather than merely reflecting generic input features. Both MPRT and Random Logit are implemented in Quantus \cite{hedstrom2023quantus}.
+
+\subsection{Axiomatic}
+\label{subsec:axiomatic}
+Axiomatic metrics verify whether explanations satisfy formal mathematical axioms that a ``correct'' attribution should obey. These axioms provide theoretical guarantees that hold independently of the specific model or input.
+
+\subsubsection{Completeness}
+The Completeness axiom, formalized by Sundararajan et al.\ \cite{sundararajan2017axiomatic}, requires that the sum of individual feature attributions equals the difference between the model output at the input $x$ and a baseline $x'$:
+\begin{equation}
+    \left|\sum_{i} E_i - \bigl(f(x) - f(x')\bigr)\right| \approx 0.
+\end{equation}
+The metric measures the absolute deviation from this axiom; lower is better. Completeness is only meaningful for methods that explicitly satisfy or approximate the completeness property by construction---specifically Integrated Gradients, DeepLift, and LRP. For other methods, the metric returns NaN and is excluded from aggregation.
+
+\subsubsection{Non-Sensitivity}
+Non-Sensitivity measures how much attribution a method assigns to features that are provably non-contributory (i.e., features whose removal does not change the model output). A faithful attribution should assign zero relevance to such features. The metric evaluates this by performing a forward pass for each feature (or a downsampled subset thereof) to identify non-contributory features, then measuring the attribution mass on those features. Lower is better.
+
+Non-Sensitivity is computationally intensive, as it requires $O(d)$ forward passes, where $d$ is the input dimensionality. In practice, the input is downsampled (e.g., to $56 \times 56$) to make the computation tractable \cite{hedstrom2023quantus}. Due to this cost, Non-Sensitivity is typically excluded from initial vertical-slice experiments and included only in full-scale evaluations.
 
 \section{Ensemble XAI: Theoretical Foundations}
 
@@ -123,6 +191,8 @@ Ensembling in XAI draws inspiration from predictive ensembles (e.g., Random Fore
 where $\mathcal{N}$ is a normalization function and $\mathcal{A}$ is an aggregation function.
 
 Hryniewska-Guzik et al. identify that the primary challenge in XAI ensembling is the heterogeneous scale of attributions (e.g., SHAP values are additive log-odds, while Grad-CAM is feature activation) \cite{hryniewska2024normensemblexai}. They propose \textbf{NormEnsembleXAI}, which utilizes robust normalization techniques such as Second Moment Scaling to align these diverse explanations before aggregation via Mean, Max, or Minimum functions. This thesis builds upon this framework to evaluate whether ensembling can simultaneously optimize the conflicting objectives of Faithfulness and Robustness.
+
+It is important to distinguish two levels of aggregation that appear in this thesis. \emph{Attribution ensembling}, as performed by NormEnsembleXAI, combines multiple attribution maps $\Phi_1(x), \dots, \Phi_k(x)$ into a single consolidated explanation $E_{\text{ensemble}}$. \emph{Metric aggregation}, which constitutes this thesis's novel contribution, operates at a different level: it combines multiple evaluation metric scores into a single effectiveness index $E(\Phi)$ that characterizes how well a given FAE method performs across all quality dimensions. Chapter~\ref{ch:methodology} develops the metric-aggregation layer on top of the NormEnsembleXAI normalization framework, treating both individual and ensembled attributions as inputs to the same multi-criteria evaluation pipeline.
 
 \section{Multi-Metric Aggregation and Evaluation Pipelines}
 \label{sec:multi-metric-aggregation}
@@ -283,12 +353,16 @@ $$
 w_k \;=\; \frac{\mathrm{ES}_k}{\sum_{j} \mathrm{ES}_j},
 $$
 producing a data-adaptive convex combination in which dominant, trustworthy
-signals receive higher weight without manual tuning. This mechanism provides
-the theoretical foundation for the evaluation framework proposed in
-Chapter~\ref{ch:methodology}, which extends the Autoweighted concept by
-integrating the meta-evaluation criterion of \citet{hedstrom2024metaquantus}
-into the weight derivation: a metric's weight is discounted not only by its
-ensemble disagreement but also by its MetaQuantus failure rate.
+signals receive higher weight without manual tuning. In this thesis,
+$\mathrm{ES}_k$ denotes the MetaQuantus-discounted ensemble score rather than
+the raw ensemble score: each metric's ensemble agreement is first attenuated
+by its meta-evaluation reliability (Noise Resilience and Adversarial
+Reactivity from \citet{hedstrom2024metaquantus}), so the Autoweighted formula
+already incorporates the meta-evaluation criterion into the weight derivation.
+This mechanism provides the theoretical foundation for the evaluation framework
+proposed in Chapter~\ref{ch:methodology}, which extends the Autoweighted
+concept by jointly accounting for ensemble disagreement and MetaQuantus
+failure rate in a single weighting step.
 
 Recent work has emphasized that evaluation pipelines are themselves a
 compliance instrument. \citet{hedstrom2025bridging} argue that standardized,

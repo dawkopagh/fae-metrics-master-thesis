@@ -1,0 +1,425 @@
+\chapter{Methodology}
+\label{ch:methodology}
+
+This chapter presents the evaluation framework developed in this thesis.
+Section~\ref{sec:eval-setup} defines the evaluation objective and the unit of
+analysis. Sections~\ref{sec:dataset}--\ref{sec:fae-methods} describe the
+dataset, predictive models, and feature attribution methods that constitute
+the experimental infrastructure. Section~\ref{sec:metrics} specifies the
+twelve evaluation metrics organized across six Quantus categories.
+Sections~\ref{sec:normalization}--\ref{sec:aggregation} detail the score
+normalization and aggregation procedures that form the core methodological
+contribution of this work (Contributions~1--3, per
+Section~\ref{sec:celePracy}). Finally, Section~\ref{sec:pipeline} describes
+the end-to-end evaluation pipeline and its software implementation.
+
+%% ========================================================================
+\section{Evaluation Setup}
+\label{sec:eval-setup}
+
+The objective of this evaluation framework is to rank Feature Attribution
+Explanation (FAE) methods by an aggregated effectiveness index
+$E(\Phi)$ that summarizes performance across six metric categories:
+Faithfulness, Robustness, Localization, Complexity, Randomization, and
+Axiomatic.
+
+The atomic unit of evaluation is a \emph{per-(model, image, FAE method)
+attribution triple}. For a classifier $f$, an input image $x$, and an
+explanation method $\Phi$, the triple $(f, x, \Phi)$ yields an attribution
+map $\Phi(f, x) \in \mathbb{R}^{C \times H \times W}$, where $C$, $H$, $W$
+denote the channel, height, and width dimensions of the input.
+
+For each triple, the \textbf{target class} used for attribution is the
+model's top-1 prediction $\hat{y} = \operatorname{argmax}_c f(x)_c$, not
+the ground-truth label. This choice is deliberate: evaluation metrics assess
+explanation fidelity to \emph{the model's decision}, not to a human-supplied
+label. An explanation that faithfully reflects the features driving the
+model's prediction is informative regardless of whether that prediction is
+correct \cite{hedstrom2023quantus}.
+
+%% ========================================================================
+\section{Dataset}
+\label{sec:dataset}
+
+The experiments use the ISIC 2017 Challenge dataset (Task~1 --- Lesion
+Segmentation), publicly available under a CC-BY-NC license from
+\texttt{challenge.isic-archive.com}. The dataset comprises dermoscopic
+images distributed across three diagnostic categories: melanoma, nevus, and
+seborrheic keratosis.
+
+\begin{itemize}
+    \item \textbf{Split sizes:} 2{,}000 training images, 150 validation
+    images, 600 test images.
+    \item \textbf{Segmentation masks:} Each image is accompanied by an
+    expert-annotated binary mask delineating the lesion boundary. These masks
+    enable the computation of Localization metrics (Pointing Game, Relevance
+    Mass Accuracy) without additional labeling effort---a key advantage over
+    datasets that provide only image-level labels.
+    \item \textbf{Preprocessing:} All images are resized to $224 \times 224$
+    pixels and normalized using ImageNet channel-wise mean and standard
+    deviation ($\mu = [0.485, 0.456, 0.406]$, $\sigma = [0.229, 0.224,
+    0.225]$).
+\end{itemize}
+
+The vertical-slice validation (Section~\ref{sec:pipeline}) uses a subset of
+12 images from the test split. The full experiment scales to all 600 test
+images.
+\studentinline{TODO: Update image counts and confirm split sizes after full experiment run.}
+
+%% ========================================================================
+\section{Predictive Models}
+\label{sec:models}
+
+Two convolutional neural network architectures serve as the predictors whose
+decisions are explained. They are not a contribution of this thesis; they
+exist solely to produce the attributions that the evaluation framework then
+scores.
+
+\subsection{ResNet-18}
+
+ResNet-18 is a residual network with 18 layers organized in four residual
+blocks with skip connections \cite{MISSING-he2016resnet}.
+\studentinline{VERIFY citation: He et al.\ 2016 --- ``Deep Residual Learning for Image Recognition.''} The final
+fully connected layer is replaced with $\text{Linear}(512, 3)$ to match the
+three-class ISIC 2017 classification task.
+
+\subsection{SqueezeNet 1.1}
+
+SqueezeNet 1.1 is a compact architecture that achieves AlexNet-level accuracy
+with $\sim$50$\times$ fewer parameters, using Fire modules that combine
+$1 \times 1$ squeeze convolutions with mixed $1 \times 1$ and $3 \times 3$
+expand convolutions \cite{MISSING-iandola2016squeeze}.
+\studentinline{VERIFY citation: Iandola et al.\ 2016 --- ``SqueezeNet: AlexNet-Level Accuracy with 50x Fewer Parameters.''} The final classifier layer is replaced with
+$\text{Conv2d}(512, 3, 1, 1)$ for three-class output.
+
+\subsection{Training Protocol}
+
+Both models are trained with the following configuration:
+\begin{itemize}
+    \item \textbf{Epochs:} 25
+    \item \textbf{Optimizer:} SGD with momentum ($\text{lr} = 0.001$,
+    $\text{momentum} = 0.9$)
+    \item \textbf{Scheduler:} StepLR (step size 7, $\gamma = 0.1$)
+    \item \textbf{Loss:} Class-weighted CrossEntropyLoss to address class
+    imbalance in the ISIC 2017 dataset
+    \item \textbf{Random seed:} 42 (set for \texttt{torch}, \texttt{numpy},
+    and \texttt{random})
+\end{itemize}
+
+Best validation accuracies: ResNet-18 achieves 75.3\%, SqueezeNet achieves
+74.0\%. Trained weights are saved to disk with SHA-256 checksums documented
+in \texttt{weights/README.md}.
+
+%% ========================================================================
+\section{Feature Attribution Methods}
+\label{sec:fae-methods}
+
+Seven attribution methods are evaluated, spanning gradient-based (white-box)
+and perturbation-based (black-box) families. All methods are implemented
+using the Captum library, ensuring consistent interfaces and reproducible
+gradient computation.
+
+\subsection{Gradient-based Methods}
+
+\subsubsection{Saliency (Vanilla Gradient)}
+Computes the absolute gradient of the class score with respect to the input
+image (Section~\ref{ch:sota}). Computationally efficient but prone to noisy,
+non-class-discriminative maps due to shattered gradients.
+
+\subsubsection{Integrated Gradients}
+Accumulates gradients along a linear path from a black baseline ($x' = 0$)
+to the actual input $x$ using $n\_\text{steps} = 50$ interpolation points
+\cite{sundararajan2017axiomatic}. Satisfies the Completeness axiom by
+construction.
+
+\subsubsection{Grad-CAM}
+Gradient-weighted Class Activation Mapping applied to the last convolutional
+layer of the network \cite{selvaraju2017grad}. Produces a coarse
+localization map at the resolution of the final feature map, which is then
+upsampled to input resolution via bilinear interpolation.
+
+\subsubsection{Guided Backpropagation}
+Propagates gradients through only the positive activations at each ReLU
+layer, producing sharper maps than vanilla gradients but at the risk of
+acting as an edge detector independent of model parameters
+\cite{MISSING-springenberg2015}.
+\studentinline{VERIFY citation: Springenberg et al.\ 2015 --- ``Striving for Simplicity: The All Convolutional Net.''}
+
+\subsubsection{DeepLift}
+Computes attribution by comparing each neuron's activation to a reference
+activation produced by a black baseline input ($x' = 0$). Decomposes the
+output difference $f(x) - f(x')$ into individual feature contributions
+\cite{MISSING-shrikumar2017deeplift}.
+\studentinline{VERIFY citation: Shrikumar et al.\ 2017 --- ``Learning Important Features Through Propagating Activation Differences.''}
+
+\subsubsection{Layer-wise Relevance Propagation (LRP)}
+Redistributes the model output backward through the network according to
+propagation rules that preserve the total relevance at each layer
+\cite{MISSING-bach2015lrp}.
+\studentinline{VERIFY citation: Bach et al.\ 2015 --- ``On Pixel-Wise Explanations for Non-Linear Classifier Decisions by Layer-Wise Relevance Propagation.''}
+
+\subsection{Perturbation-based Methods}
+
+\subsubsection{Occlusion}
+A sliding window of size $(3, 15, 15)$ with stride $(3, 8, 8)$ is passed
+over the input, replacing occluded regions with a black baseline. The change
+in model output for each position yields a sensitivity map
+\cite{MISSING-zeiler2014}.
+\studentinline{VERIFY citation: Zeiler \& Fergus 2014 --- ``Visualizing and Understanding Convolutional Networks.''}
+
+\medskip
+\noindent
+LIME and KernelSHAP are in scope for the full experiment but are excluded
+from the vertical slice due to their substantially higher runtime cost.
+\studentinline{TODO: Update this section if LIME/KernelSHAP are added in the full experiment.}
+
+\subsection{Attribution Caching}
+\label{subsec:caching}
+
+Attributions are cached to disk, keyed by a tuple of (model architecture,
+FAE method, image identifier, target class, hyperparameters hash). This
+avoids redundant recomputation when the same attribution is needed by
+multiple metrics or across repeated pipeline runs.
+
+The cache is \textbf{bypassed} for inner re-computations performed by
+robustness and randomization metrics---specifically Max-Sensitivity,
+Avg-Sensitivity, and MPRT---because these metrics intentionally perturb
+inputs or model weights and therefore produce legitimately different
+attributions on each invocation. Caching such perturbed attributions would
+violate the metric's operational semantics.
+
+%% ========================================================================
+\section{Metric Computation}
+\label{sec:metrics}
+
+Twelve metrics across six Quantus categories are computed for each
+attribution triple. Table~\ref{tab:metrics} summarizes their directionality
+and key hyperparameters.
+
+\begin{table}[H]
+\centering
+\caption{Evaluation metrics: category, direction, and hyperparameters.}
+\begin{tabularx}{\linewidth}{llcl}
+\toprule
+Category & Metric & Direction & Key hyperparameters \\
+\midrule
+Faithfulness & FaithfulnessCorrelation & $\uparrow$ & nr\_runs=100, subset\_size=224 \\
+Faithfulness & PixelFlipping           & $\uparrow$ & features\_in\_step=224 (AUC) \\
+Robustness   & MaxSensitivity          & $\downarrow$ & nr\_samples=10, lower\_bound=0.2 \\
+Robustness   & AvgSensitivity          & $\downarrow$ & nr\_samples=10, lower\_bound=0.2 \\
+Localization & RelevanceMassAccuracy   & $\uparrow$ & requires mask \\
+Localization & PointingGame            & $\uparrow$ & requires mask \\
+Complexity   & Sparseness              & $\uparrow$ & Gini-like coefficient \\
+Complexity   & Complexity              & $\downarrow$ & Shannon entropy \\
+Randomization & ModelParameterRandomisation & $\downarrow$ & layer\_order=top\_down \\
+Randomization & RandomLogit            & $\downarrow$ & num\_classes=3 \\
+Axiomatic    & Completeness            & $\downarrow$ & black baseline; IG/DeepLift/LRP only \\
+Axiomatic    & NonSensitivity          & $\downarrow$ & downsampled to 56$\times$56; excluded by default \\
+\bottomrule
+\end{tabularx}
+\label{tab:metrics}
+\end{table}
+
+\paragraph{Faithfulness.}
+FaithfulnessCorrelation and PixelFlipping both quantify how well the
+attribution map identifies features that the model relies on for its
+prediction. FaithfulnessCorrelation uses random subset masking with 100
+runs to estimate the Pearson correlation between attribution magnitude and
+output change. PixelFlipping removes features in descending order of
+attributed importance and aggregates the output degradation as an AUC
+score. Both metrics are higher-is-better \cite{hedstrom2023quantus}.
+
+\paragraph{Robustness.}
+MaxSensitivity and AvgSensitivity evaluate explanation stability under
+small Gaussian perturbations of the input. Both use 10 perturbation samples
+with a perturbation magnitude lower bound of 0.2. MaxSensitivity reports
+the worst-case sensitivity, while AvgSensitivity reports the average.
+Lower is better for both \cite{hedstrom2023quantus}.
+
+\paragraph{Localization.}
+RelevanceMassAccuracy and PointingGame evaluate spatial agreement between
+the attribution map and the expert-annotated lesion mask. Both are
+higher-is-better and require segmentation masks at inference time
+\cite{hedstrom2023quantus}.
+
+\paragraph{Complexity.}
+Sparseness (Gini-like, higher-is-better) and Complexity (Shannon entropy,
+lower-is-better) assess the conciseness of the attribution distribution.
+These metrics are model-agnostic and computed directly from the attribution
+map \cite{hedstrom2023quantus}.
+
+\paragraph{Randomization.}
+ModelParameterRandomisation (MPRT) progressively randomizes model weights
+top-down and measures correlation decay. RandomLogit replaces the target
+class and measures explanation change. Lower correlation is better for both,
+indicating that the explanation genuinely depends on learned parameters and
+the specified target class \cite{hedstrom2023quantus}.
+
+\paragraph{Axiomatic.}
+Completeness measures the absolute deviation from the completeness axiom
+($|\sum_i E_i - \Delta f| \approx 0$). It returns NaN for methods outside
+\{Integrated Gradients, DeepLift, LRP\}; these NaN values are excluded
+from aggregation rather than imputed. NonSensitivity measures attribution
+mass on provably non-contributory features. Due to its $O(d)$ forward-pass
+cost, the input is downsampled to $56 \times 56$, and the metric is
+excluded from vertical-slice runs by default \cite{hedstrom2023quantus}.
+
+%% ========================================================================
+\section{Score Normalization}
+\label{sec:normalization}
+
+The twelve metrics operate on heterogeneous scales (e.g.,
+FaithfulnessCorrelation $\in [-1, 1]$, MaxSensitivity $\in [0, \infty)$,
+Sparseness $\in [0, 1]$) and have heterogeneous directionalities (some
+higher-is-better, some lower-is-better). Aggregation requires
+rectification and rescaling.
+
+\subsection{Direction Rectification}
+
+Each metric $k$ is assigned a direction sign $s_k \in \{+1, -1\}$, where
+$s_k = +1$ for higher-is-better metrics and $s_k = -1$ for
+lower-is-better metrics. The rectified score is:
+\begin{equation}
+    \hat{M}_k(\Phi) = s_k \cdot M_k(\Phi),
+\end{equation}
+so that a higher rectified score always indicates better performance.
+
+\subsection{Second Moment Scaling}
+
+The default scale-rectifying transformation is Second Moment Scaling,
+adopted from the NormEnsembleXAI framework (Decision~D1)
+\cite{hryniewska2024normensemblexai}:
+\begin{equation}
+    \tilde{M}_k(\Phi) = \frac{\hat{M}_k(\Phi)}{\sqrt{\mathbb{E}\bigl[\hat{M}_k^2\bigr]}},
+\end{equation}
+where the expectation is computed within each (model, metric) group
+independently. This transformation does not require knowledge of global
+extremes, is robust to outliers (unlike min--max normalization), and
+preserves the sign structure of the rectified scores.
+
+Two alternative normalizations are implemented for ablation studies:
+\begin{itemize}
+    \item \textbf{$z$-score normalization:}
+    $\psi_k(x) = (x - \mu_k) / \sigma_k$, centering on the group mean with
+    unit variance.
+    \item \textbf{Min--max normalization:}
+    $\psi_k(x) = (x - \min_k) / (\max_k - \min_k)$, mapping scores to
+    $[0, 1]$. Sensitive to outliers and requires knowing the global extremes.
+\end{itemize}
+
+%% ========================================================================
+\section{Score Aggregation}
+\label{sec:aggregation}
+
+Once normalized, the per-metric scores are aggregated into a single
+effectiveness index $E(\Phi)$ per (model, image, FAE method). Three
+aggregation operators are implemented (Decision~D2):
+
+\begin{enumerate}
+    \item \textbf{Weighted mean (default, recommended):}
+    \begin{equation}
+        E(\Phi) = \sum_{k=1}^{K} w_k \, \tilde{M}_k(\Phi),
+    \end{equation}
+    where $w_k \geq 0$ and $\sum_k w_k = 1$.
+
+    \item \textbf{Minimum (conservative):}
+    \begin{equation}
+        E(\Phi) = \min_{k=1,\dots,K} \tilde{M}_k(\Phi).
+    \end{equation}
+    Evaluates a method by its worst dimension. In safety-critical domains, a
+    method that is faithful but unstable is ineligible regardless of how high
+    its faithfulness score is.
+
+    \item \textbf{Geometric mean:}
+    \begin{equation}
+        E(\Phi) = \exp\!\left(\sum_{k=1}^{K} w_k \ln\bigl(\tilde{M}_k(\Phi) + \varepsilon\bigr)\right),
+    \end{equation}
+    where $\varepsilon > 0$ is a small constant to avoid $\ln(0)$. Penalizes
+    methods with a near-zero score on any single axis.
+\end{enumerate}
+
+The default weight vector uses uniform weights: $w_k = 1/K$ for $K$
+retained metrics after the redundancy and meta-evaluation filtering
+described in Chapter~\ref{ch:sota}.
+
+\subsection{Autoweighted Extension}
+\label{sec:weighting}
+
+The Autoweighted mechanism, inspired by \citet{hryniewska2024normensemblexai},
+derives weights from each metric's ensemble score $\mathrm{ES}_k$:
+\begin{equation}
+    w_k = \frac{\mathrm{ES}_k}{\sum_{j} \mathrm{ES}_j}.
+\end{equation}
+In this thesis, $\mathrm{ES}_k$ denotes the MetaQuantus-discounted ensemble
+score: the raw ensemble agreement of metric $k$ is attenuated by its
+reliability as assessed by the Noise Resilience and Adversarial Reactivity
+tests of \citet{hedstrom2024metaquantus}. This ensures that unreliable
+metrics receive lower weight in the final aggregation, even if their raw
+ensemble scores are high.
+
+\studentinline{TODO: Write detailed Autoweighted derivation after meta-evaluation results are available.}
+
+%% ========================================================================
+\section{The Evaluation Pipeline}
+\label{sec:pipeline}
+
+The end-to-end evaluation pipeline integrates all components described in
+this chapter into a single reproducible data flow:
+
+\begin{enumerate}
+    \item \textbf{Input:} ISIC 2017 test images and associated binary lesion
+    masks.
+    \item \textbf{Model inference:} For each image $x$, the classifier $f$
+    produces a prediction $\hat{y} = \operatorname{argmax}_c f(x)_c$, which
+    serves as the target class for attribution.
+    \item \textbf{Attribution generation:} Each FAE method $\Phi$ computes an
+    attribution map $\Phi(f, x) \in \mathbb{R}^{3 \times 224 \times 224}$.
+    Results are cached to disk (Section~\ref{subsec:caching}).
+    \item \textbf{Metric computation:} The twelve metrics from
+    Table~\ref{tab:metrics} are applied to each attribution map, producing a
+    vector of raw scores per (model, image, FAE method).
+    \item \textbf{Normalization:} Direction rectification and Second Moment
+    Scaling (Section~\ref{sec:normalization}) transform raw scores into a
+    comparable scale.
+    \item \textbf{Aggregation:} The normalized scores are combined into a
+    single effectiveness index $E(\Phi)$ via the chosen aggregation operator
+    (Section~\ref{sec:aggregation}).
+    \item \textbf{Ranking:} FAE methods are ranked per-model by their mean
+    $E(\Phi)$ across test images.
+\end{enumerate}
+
+\studentinline{TODO: Add tikz pipeline diagram once results are confirmed.}
+
+\subsection{Implementation}
+
+The pipeline entry point is \texttt{experiments/vertical\_slice.py}. The
+output is a CSV file with columns: \texttt{model}, \texttt{image\_id},
+\texttt{fae\_method}, \texttt{metric}, \texttt{score}. For the 12-image
+vertical slice, the expected output is $2 \times 7 \times 12 \times 12 =
+2{,}016$ rows (2 models $\times$ 7~FAE methods $\times$ 12~images $\times$
+12~metrics).
+
+\studentinline{TODO: Update row count and CSV column description after full experiment run.}
+
+The software architecture follows the modular layout described in
+Section~\ref{sec:celePracy}:
+\begin{itemize}
+    \item \texttt{src/data/} --- ISIC 2017 dataset class and download script.
+    \item \texttt{src/models/} --- Classifier definitions and training loop.
+    \item \texttt{src/attributions/} --- Attribution generation, disk cache,
+    NormEnsembleXAI wrapper.
+    \item \texttt{src/metrics/} --- Quantus wrapper, custom metrics,
+    redundancy analysis.
+    \item \texttt{src/meta\_evaluation/} --- MetaQuantus wrapper and metric
+    selection.
+    \item \texttt{src/aggregation/} --- Normalization, aggregation operators,
+    weighting schemes.
+    \item \texttt{src/comparison/} --- Wilcoxon, Friedman, and Nemenyi
+    statistical tests.
+    \item \texttt{src/pipeline.py} --- End-to-end orchestrator.
+\end{itemize}
+
+All experiments are configured via YAML files under \texttt{configs/}, with
+one configuration per experiment variant. Random seeds, model paths, metric
+hyperparameters, and normalization choices are specified declaratively to
+ensure full reproducibility.
