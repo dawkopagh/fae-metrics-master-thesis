@@ -34,6 +34,43 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# Metric auxiliary-kwarg requirements
+# ---------------------------------------------------------------------------
+# Derived from quantus_wrapper.py compute_all_metrics() call signatures.
+# Each entry lists which extra inputs a metric needs beyond (model, x, y, a).
+#
+#   "explain_func" — metric calls explain_func internally to recompute
+#                    attributions on perturbed inputs/models.
+#                    Source: MaxSensitivity, AvgSensitivity, MPR, RandomLogit,
+#                    NonSensitivity all pass explain_func to Quantus.
+#   "s_batch"      — segmentation mask required; Quantus convention collapses
+#                    attribution to single channel (a_batch_1ch) for these.
+#                    Source: RelevanceMassAccuracy and PointingGame use s_batch
+#                    with a_batch_1ch in quantus_wrapper.py.
+
+METRIC_KWARG_REQUIREMENTS: dict[str, list[str]] = {
+    # Faithfulness — no auxiliary inputs
+    "faithfulness_correlation":      [],
+    "pixel_flipping":                [],
+    # Robustness — explain_func needed to recompute attributions under perturbation
+    "max_sensitivity":               ["explain_func"],
+    "avg_sensitivity":               ["explain_func"],
+    # Localization — segmentation mask; attribution is channel-summed internally
+    "relevance_mass_accuracy":       ["s_batch"],
+    "pointing_game":                 ["s_batch"],
+    # Complexity — no auxiliary inputs
+    "sparseness":                    [],
+    "complexity":                    [],
+    # Randomization — explain_func needed for re-attribution with randomised model/target
+    "model_parameter_randomisation": ["explain_func"],
+    "random_logit":                  ["explain_func"],
+    # Axiomatic — no auxiliary inputs; excluded from M* by variance pre-screen
+    "completeness":                  [],
+    "non_sensitivity":               ["explain_func"],
+}
+
+
+# ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
@@ -50,21 +87,56 @@ def _call_metric(
     y_batch: np.ndarray,
     a_batch: np.ndarray,
     device: str,
-) -> float:
-    """Call a pre-configured Quantus metric instance; return mean batch score."""
+    s_batch: np.ndarray | None = None,
+    explain_func: Callable | None = None,
+    explain_func_kwargs: dict | None = None,
+    extra_kwargs: dict | None = None,
+    return_raw: bool = False,
+) -> float | tuple[float, list[float]]:
+    """Call a pre-configured Quantus metric instance; return mean batch score.
+
+    When *s_batch* is provided (localization metrics), the attribution is
+    collapsed to a single channel (sum over C) before the call — matching
+    the ``a_batch_1ch`` convention in ``quantus_wrapper.py``.
+
+    Parameters
+    ----------
+    return_raw : bool
+        When True, returns ``(mean, raw_per_image_scores)`` instead of just the
+        mean.  Used for the zero-variance check in
+        :func:`adversarial_reactivity_test`.
+    """
+    a_eval = a_batch
+    if s_batch is not None:
+        a_eval = a_batch.sum(axis=1, keepdims=True)  # (B, 1, H, W)
+
+    call_kwargs: dict = {"channel_first": True, "device": device}
+    if s_batch is not None:
+        call_kwargs["s_batch"] = s_batch
+    if explain_func is not None:
+        call_kwargs["explain_func"] = explain_func
+        call_kwargs["explain_func_kwargs"] = explain_func_kwargs or {}
+    if extra_kwargs:
+        call_kwargs.update(extra_kwargs)
+
     try:
         scores = metric_fn(
             model=model,
             x_batch=x_batch,
             y_batch=y_batch,
-            a_batch=a_batch,
-            channel_first=True,
-            device=device,
+            a_batch=a_eval,
+            **call_kwargs,
         )
-        valid = [float(s) for s in scores if not np.isnan(float(s))]
-        return float(np.mean(valid)) if valid else float("nan")
+        raw = [float(s) for s in scores]
+        valid = [s for s in raw if not np.isnan(s)]
+        mean = float(np.mean(valid)) if valid else float("nan")
+        if return_raw:
+            return mean, raw
+        return mean
     except Exception as exc:
         logger.warning("metric_fn call failed: %s", exc)
+        if return_raw:
+            return float("nan"), []
         return float("nan")
 
 
@@ -79,6 +151,8 @@ def noise_resilience_test(
     attributions: list,
     targets: list[int],
     explain_fn: Callable,
+    masks: list | None = None,
+    metric_kwargs: dict | None = None,
     perturbation_type: str = "input",
     n_seeds: int = 5,
     noise_std: float = 0.01,
@@ -122,6 +196,12 @@ def noise_resilience_test(
         ``(model, inputs, targets, **kwargs) -> np.ndarray``
         where *inputs* is ``(B, C, H, W)`` float32, *targets* is ``(B,)`` int,
         and the return is ``(B, C, H, W)`` attributions.
+    masks : list of array-like or None
+        Binary segmentation masks, each ``(1, H, W)``.  Required for
+        Localization metrics (RelevanceMassAccuracy, PointingGame).
+        See :data:`METRIC_KWARG_REQUIREMENTS`.
+    metric_kwargs : dict or None
+        Additional keyword arguments forwarded verbatim to *metric_fn*.
     perturbation_type : {'input', 'weights'}
         Where to apply noise.  Default ``'input'``.
     n_seeds : int
@@ -151,6 +231,10 @@ def noise_resilience_test(
     imgs_np = [_to_numpy(img) for img in images]
     y_batch_base = np.array(targets, dtype=np.int64)
 
+    s_batch: np.ndarray | None = None
+    if masks is not None:
+        s_batch = np.stack([_to_numpy(m) for m in masks])  # (B, 1, H, W)
+
     raw_scores: list[float] = []
 
     for seed in range(n_seeds):
@@ -177,7 +261,13 @@ def noise_resilience_test(
             eval_model = noisy_model
             x_eval = x_stack
 
-        score = _call_metric(metric_fn, eval_model, x_eval, y_batch_base, a_recomputed, device)
+        score = _call_metric(
+            metric_fn, eval_model, x_eval, y_batch_base, a_recomputed, device,
+            s_batch=s_batch,
+            explain_func=explain_fn,
+            explain_func_kwargs=None,
+            extra_kwargs=metric_kwargs,
+        )
         raw_scores.append(score)
 
     valid = [s for s in raw_scores if not np.isnan(s)]
@@ -210,6 +300,9 @@ def adversarial_reactivity_test(
     images: list,
     attributions: list,
     targets: list[int],
+    masks: list | None = None,
+    explain_func: Callable | None = None,
+    metric_kwargs: dict | None = None,
     n_levels: int = 5,
     level_min: float = 0.0,
     level_max: float = 1.0,
@@ -222,16 +315,19 @@ def adversarial_reactivity_test(
     reacts to the loss of explanatory signal: as more attribution values are
     zeroed out, the score should change in a systematic direction.
 
+    Zero-variance handling: if the base metric scores have standard deviation
+    < 1e-8 across the input images, the metric is constant and AR is
+    uninformative.  ``ar_score`` is set to ``NaN`` in this case (e.g.
+    Completeness is always exactly 0.0 by construction for IG/DeepLift/LRP).
+
     Expected sign of Spearman monotonicity:
 
-    - ``higher-is-better`` metrics (``METRIC_DIRECTIONS == +1`` in
-      ``src/aggregation/normalize.py``): degradation should *decrease* scores
-      → expected Spearman ρ < 0.
+    - ``higher-is-better`` metrics (``METRIC_DIRECTIONS == +1``): degradation
+      should *decrease* scores → expected Spearman ρ < 0.
     - ``lower-is-better`` metrics (``METRIC_DIRECTIONS == -1``): degradation
       should *increase* scores → expected Spearman ρ > 0.
 
-    The ``ar_score`` uses ``|Spearman ρ|`` and is therefore direction-agnostic;
-    it works for both metric conventions without hardcoding direction.
+    The ``ar_score`` uses ``|Spearman ρ|`` and is direction-agnostic.
 
     Parameters
     ----------
@@ -245,6 +341,15 @@ def adversarial_reactivity_test(
         Attribution maps, each ``(C, H, W)``.
     targets : list of int
         Target class indices.
+    masks : list of array-like or None
+        Binary segmentation masks ``(1, H, W)`` per image.  Required for
+        Localization metrics.  See :data:`METRIC_KWARG_REQUIREMENTS`.
+    explain_func : Callable or None
+        Attribution function forwarded to *metric_fn* if needed.  Required
+        for Robustness and Randomization metrics.
+        See :data:`METRIC_KWARG_REQUIREMENTS`.
+    metric_kwargs : dict or None
+        Additional keyword arguments forwarded verbatim to *metric_fn*.
     n_levels : int
         Number of degradation levels (includes endpoints).
     level_min : float
@@ -262,18 +367,52 @@ def adversarial_reactivity_test(
         ``monotonicity``  : float — Spearman ρ between levels and scores.
             0.0 when scores are constant (no structure to measure).
         ``ar_score``      : float — |monotonicity|, bounded in [0, 1].
-            1.0 = perfectly monotonic; 0.0 = no systematic response.
+            NaN when base scores have zero variance across images.
+        ``zero_variance`` : bool — True when AR was skipped due to
+            constant base scores.
     """
     imgs_np = [_to_numpy(img) for img in images]
     attrs_np = [_to_numpy(a) for a in attributions]
 
     x_batch = np.stack(imgs_np)         # (B, C, H, W)
-    a_base = np.stack(attrs_np)         # (B, C, H, W)
+    a_base  = np.stack(attrs_np)        # (B, C, H, W)
     y_batch = np.array(targets, dtype=np.int64)
 
-    levels = list(np.linspace(level_min, level_max, n_levels))
-    scores: list[float] = []
+    s_batch: np.ndarray | None = None
+    if masks is not None:
+        s_batch = np.stack([_to_numpy(m) for m in masks])  # (B, 1, H, W)
 
+    levels = list(np.linspace(level_min, level_max, n_levels))
+
+    # ------------------------------------------------------------------
+    # Zero-variance check: if base scores are constant across images,
+    # AR is uninformative (e.g. Completeness = 0.0 by axiom, same logic
+    # as variance_pre_screen in redundancy.py).
+    # ------------------------------------------------------------------
+    _, base_raw = _call_metric(
+        metric_fn, model, x_batch, y_batch, a_base, device,
+        s_batch=s_batch,
+        explain_func=explain_func,
+        explain_func_kwargs=None,
+        extra_kwargs=metric_kwargs,
+        return_raw=True,
+    )
+    finite_base = [s for s in base_raw if not np.isnan(s)]
+    if len(finite_base) >= 2 and float(np.std(finite_base)) < 1e-8:
+        logger.info(
+            "AR skipped: base scores std=%.2e < 1e-8 across images "
+            "(metric is constant — e.g. Completeness). Setting ar_score=NaN.",
+            float(np.std(finite_base)),
+        )
+        return {
+            "levels": levels,
+            "scores": [float("nan")] * n_levels,
+            "monotonicity": float("nan"),
+            "ar_score": float("nan"),
+            "zero_variance": True,
+        }
+
+    scores: list[float] = []
     rng = np.random.default_rng(0)
 
     for frac in levels:
@@ -291,7 +430,13 @@ def adversarial_reactivity_test(
                 flat[idx] = 0.0
                 a_degraded[b] = flat.reshape(C, H, W)
 
-        score = _call_metric(metric_fn, model, x_batch, y_batch, a_degraded, device)
+        score = _call_metric(
+            metric_fn, model, x_batch, y_batch, a_degraded, device,
+            s_batch=s_batch,
+            explain_func=explain_func,
+            explain_func_kwargs=None,
+            extra_kwargs=metric_kwargs,
+        )
         scores.append(score)
 
     valid_mask = [not np.isnan(s) for s in scores]
@@ -313,6 +458,7 @@ def adversarial_reactivity_test(
         "scores": scores,
         "monotonicity": monotonicity,
         "ar_score": ar_score,
+        "zero_variance": False,
     }
 
 
@@ -328,6 +474,8 @@ def meta_evaluate_metric(
     attributions: list,
     targets: list[int],
     explain_fn: Callable,
+    masks: list | None = None,
+    metric_kwargs: dict | None = None,
     device: str = "cpu",
     n_seeds: int = 5,
     n_levels: int = 5,
@@ -350,6 +498,12 @@ def meta_evaluate_metric(
         Target class indices.
     explain_fn : Callable
         Attribution function: ``(model, inputs, targets, **kwargs) -> np.ndarray``.
+    masks : list of array-like or None
+        Binary segmentation masks ``(1, H, W)`` per image.  Required for
+        Localization metrics (PointingGame, RelevanceMassAccuracy).
+        See :data:`METRIC_KWARG_REQUIREMENTS`.
+    metric_kwargs : dict or None
+        Additional keyword arguments forwarded verbatim to *metric_fn*.
     device : str
         Compute device.
     n_seeds : int
@@ -364,6 +518,8 @@ def meta_evaluate_metric(
         ``nr``                   : dict  — :func:`noise_resilience_test` result.
         ``ar``                   : dict  — :func:`adversarial_reactivity_test` result.
         ``combined_reliability`` : float — ``0.5 * (nr_score + ar_score)``.
+            ``NaN`` when either score is NaN (e.g. AR skipped due to zero
+            variance in Completeness).
     """
     nr_result = noise_resilience_test(
         metric_fn=metric_fn,
@@ -372,6 +528,8 @@ def meta_evaluate_metric(
         attributions=attributions,
         targets=targets,
         explain_fn=explain_fn,
+        masks=masks,
+        metric_kwargs=metric_kwargs,
         n_seeds=n_seeds,
         device=device,
     )
@@ -381,6 +539,9 @@ def meta_evaluate_metric(
         images=images,
         attributions=attributions,
         targets=targets,
+        masks=masks,
+        explain_func=explain_fn,
+        metric_kwargs=metric_kwargs,
         n_levels=n_levels,
         device=device,
     )
@@ -432,12 +593,6 @@ def screen_meta_eval_candidates(
         One row per unique (model, fae_method, metric) triple found in
         *vertical_slice_df*.  ``run_meta_eval`` is True iff
         ``valid_fraction >= min_valid_fraction``.
-
-    Examples
-    --------
-    MPR × GradCAM × SqueezeNet has 0/12 valid scores in the 12-image slice
-    (100% NaN due to SqueezeNet architecture incompatibility) →
-    ``run_meta_eval = False``.
     """
     rows: list[dict] = []
     for (model, fae, metric), grp in vertical_slice_df.groupby(
@@ -480,6 +635,7 @@ def run_meta_evaluation_full(
     fae_methods: dict[str, Callable],
     images: list,
     targets: list[int],
+    masks: list | None = None,
     device: str = "cuda",
     n_seeds: int = 5,
     n_levels: int = 5,
@@ -511,6 +667,10 @@ def run_meta_evaluation_full(
         Test images, each of shape ``(C, H, W)``.
     targets : list of int
         Target class indices paired with *images*.
+    masks : list of array-like or None
+        Binary segmentation masks ``(1, H, W)`` per image.  Required for
+        Localization metrics (PointingGame, RelevanceMassAccuracy).
+        Pass ``None`` only if the run excludes localization metrics.
     device : str
         Compute device.  Default ``'cuda'`` for Colab; use ``'cpu'`` locally.
     n_seeds : int
@@ -521,7 +681,6 @@ def run_meta_evaluation_full(
         Path for incremental CSV output.  Parent directory is created if needed.
     progress_log : str or None
         Path for a timestamped progress log.  Set to ``None`` to disable.
-        Each completed or failed triple appends one line.
 
     Returns
     -------
@@ -624,6 +783,7 @@ def run_meta_evaluation_full(
                         attributions=attributions,
                         targets=targets,
                         explain_fn=explain_fn,
+                        masks=masks,
                         device=device,
                         n_seeds=n_seeds,
                         n_levels=n_levels,

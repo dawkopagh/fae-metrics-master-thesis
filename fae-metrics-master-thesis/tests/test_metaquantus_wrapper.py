@@ -62,9 +62,14 @@ def _make_inputs(
 # ---------------------------------------------------------------------------
 
 class _ConstantMetric:
-    """Returns 0.5 for every image in the batch, regardless of attribution."""
+    """Returns 0.5 for every image in the batch, regardless of attribution.
 
-    def __call__(self, model, x_batch, y_batch, a_batch, channel_first, device):
+    Note: triggers the zero-variance check in adversarial_reactivity_test
+    (all images get identical scores → std=0 → ar_score=NaN). This is correct
+    behaviour — a truly constant metric is uninformative for AR ranking.
+    """
+
+    def __call__(self, model, x_batch, y_batch, a_batch, channel_first, device, **kwargs):
         return [0.5] * x_batch.shape[0]
 
 
@@ -143,19 +148,14 @@ class TestARConstantMetric:
         self.model = _DummyModel()
         self.images, self.attrs, self.targets = _make_inputs()
 
-    def test_ar_score_is_zero(self):
-        result = adversarial_reactivity_test(
-            metric_fn=_ConstantMetric(),
-            model=self.model,
-            images=self.images,
-            attributions=self.attrs,
-            targets=self.targets,
-            n_levels=5,
-        )
-        # All scores are 0.5 → Spearman ρ = 0 → ar_score = 0
-        assert result["ar_score"] == pytest.approx(0.0, abs=1e-9)
+    def test_ar_score_is_nan_zero_variance(self):
+        """Constant metric → std=0 across images → zero-variance check → ar_score=NaN.
 
-    def test_monotonicity_is_zero(self):
+        _ConstantMetric returns 0.5 for all images regardless of attribution,
+        so base_raw = [0.5, 0.5, ...] with std=0. The adversarial_reactivity_test
+        correctly returns NaN instead of the spurious 0.0 from the previous
+        implementation. This is the same reason Completeness is excluded from M*.
+        """
         result = adversarial_reactivity_test(
             metric_fn=_ConstantMetric(),
             model=self.model,
@@ -164,7 +164,19 @@ class TestARConstantMetric:
             targets=self.targets,
             n_levels=5,
         )
-        assert result["monotonicity"] == pytest.approx(0.0, abs=1e-9)
+        assert np.isnan(result["ar_score"])
+        assert result["zero_variance"] is True
+
+    def test_monotonicity_is_nan_zero_variance(self):
+        result = adversarial_reactivity_test(
+            metric_fn=_ConstantMetric(),
+            model=self.model,
+            images=self.images,
+            attributions=self.attrs,
+            targets=self.targets,
+            n_levels=5,
+        )
+        assert np.isnan(result["monotonicity"])
 
     def test_levels_and_scores_length(self):
         result = adversarial_reactivity_test(
@@ -198,17 +210,18 @@ class TestARConstantMetric:
 # ---------------------------------------------------------------------------
 
 class _RandomMetric:
-    """Returns a single U(0,1) score per call, ignoring batch size and content.
+    """Returns an independent U(0,1) score per image per call.
 
-    Returns one value regardless of batch size so _call_metric always gets
-    a single sample per seed — maximising CV and ensuring nr_score < 0.8.
+    Per-image random scores ensure std > 0 across images (so the
+    zero-variance check in adversarial_reactivity_test does not trigger),
+    while scores are unpredictable across seeds (NR CV is high → nr_score low).
     """
 
     def __init__(self, seed: int = 99):
         self._rng = np.random.default_rng(seed)
 
-    def __call__(self, model, x_batch, y_batch, a_batch, channel_first, device):
-        return [float(self._rng.random())] * x_batch.shape[0]
+    def __call__(self, model, x_batch, y_batch, a_batch, channel_first, device, **kwargs):
+        return [float(self._rng.random()) for _ in range(x_batch.shape[0])]
 
 
 class TestNRRandomMetric:
@@ -264,9 +277,9 @@ class TestARRandomMetric:
 # ---------------------------------------------------------------------------
 
 class _AttributionSumMetric:
-    """Returns mean absolute sum of attribution per image; decreases as values are zeroed."""
+    """Returns total absolute sum of attribution per image; decreases as values are zeroed."""
 
-    def __call__(self, model, x_batch, y_batch, a_batch, channel_first, device):
+    def __call__(self, model, x_batch, y_batch, a_batch, channel_first, device, **kwargs):
         return [float(np.abs(a_batch[i]).sum()) for i in range(a_batch.shape[0])]
 
 
@@ -405,7 +418,13 @@ class TestMetaEvaluateMetric:
         assert len(result["ar"]["levels"]) == 6
 
     def test_constant_metric_combined_reliability(self):
-        """Constant metric: NR=1.0, AR=0.0 → combined=0.5."""
+        """Constant metric: NR=1.0, AR=NaN (zero variance) → combined=NaN.
+
+        _ConstantMetric returns 0.5 regardless of input, so:
+        - NR: std across seeds = 0 → CV = 0 → nr_score = 1.0
+        - AR: std across images = 0 → zero-variance check → ar_score = NaN
+        - combined: NaN (either score NaN → combined NaN)
+        """
         result = meta_evaluate_metric(
             metric_name="Constant",
             metric_fn=_ConstantMetric(),
@@ -418,8 +437,8 @@ class TestMetaEvaluateMetric:
             n_levels=5,
         )
         assert result["nr"]["nr_score"] == pytest.approx(1.0, abs=1e-9)
-        assert result["ar"]["ar_score"] == pytest.approx(0.0, abs=1e-9)
-        assert result["combined_reliability"] == pytest.approx(0.5, abs=1e-9)
+        assert np.isnan(result["ar"]["ar_score"])
+        assert np.isnan(result["combined_reliability"])
 
 
 # ---------------------------------------------------------------------------
@@ -473,18 +492,29 @@ class TestEdgeCases:
             assert 0.0 <= result["nr_score"] <= 1.0
 
     def test_ar_score_bounded_in_zero_one(self):
+        """AR score in [0, 1] for non-constant metrics; NaN for constant (zero-variance)."""
         model = _DummyModel()
         images, attrs, targets = _make_inputs(n_images=3)
-        for metric_fn in [_ConstantMetric(), _AttributionSumMetric()]:
-            result = adversarial_reactivity_test(
-                metric_fn=metric_fn,
-                model=model,
-                images=images,
-                attributions=attrs,
-                targets=targets,
-                n_levels=5,
-            )
-            assert 0.0 <= result["ar_score"] <= 1.0
+        # _ConstantMetric triggers zero-variance → NaN (not a finite value)
+        result_const = adversarial_reactivity_test(
+            metric_fn=_ConstantMetric(),
+            model=model,
+            images=images,
+            attributions=attrs,
+            targets=targets,
+            n_levels=5,
+        )
+        assert np.isnan(result_const["ar_score"])
+        # _AttributionSumMetric has variance → finite ar_score in [0, 1]
+        result_sum = adversarial_reactivity_test(
+            metric_fn=_AttributionSumMetric(),
+            model=model,
+            images=images,
+            attributions=attrs,
+            targets=targets,
+            n_levels=5,
+        )
+        assert 0.0 <= result_sum["ar_score"] <= 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -670,3 +700,155 @@ class TestRunMetaEvaluationFull:
         assert len(result_df) == 1
         assert result_df.iloc[0]["status"] == "skipped_nan"
         assert np.isnan(result_df.iloc[0]["nr_score"])
+
+
+# ---------------------------------------------------------------------------
+# New tests: auxiliary kwargs forwarding (Part B / Part E)
+# ---------------------------------------------------------------------------
+
+class _PointingGameFixture:
+    """Simulates PointingGame: 1.0 if max-attribution pixel is inside mask, else 0.0.
+
+    Needs s_batch forwarded (via masks param) to produce non-NaN scores.
+    After _call_metric collapses channels, a_batch arrives as (B, 1, H, W).
+    """
+
+    def __call__(self, model, x_batch, y_batch, a_batch, channel_first, device,
+                 s_batch=None, **kwargs):
+        B = a_batch.shape[0]
+        results = []
+        for b in range(B):
+            a = a_batch[b, 0]  # (H, W) — channel already collapsed by _call_metric
+            if s_batch is not None:
+                mask = s_batch[b, 0]
+                max_idx = np.unravel_index(np.argmax(np.abs(a)), a.shape)
+                results.append(1.0 if mask[max_idx] > 0 else 0.0)
+            else:
+                results.append(float("nan"))
+        return results
+
+
+class _MaxSensFixture:
+    """Returns mean |attribution| per image; declines as attribution is zeroed.
+
+    Accepts explain_func to simulate MaxSensitivity's call signature.
+    Uses a_batch directly (not explain_func) so scores are determined by
+    the degraded attribution, ensuring monotonic AR behaviour.
+    """
+
+    def __call__(self, model, x_batch, y_batch, a_batch, channel_first, device,
+                 explain_func=None, explain_func_kwargs=None, **kwargs):
+        return [float(np.abs(a_batch[b]).mean()) for b in range(x_batch.shape[0])]
+
+
+class TestARAuxiliaryKwargs:
+    """AR test correctly handles mask-dependent and explain_func-dependent metrics."""
+
+    def setup_method(self):
+        self.model = _DummyModel()
+        rng = np.random.default_rng(0)
+        n = 3
+        self.images = [rng.random((3, 16, 16)).astype(np.float32) for _ in range(n)]
+        self.targets = [0] * n
+
+        # Mask covers center square [4:12, 4:12]
+        self.masks = [np.zeros((1, 16, 16), dtype=np.float32) for _ in range(n)]
+        for m in self.masks:
+            m[0, 4:12, 4:12] = 1.0
+
+        # Structured attrs for PointingGame: images 0 and 2 peak inside mask,
+        # image 1 peak outside → base_raw = [1.0, 0.0, 1.0] → std > 0.
+        # _call_metric collapses channels via sum → peak pixel has value 3*2.0=6.
+        self.attrs_pg = []
+        for i in range(n):
+            a = np.zeros((3, 16, 16), dtype=np.float32)
+            if i % 2 == 0:
+                a[:, 8, 8] = 2.0   # center pixel, inside mask
+            else:
+                a[:, 0, 0] = 2.0   # corner pixel, outside mask
+            self.attrs_pg.append(a)
+
+        # Random attrs for MaxSens: different per-image mean |a| → variance > 0.
+        self.attrs_rand = [rng.random((3, 16, 16)).astype(np.float32) for _ in range(n)]
+
+    def test_ar_pointing_game_with_mask_is_finite(self):
+        """PointingGame: AR is finite when mask is forwarded correctly.
+
+        attrs_pg: images 0 and 2 peak inside mask, image 1 outside.
+        base_raw = [1.0, 0.0, 1.0] → std > 0 → zero-variance check passes.
+        As attribution is degraded (values zeroed), scores decline → ar_score > 0.
+        """
+        result = adversarial_reactivity_test(
+            metric_fn=_PointingGameFixture(),
+            model=self.model,
+            images=self.images,
+            attributions=self.attrs_pg,
+            targets=self.targets,
+            masks=self.masks,
+            n_levels=4,
+        )
+        assert np.isfinite(result["ar_score"]), (
+            f"Expected finite ar_score with mask, got {result['ar_score']}"
+        )
+
+    def test_ar_max_sensitivity_with_explain_func_is_finite(self):
+        """MaxSensitivity: AR is finite when explain_func is forwarded.
+
+        attrs_rand: different mean |a| per image → std > 0 → zero-variance passes.
+        _MaxSensFixture uses a_batch.mean() which declines as values are zeroed.
+        """
+        result = adversarial_reactivity_test(
+            metric_fn=_MaxSensFixture(),
+            model=self.model,
+            images=self.images,
+            attributions=self.attrs_rand,
+            targets=self.targets,
+            explain_func=_explain_zeros,
+            n_levels=4,
+        )
+        assert np.isfinite(result["ar_score"]), (
+            f"Expected finite ar_score with explain_func, got {result['ar_score']}"
+        )
+
+    def test_ar_completeness_zero_variance_returns_nan(self):
+        """Completeness-like metric: AR returns NaN (zero variance), not spurious 0.0.
+
+        Uses _ConstantMetric (always 0.5) to simulate Completeness (always 0.0):
+        both have std=0 across images, so the zero-variance check triggers.
+        """
+        result = adversarial_reactivity_test(
+            metric_fn=_ConstantMetric(),
+            model=self.model,
+            images=self.images,
+            attributions=self.attrs_pg,
+            targets=self.targets,
+            n_levels=4,
+        )
+        assert np.isnan(result["ar_score"]), (
+            f"Expected NaN ar_score for zero-variance metric, got {result['ar_score']}"
+        )
+        assert result["zero_variance"] is True
+
+    def test_meta_evaluate_all_kwargs_no_nan_combined(self):
+        """meta_evaluate_metric with mask + explain_func produces finite combined.
+
+        Uses attrs_pg so PointingGame base_raw has non-zero variance.
+        NR: explain_fn=_explain_zeros → recomputed attrs are zeros → argmax at (0,0)
+            → score=0 for all seeds → std=0 → nr_score=1.0.
+        AR: base_raw=[1.0, 0.0, 1.0] → std>0 → ar proceeds → finite ar_score.
+        """
+        result = meta_evaluate_metric(
+            metric_name="PointingGame",
+            metric_fn=_PointingGameFixture(),
+            model=self.model,
+            images=self.images,
+            attributions=self.attrs_pg,
+            targets=self.targets,
+            explain_fn=_explain_zeros,
+            masks=self.masks,
+            n_seeds=2,
+            n_levels=3,
+        )
+        assert np.isfinite(result["combined_reliability"]), (
+            f"Expected finite combined_reliability, got {result['combined_reliability']}"
+        )
