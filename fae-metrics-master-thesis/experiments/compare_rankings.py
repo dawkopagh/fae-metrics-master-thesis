@@ -27,6 +27,7 @@ Output: results/ranking_comparison.csv
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -47,12 +48,12 @@ from src.aggregation.weighting import (
 from src.aggregation.normalize import METRIC_DIRECTIONS
 
 # ---------------------------------------------------------------------------
-# Paths
+# Default paths (12-image preliminary run)
 # ---------------------------------------------------------------------------
 _RESULTS = _REPO.parent / "results"
-_VERTICAL_SLICE = _RESULTS / "vertical_slice_7fae_12metrics.csv"
-_RELIABILITY_CSV = _RESULTS / "meta_evaluation_reliability.csv"
-_OUT_CSV = _RESULTS / "ranking_comparison.csv"
+_DEFAULT_SLICE   = str(_RESULTS / "vertical_slice_7fae_12metrics.csv")
+_DEFAULT_RELCSV  = str(_RESULTS / "meta_evaluation_reliability.csv")
+_DEFAULT_OUT     = str(_RESULTS / "ranking_comparison.csv")
 
 # ---------------------------------------------------------------------------
 # M* metric set (S8.5 cross-model intersection, 7 metrics)
@@ -137,13 +138,56 @@ def aggregate_group(
 
 
 # ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+def _parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        description="Four-scheme FAE ranking comparison (Part D, S10)."
+    )
+    p.add_argument(
+        "--slice-csv",
+        default=_DEFAULT_SLICE,
+        metavar="PATH",
+        help=(
+            "Vertical slice CSV to read "
+            f"(default: {_DEFAULT_SLICE})"
+        ),
+    )
+    p.add_argument(
+        "--reliability-csv",
+        default=_DEFAULT_RELCSV,
+        metavar="PATH",
+        help=(
+            "MetaQuantus reliability CSV to read "
+            f"(default: {_DEFAULT_RELCSV})"
+        ),
+    )
+    p.add_argument(
+        "--output-csv",
+        default=_DEFAULT_OUT,
+        metavar="PATH",
+        help=(
+            "Destination for the wide-format ranking CSV "
+            f"(default: {_DEFAULT_OUT})"
+        ),
+    )
+    return p.parse_args()
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
 def main() -> None:
+    args = _parse_args()
+    slice_path  = Path(args.slice_csv)
+    rel_path    = Path(args.reliability_csv)
+    output_path = Path(args.output_csv)
+
     # 1. Load data
-    raw = pd.read_csv(_VERTICAL_SLICE)
-    meta_eval = pd.read_csv(_RELIABILITY_CSV)
+    raw = pd.read_csv(slice_path)
+    meta_eval = pd.read_csv(rel_path)
 
     # Filter to M* only
     raw_mstar = raw[raw["metric"].isin(M_STAR)].copy()
@@ -195,8 +239,9 @@ def main() -> None:
     ]
 
     # 5. Save
-    result.to_csv(_OUT_CSV, index=False)
-    print(f"Saved {len(result)} rows → {_OUT_CSV}\n")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    result.to_csv(output_path, index=False)
+    print(f"Saved {len(result)} rows → {output_path}\n")
 
     # -----------------------------------------------------------------------
     # Tables
