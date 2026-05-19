@@ -3,10 +3,12 @@ Metric redundancy analysis — Research Contribution 1.
 
 Responsibilities (see docs/thesis_plan.md §2, Research Contribution 1;
 and §10, Decision D4):
+    - Pre-screen metrics for zero variance and excessive NaN before
+      redundancy analysis (variance_pre_screen)
     - Compute a Spearman correlation matrix across all metrics for a given
       model × dataset × FAE-method combination
-    - Apply the |ρ| > 0.85 (default, Decision D4) pruning threshold within
-      each Quantus category to identify a non-redundant representative subset M*
+    - Apply the |ρ| > 0.85 (default, Decision D4) pruning threshold to
+      identify a non-redundant representative subset M*
     - Return the reduced metric set and the full correlation matrix for
       reporting in Chapter 4
 
@@ -40,18 +42,113 @@ METRIC_CATEGORIES: dict[str, str] = {
 }
 
 
+def variance_pre_screen(
+    df: pd.DataFrame,
+    min_variance: float = 1e-6,
+    min_non_null_fraction: float = 0.20,
+    group_by: tuple[str, ...] | None = ("model",),
+) -> tuple[list[str], list[tuple[str, str, float]]]:
+    """Identify metrics with insufficient signal to enter redundancy analysis.
+
+    A metric is excluded if, in ANY group defined by *group_by*, EITHER:
+    (a) the fraction of non-NaN observations is below *min_non_null_fraction*
+        (reason: ``'mostly_nan'``), OR
+    (b) the standard deviation of non-NaN values is below *min_variance*
+        (reason: ``'low_variance'``).
+
+    Condition (a) is checked before (b); a metric cannot have meaningful
+    variance without a minimum number of valid observations. The check is
+    conservative across groups: one failing group excludes the metric for
+    all groups.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Long-format DataFrame with columns: model, image_id, fae_method,
+        metric, score.
+    min_variance : float
+        Minimum standard deviation (ddof=0) of non-NaN scores. Default
+        ``1e-6`` — catches constant metrics such as Completeness when all
+        satisfying FAE methods produce exactly 0.
+    min_non_null_fraction : float
+        Minimum fraction of non-NaN observations required (0–1). Default
+        ``0.20`` — excludes metrics that are almost entirely NaN (e.g.
+        NonSensitivity when disabled).
+    group_by : tuple of str or None
+        Columns defining independent groups. Pre-screen is applied per
+        group; a metric failing in any one group is excluded globally.
+        ``None`` treats the entire DataFrame as one group.
+
+    Returns
+    -------
+    retained_metrics : list[str]
+        Metric names that passed the pre-screen in all groups, sorted
+        alphabetically.
+    excluded : list[tuple[str, str, float]]
+        One entry per excluded metric: ``(metric_name, reason, value)``.
+        *reason* is ``'mostly_nan'`` or ``'low_variance'``; *value* is the
+        observed fraction or std that triggered exclusion.
+    """
+    all_metrics = sorted(df["metric"].unique())
+
+    if group_by is None:
+        group_dfs = [df]
+    else:
+        group_dfs = [g for _, g in df.groupby(list(group_by))]
+
+    # First failure encountered across groups, per metric
+    metric_fail: dict[str, tuple[str, float]] = {}
+
+    for group_df in group_dfs:
+        wide = group_df.pivot_table(
+            index=["image_id", "fae_method"],
+            columns="metric",
+            values="score",
+            aggfunc="first",
+        )
+        wide.columns.name = None
+        total = len(wide)
+
+        for metric in all_metrics:
+            if metric in metric_fail:
+                continue  # already flagged
+
+            if metric not in wide.columns:
+                metric_fail[metric] = ("mostly_nan", 0.0)
+                continue
+
+            col = wide[metric].dropna()
+            non_null_frac = len(col) / total if total > 0 else 0.0
+
+            if non_null_frac < min_non_null_fraction:
+                metric_fail[metric] = ("mostly_nan", non_null_frac)
+                continue
+
+            std = float(col.std(ddof=0)) if len(col) > 0 else 0.0
+            if std < min_variance:
+                metric_fail[metric] = ("low_variance", std)
+
+    retained = [m for m in all_metrics if m not in metric_fail]
+    excluded = sorted(
+        [(m, reason, val) for m, (reason, val) in metric_fail.items()],
+        key=lambda x: x[0],
+    )
+    return retained, excluded
+
+
 def compute_redundancy_matrix(
     df: pd.DataFrame,
     method: str = "spearman",
-    min_obs: int = 30,
     group_by: tuple[str, ...] = ("model",),
+    min_variance: float = 1e-6,
+    min_non_null_fraction: float = 0.20,
 ) -> dict[tuple, pd.DataFrame]:
     """Compute pairwise metric correlation matrices, one per group.
 
-    Pivots the long-format DataFrame to wide format (rows = image_id ×
-    fae_method, columns = metrics) within each group, then computes
-    pairwise Spearman or Pearson correlations using pandas pairwise
-    deletion for NaN entries.
+    Applies :func:`variance_pre_screen` first to exclude zero-variance and
+    mostly-NaN metrics, then pivots to wide format (rows = image_id ×
+    fae_method, columns = metrics) and computes pairwise Spearman or
+    Pearson correlations using pandas pairwise deletion for remaining NaN.
 
     Parameters
     ----------
@@ -61,21 +158,22 @@ def compute_redundancy_matrix(
     method : {'spearman', 'pearson'}
         Correlation method. Default ``'spearman'`` (rank-based, more
         robust to outliers and non-linear metric relationships).
-    min_obs : int
-        Minimum number of non-NaN observations required to include a
-        metric in the correlation matrix. Metrics with fewer valid rows
-        (e.g., ``non_sensitivity`` with all-NaN) are dropped silently.
     group_by : tuple of str
         Columns that define independent groups; each group produces one
         correlation matrix.
+    min_variance : float
+        Forwarded to :func:`variance_pre_screen`. Metrics with std below
+        this value are excluded before correlation computation.
+    min_non_null_fraction : float
+        Forwarded to :func:`variance_pre_screen`. Metrics with fewer valid
+        observations than this fraction are excluded.
 
     Returns
     -------
     dict[tuple, pd.DataFrame]
         Mapping from group-key tuple to square symmetric correlation
         DataFrame. Row and column labels are metric names. Empty
-        DataFrame if fewer than two metrics survive the ``min_obs``
-        filter.
+        DataFrame if fewer than two metrics survive pre-screening.
 
     Raises
     ------
@@ -85,9 +183,17 @@ def compute_redundancy_matrix(
     if method not in ("spearman", "pearson"):
         raise ValueError(f"method must be 'spearman' or 'pearson', got '{method}'")
 
+    retained_metrics, _ = variance_pre_screen(
+        df,
+        min_variance=min_variance,
+        min_non_null_fraction=min_non_null_fraction,
+        group_by=group_by,
+    )
+    df_screened = df[df["metric"].isin(retained_metrics)]
+
     result: dict[tuple, pd.DataFrame] = {}
 
-    for group_keys, group_df in df.groupby(list(group_by)):
+    for group_keys, group_df in df_screened.groupby(list(group_by)):
         if not isinstance(group_keys, tuple):
             group_keys = (group_keys,)
 
@@ -98,9 +204,6 @@ def compute_redundancy_matrix(
             aggfunc="first",
         )
         wide.columns.name = None
-
-        valid_counts = wide.notna().sum()
-        wide = wide.loc[:, valid_counts >= min_obs]
 
         if wide.shape[1] < 2:
             result[group_keys] = pd.DataFrame()
@@ -119,6 +222,8 @@ def prune_redundant_metrics(
 ) -> tuple[list[str], list[tuple[str, str, float]]]:
     """Greedy pruning of redundant metrics at |ρ| > threshold.
 
+    Operates on a correlation matrix that has already been through
+    :func:`variance_pre_screen` (via :func:`compute_redundancy_matrix`).
     Iteratively drops the metric with the highest mean absolute correlation
     to all currently surviving metrics, until no pair exceeds the threshold.
     Tie-breaking favours removing the metric that is more correlated on

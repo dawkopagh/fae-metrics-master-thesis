@@ -1,0 +1,7 @@
+model,fae_method,axiom_name,mean_violation,n_observations,passes
+resnet18,deep_lift,completeness,0.0,12,True
+resnet18,integrated_gradients,completeness,0.0,12,True
+resnet18,lrp,completeness,0.0,12,True
+squeezenet,deep_lift,completeness,0.0,12,True
+squeezenet,integrated_gradients,completeness,0.0,12,True
+squeezenet,lrp,completeness,0.0,12,True

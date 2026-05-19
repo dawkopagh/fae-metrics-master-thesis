@@ -11,6 +11,7 @@ from src.metrics.redundancy import (
     category_redundancy_summary,
     compute_redundancy_matrix,
     prune_redundant_metrics,
+    variance_pre_screen,
 )
 
 
@@ -87,8 +88,8 @@ class TestComputeRedundancyMatrix:
         np.testing.assert_allclose(mat.values, mat.values.T, atol=1e-12)
         np.testing.assert_allclose(np.diag(mat.values), np.ones(3), atol=1e-12)
 
-    def test_min_obs_drops_all_nan_metric(self):
-        """A metric with all-NaN scores is excluded when min_obs > 0."""
+    def test_variance_prescreen_drops_all_nan_metric(self):
+        """A metric with all-NaN scores is excluded by variance_pre_screen."""
         base_df = _make_df(
             ["faithfulness_correlation", "max_sensitivity"],
             {"faithfulness_correlation": [0.3, 0.6, 0.9], "max_sensitivity": [0.1, 0.5, 0.9]},
@@ -99,7 +100,7 @@ class TestComputeRedundancyMatrix:
         nan_rows["score"] = float("nan")
         df = pd.concat([base_df, nan_rows], ignore_index=True)
 
-        result = compute_redundancy_matrix(df, min_obs=30)
+        result = compute_redundancy_matrix(df, min_non_null_fraction=0.20)
         mat = result[("resnet18",)]
         assert "non_sensitivity" not in mat.columns
 
@@ -235,3 +236,63 @@ class TestCategoryRedundancySummary:
         summary = category_redundancy_summary(pd.DataFrame(), METRIC_CATEGORIES)
         assert isinstance(summary, pd.DataFrame)
         assert len(summary) == 0
+
+
+# ── variance_pre_screen ────────────────────────────────────────────────────
+
+class TestVariancePreScreen:
+    def test_constant_metric_excluded_as_low_variance(self):
+        """A metric with std = 0 across all non-NaN values is excluded."""
+        rng = np.random.default_rng(7)
+        normal_scores = rng.random(36).tolist()
+        const_scores = [0.0] * 36  # zero variance
+
+        df = _make_df(
+            ["faithfulness_correlation", "completeness"],
+            {"faithfulness_correlation": normal_scores, "completeness": const_scores},
+        )
+        retained, excluded = variance_pre_screen(df, min_variance=1e-6)
+
+        excluded_names = [e[0] for e in excluded]
+        assert "completeness" in excluded_names
+        assert "faithfulness_correlation" not in excluded_names
+
+        reasons = {e[0]: e[1] for e in excluded}
+        assert reasons["completeness"] == "low_variance"
+
+    def test_mostly_nan_metric_excluded(self):
+        """A metric with 90% NaN is excluded as 'mostly_nan'."""
+        base_df = _make_df(
+            ["faithfulness_correlation", "max_sensitivity"],
+            {"faithfulness_correlation": [0.3, 0.6, 0.9], "max_sensitivity": [0.1, 0.5, 0.9]},
+        )
+        # Add a metric with 90% NaN (only 10% of rows have a value)
+        sparse_rows = base_df[base_df["metric"] == "faithfulness_correlation"].copy()
+        sparse_rows["metric"] = "non_sensitivity"
+        # Set 90% to NaN: keep only every 10th row valid
+        sparse_rows = sparse_rows.reset_index(drop=True)
+        sparse_rows.loc[sparse_rows.index % 10 != 0, "score"] = float("nan")
+        df = pd.concat([base_df, sparse_rows], ignore_index=True)
+
+        retained, excluded = variance_pre_screen(df, min_non_null_fraction=0.20)
+
+        excluded_names = [e[0] for e in excluded]
+        assert "non_sensitivity" in excluded_names
+        reasons = {e[0]: e[1] for e in excluded}
+        assert reasons["non_sensitivity"] == "mostly_nan"
+
+    def test_normal_metric_retained(self):
+        """A metric with sufficient variance and non-null fraction is retained."""
+        rng = np.random.default_rng(42)
+        df = _make_df(
+            ["faithfulness_correlation", "max_sensitivity"],
+            {
+                "faithfulness_correlation": rng.random(36).tolist(),
+                "max_sensitivity": rng.random(36).tolist(),
+            },
+        )
+        retained, excluded = variance_pre_screen(df)
+
+        assert "faithfulness_correlation" in retained
+        assert "max_sensitivity" in retained
+        assert len(excluded) == 0
