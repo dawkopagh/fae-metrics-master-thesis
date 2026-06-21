@@ -78,7 +78,7 @@ scores.
 \subsection{ResNet-18}
 
 ResNet-18 is a residual network with 18 layers organized in four residual
-blocks with skip connections \cite{MISSING-he2016resnet}.
+blocks with skip connections \cite{he2016resnet}.
 \studentinline{VERIFY citation: He et al.\ 2016 --- ``Deep Residual Learning for Image Recognition.''} The final
 fully connected layer is replaced with $\text{Linear}(512, 3)$ to match the
 three-class ISIC 2017 classification task.
@@ -88,7 +88,7 @@ three-class ISIC 2017 classification task.
 SqueezeNet 1.1 is a compact architecture that achieves AlexNet-level accuracy
 with $\sim$50$\times$ fewer parameters, using Fire modules that combine
 $1 \times 1$ squeeze convolutions with mixed $1 \times 1$ and $3 \times 3$
-expand convolutions \cite{MISSING-iandola2016squeeze}.
+expand convolutions \cite{iandola2016squeeze}.
 \studentinline{VERIFY citation: Iandola et al.\ 2016 --- ``SqueezeNet: AlexNet-Level Accuracy with 50x Fewer Parameters.''} The final classifier layer is replaced with
 $\text{Conv2d}(512, 3, 1, 1)$ for three-class output.
 
@@ -142,20 +142,20 @@ upsampled to input resolution via bilinear interpolation.
 Propagates gradients through only the positive activations at each ReLU
 layer, producing sharper maps than vanilla gradients but at the risk of
 acting as an edge detector independent of model parameters
-\cite{MISSING-springenberg2015}.
+\cite{springenberg2015}.
 \studentinline{VERIFY citation: Springenberg et al.\ 2015 --- ``Striving for Simplicity: The All Convolutional Net.''}
 
 \subsubsection{DeepLift}
 Computes attribution by comparing each neuron's activation to a reference
 activation produced by a black baseline input ($x' = 0$). Decomposes the
 output difference $f(x) - f(x')$ into individual feature contributions
-\cite{MISSING-shrikumar2017deeplift}.
+\cite{shrikumar2017deeplift}.
 \studentinline{VERIFY citation: Shrikumar et al.\ 2017 --- ``Learning Important Features Through Propagating Activation Differences.''}
 
 \subsubsection{Layer-wise Relevance Propagation (LRP)}
 Redistributes the model output backward through the network according to
 propagation rules that preserve the total relevance at each layer
-\cite{MISSING-bach2015lrp}.
+\cite{bach2015lrp}.
 \studentinline{VERIFY citation: Bach et al.\ 2015 --- ``On Pixel-Wise Explanations for Non-Linear Classifier Decisions by Layer-Wise Relevance Propagation.''}
 
 \subsection{Perturbation-based Methods}
@@ -164,7 +164,7 @@ propagation rules that preserve the total relevance at each layer
 A sliding window of size $(3, 15, 15)$ with stride $(3, 8, 8)$ is passed
 over the input, replacing occluded regions with a black baseline. The change
 in model output for each position yields a sensitivity map
-\cite{MISSING-zeiler2014}.
+\cite{zeiler2014}.
 \studentinline{VERIFY citation: Zeiler \& Fergus 2014 --- ``Visualizing and Understanding Convolutional Networks.''}
 
 \medskip
@@ -357,7 +357,61 @@ tests of \citet{hedstrom2024metaquantus}. This ensures that unreliable
 metrics receive lower weight in the final aggregation, even if their raw
 ensemble scores are high.
 
-\studentinline{TODO: Write detailed Autoweighted derivation after meta-evaluation results are available.}
+\subsection{MetaQuantus-discounted Weighting (Contribution~2)}
+\label{subsec:mq-discount}
+
+The novel weighting scheme of this thesis (Decision~D3) combines two
+signals that are conventionally treated in isolation: how strongly a metric
+agrees with the cross-metric consensus, and how reliable that metric is when
+probed by meta-evaluation. The derivation proceeds in three steps.
+
+\paragraph{Step 1 --- Raw agreement weight.}
+For each retained metric $k \in M^{*}$, let $\mathrm{ES}_k$ be the
+\emph{ensemble agreement} of metric $k$, defined as the mean absolute
+rank correlation between the per-method ranking induced by metric $k$ alone
+and the consensus ranking induced by the (uniform) aggregate of all metrics
+in $M^{*}$:
+\begin{equation}
+    \mathrm{ES}_k = \frac{1}{|M^{*}| - 1}
+        \sum_{j \in M^{*},\, j \neq k}
+        \bigl| \rho\bigl(\mathbf{r}_k,\, \mathbf{r}_j\bigr) \bigr|,
+\end{equation}
+where $\mathbf{r}_k$ is the vector of method ranks under metric $k$ and
+$\rho$ is the Spearman rank correlation. A metric whose ranking aligns with
+the rest of the panel receives a high $\mathrm{ES}_k$; an idiosyncratic
+metric receives a low one.
+
+\paragraph{Step 2 --- Reliability discount.}
+Each metric is assigned a reliability coefficient $r_k \in [0, 1]$ obtained
+from the meta-evaluation stage (Section~\ref{subsec:meta-evaluation} of
+Chapter~\ref{ch:sota}). MetaQuantus produces two scores per metric: a Noise
+Resilience score $\mathrm{NR}_k$ and an Adversarial Reactivity score
+$\mathrm{AR}_k$. Their combination
+\begin{equation}
+    r_k = \tfrac{1}{2}\bigl(\mathrm{NR}_k + \mathrm{AR}_k\bigr)
+\end{equation}
+is the per-metric \texttt{combined\_reliability} reported in
+\texttt{results/meta\_evaluation\_reliability.csv}, averaged over the
+(model, FAE) cells in which the metric is defined. Where only one of the two
+sub-scores is available, $r_k$ falls back to that sub-score.
+
+\paragraph{Step 3 --- Discounted normalisation.}
+The agreement weight is attenuated by the reliability coefficient and
+renormalised to a convex combination:
+\begin{equation}
+    w_k = \frac{r_k \, \mathrm{ES}_k}{\sum_{j \in M^{*}} r_j \, \mathrm{ES}_j},
+    \qquad w_k \geq 0, \quad \sum_{k \in M^{*}} w_k = 1.
+    \label{eq:mq-discount}
+\end{equation}
+Equation~\eqref{eq:mq-discount} is the MetaQuantus-discounted Autoweighted
+operator. It reduces to uniform weighting when all $r_k \mathrm{ES}_k$ are
+equal, to the plain Autoweighted scheme of
+\citet{hryniewska2024normensemblexai} when every metric is perfectly
+reliable ($r_k \equiv 1$), and it drives $w_k \to 0$ for any metric that
+either disagrees with the consensus or fails meta-evaluation. The three
+weighting schemes---uniform, Autoweighted, and MQ-discounted---are reported
+side by side in Chapter~\ref{ch:experiments} so that their effect on the
+final method ranking can be assessed directly.
 
 %% ========================================================================
 \section{The Evaluation Pipeline}
@@ -388,7 +442,43 @@ this chapter into a single reproducible data flow:
     $E(\Phi)$ across test images.
 \end{enumerate}
 
-\studentinline{TODO: Add tikz pipeline diagram once results are confirmed.}
+Figure~\ref{fig:pipeline} summarises this flow. The diagram makes explicit
+the two contribution boundaries: the meta-evaluation block
+(redundancy~+~meta-validation) yields the reduced metric set $M^{*}$
+(Contribution~1), and the aggregation block (normalisation, weighting,
+combination) yields the effectiveness index $E(\Phi)$ (Contribution~2),
+which the statistical-comparison stage (Contributions~3--4) consumes.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        node distance=5mm and 0mm,
+        box/.style={draw, rounded corners, align=center, inner sep=4pt,
+                    text width=0.74\linewidth, font=\small},
+        contrib/.style={draw, rounded corners, align=center, inner sep=4pt,
+                    text width=0.74\linewidth, font=\small, fill=black!5},
+        arr/.style={-{Latex[length=2mm]}, thick}
+    ]
+        \node[box]     (data)    {ISIC 2017 images $+$ expert lesion masks};
+        \node[box,below=of data]    (train)   {Base classifier training\\(ResNet-18, SqueezeNet 1.1)};
+        \node[box,below=of train]   (attr)    {Attribution generation (Captum, 7 FAE methods)\\$\Phi(f,x)$, cached to disk};
+        \node[box,below=of attr]    (metric)  {Metric computation (Quantus, 12 metrics / 6 categories)};
+        \node[contrib,below=of metric] (meta) {\textbf{Meta-evaluation (Contribution~1)}\\redundancy pruning $+$ MetaQuantus NR/AR\\$\Rightarrow$ reduced validated set $M^{*}$};
+        \node[contrib,below=of meta]   (agg)  {\textbf{Aggregation (Contribution~2)}\\normalise $\to$ rectify $\to$ weight (MQ-discount) $\to$ combine\\$\Rightarrow$ effectiveness index $E(\Phi)$};
+        \node[contrib,below=of agg]    (stat) {\textbf{Statistical comparison (Contributions~3--4)}\\Friedman $+$ Nemenyi, Wilcoxon;\\individual vs.\ ensembled attributions};
+
+        \draw[arr] (data)   -- (train);
+        \draw[arr] (train)  -- (attr);
+        \draw[arr] (attr)   -- (metric);
+        \draw[arr] (metric) -- (meta);
+        \draw[arr] (meta)   -- (agg);
+        \draw[arr] (agg)    -- (stat);
+    \end{tikzpicture}
+    \caption{End-to-end evaluation pipeline. White boxes are experimental
+    infrastructure; shaded boxes are the methodological contributions of this
+    thesis.}
+    \label{fig:pipeline}
+\end{figure}
 
 \subsection{Implementation}
 

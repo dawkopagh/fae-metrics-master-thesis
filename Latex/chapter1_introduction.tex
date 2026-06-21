@@ -18,6 +18,7 @@ The primary contributions of this work are defined as follows:
 
 \section{Research motivation}
 \label{cha:introduction}
+\label{sec:motivation}
 
 The evolution of Deep Learning has led to a paradigm shift in artificial intelligence, where model performance often comes at the cost of transparency - a phenomenon known as the "Interpretability-Performance Trade-off" \cite{doshi2017rigorous}. While modern neural networks achieve superhuman accuracy, their decision-making processes remain opaque "black boxes" \cite{adebayo2018sanity}.
 
@@ -42,8 +43,10 @@ The remainder of this thesis is structured as follows:
     
     \item \textbf{Chapter 3: Methodology} - Introduces the proposed modular evaluation framework and custom XAI pipelines. This chapter details the \textit{NormEnsembleXAI} algorithm \cite{hryniewska2024normensemblexai}, explaining how diverse outputs from multiple explainers are unified through Second Moment Scaling normalization and aggregation functions (Mean, Max, Min). It further describes the design of custom evaluation pipelines that utilize an \textit{Autoweighted} system to balance conflicting criteria based on individual estimator scores \cite{hryniewska2024normensemblexai}.
     
-    \item \textbf{Chapter 4: Experiments and Results} – Presents the empirical validation of the proposed framework and library \cite{hryniewska2024normensemblexai}. Utilizing the \textit{EnsembleXAI} library, the performance of the custom pipelines is assessed on general benchmarks (ImageNet-S) and high-stakes medical datasets (HAM10000) \cite{hryniewska2024normensemblexai, sangwan2024quantifying}. This section provides a quantitative analysis of the "Ground Truth" problem in medical XAI and demonstrates how ensembling yields more stable and reliable insights than individual baseline methods.
-    
-    \item \textbf{Chapter 5: Conclusions and Future Work} – Summarizes the findings regarding the efficacy of multi-objective, pipeline-based evaluation. It discusses the trade-offs between interpretability and performance \cite{doshi2017rigorous}, addresses limitations such as computational and memory complexity \cite{hryniewska2024normensemblexai}, and outlines future research into automated validation and regulatory compliance within the scope of the EU AI Act.
+    \item \textbf{Chapter 4: Experiments and Results} – Presents the empirical validation of the proposed framework on the ISIC~2017 dermoscopic dataset \cite{sangwan2024quantifying}, whose expert-annotated lesion masks enable Localization metrics. It reports the metric redundancy analysis, the MetaQuantus-based reliability of each metric, the comparison of uniform, Autoweighted, and MetaQuantus-discounted aggregation, the contrast between individual and NormEnsembleXAI-ensembled attributions \cite{hryniewska2024normensemblexai}, and the statistical significance of the resulting rankings via Friedman, Nemenyi, and Wilcoxon testing.
+
+    \item \textbf{Chapter 5: Discussion} – Interprets the rankings, examines the threats to validity (notably the sample-size limitation of the redundancy and reliability estimates), and delimits the scope within which the conclusions generalise.
+
+    \item \textbf{Chapter 6: Conclusions and Future Work} – Summarizes the findings against each contribution, discusses the trade-offs between interpretability and performance \cite{doshi2017rigorous} and the computational limitations \cite{hryniewska2024normensemblexai}, and outlines future research into automated validation and regulatory compliance within the scope of the EU AI Act.
 \end{itemize}
 \studentinline{Assumed for now, might change later depending on outcomes}

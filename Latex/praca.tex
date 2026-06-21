@@ -23,6 +23,8 @@
 \AtBeginDocument{\RenewCommandCopy\qty\SI}
 \captionsetup{justification=centering}
 \usepackage{float} % for [H] option
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning}
 
 
 % --- < bibliografia > ---
@@ -166,10 +168,40 @@ backend=bibtex
 
 \chapter*{Abstract}
 
+Feature Attribution Explanation (FAE) methods are increasingly relied upon to
+make the decisions of deep neural networks intelligible, yet their evaluation
+remains fragmented: dozens of quality metrics exist, they frequently disagree,
+and it is rarely clear which of them should be trusted. This thesis treats the
+\emph{evaluation pipeline}, rather than any new explanation method, as the unit
+of contribution and develops a multi-criteria framework for assessing FAE
+methods along six quality dimensions---Faithfulness, Robustness, Localization,
+Complexity, Randomization, and Axiomatic correctness---drawn from the Quantus
+taxonomy.
 
-\\~\\
-Keywords\\
-todo
+The work makes four contributions. First, it presents an empirical
+non-redundancy analysis of the available metrics, using correlation-based
+pruning to identify a compact, non-redundant representative subset. Second, it
+proposes a multi-criteria aggregation framework that integrates
+MetaQuantus-style meta-validation (Noise Resilience and Adversarial Reactivity)
+with an Autoweighted aggregation scheme inspired by NormEnsembleXAI, and
+introduces a novel MetaQuantus-discounted weighting operator that attenuates
+the influence of unreliable metrics. Third, it characterises empirically when
+aggregated rankings diverge from single-metric rankings and compares individual
+FAE methods against NormEnsembleXAI-ensembled attributions. Fourth, it validates
+the framework on the ISIC~2017 dermoscopic dataset, whose expert-annotated
+lesion masks enable Localization metrics, using Friedman, Nemenyi, and Wilcoxon
+tests to establish statistical significance.
+
+The thesis presents the framework, its software implementation, and an
+experimental protocol over two classifiers (ResNet-18 and SqueezeNet~1.1) and
+seven attribution methods. Together these elements provide a reproducible,
+meta-validated procedure for comparing explanation methods under multiple,
+potentially conflicting effectiveness criteria.
+
+\vspace{1em}
+\noindent\textbf{Keywords:} Explainable AI, feature attribution, evaluation
+metrics, meta-evaluation, multi-criteria aggregation, Quantus, MetaQuantus,
+NormEnsembleXAI, ISIC~2017, skin lesion classification.
 \newpage
 % Ponowne zdefiniowanie stylu `plain`, aby usunąć numer strony z pierwszej strony spisu treści i poszczególnych rozdziałów.
 \fancypagestyle{plain}
@@ -190,7 +222,9 @@ todo
 
 \include{chapter1_introduction}
 \include{chapter2_literature_overview}
-
+\include{chapter3_fusion_sources}
+\include{chapter4_state_observers}
+\include{chapter5_algo_implementation}
 \include{chapter6_concluding_remarks}
 \include{chapter7_symbols_list}
 

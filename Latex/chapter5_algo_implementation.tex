@@ -1,0 +1,119 @@
+\chapter{Discussion}
+\label{ch:discussion}
+
+This chapter interprets the experimental results of
+Chapter~\ref{ch:experiments} in the light of the research questions, examines
+the threats to the validity of the conclusions, and delimits the scope within
+which the findings can be generalised.
+
+\promoterinline{This chapter is a scaffold. The interpretive claims below are
+written as guiding prompts and are to be completed once the full 600-image run
+populates the tables and figures of Chapter~\ref{ch:experiments}. No empirical
+claim should be asserted here until the corresponding result cell is filled.}
+
+%% ========================================================================
+\section{Interpretation of the Rankings}
+\label{sec:disc-rankings}
+
+This section will discuss what the aggregated rankings of
+Section~\ref{sec:exp-ranking} imply for practitioners selecting an FAE method.
+
+\begin{itemize}
+    \item \textbf{Does multi-criteria aggregation change the verdict?}
+    Compare the FAE-method ordering under the single-metric baseline against the
+    MetaQuantus-discounted index (Table~\ref{tab:rank-stability}). Discuss the
+    cases in which a method that ``wins'' on Faithfulness alone is demoted once
+    Robustness, Localization, and Randomization enter the aggregate.
+    \item \textbf{Effect of the weighting scheme.} Contrast uniform,
+    Autoweighted, and MQ-discounted weights. Where the three agree, argue that
+    the conclusion is robust to the aggregation choice; where they disagree,
+    identify which metrics drive the divergence and whether the divergence
+    tracks the reliability discount.
+    \item \textbf{Per-category trade-offs.} Use the ensembling comparison
+    (Section~\ref{sec:exp-ensemble}) to discuss whether NormEnsembleXAI buys
+    Robustness at the expense of Localization or Complexity, and whether the
+    scalar index hides such trade-offs.
+    \item \textbf{Cross-model consistency.} Discuss whether the ResNet-18 and
+    SqueezeNet rankings agree; persistent agreement strengthens the claim that
+    the framework measures a method-intrinsic property rather than a
+    model-specific artefact.
+\end{itemize}
+
+%% ========================================================================
+\section{Implications of the Redundancy and Reliability Findings}
+\label{sec:disc-redundancy}
+
+\begin{itemize}
+    \item \textbf{Redundant categories.} The pilot indicates near-perfect
+    correlation within the Complexity and Robustness categories and near-zero
+    correlation within Faithfulness and Localization. Discuss the implication:
+    reporting both members of a redundant pair overstates evidence, and the
+    orthogonal categories carry the discriminative signal.
+    \item \textbf{Greedy cross-category pruning.} The current pruning is greedy
+    and can drop a metric because it correlates with a metric in a
+    \emph{different} category (Outstanding Issue~2 in the redundancy report).
+    Discuss whether within-category pruning (Decision~D4 as originally stated)
+    would yield a more defensible $M^{*}$ and how the choice affects the
+    downstream ranking.
+    \item \textbf{Reliability vs.\ agreement.} Discuss whether the
+    MetaQuantus reliability ordering coincides with the ensemble-agreement
+    ordering. If a metric is highly agreeing but unreliable (or vice versa), the
+    MQ-discount changes its weight; quantify how often this occurs.
+\end{itemize}
+
+%% ========================================================================
+\section{Threats to Validity}
+\label{sec:disc-threats}
+
+\subsection{Internal Validity}
+\begin{itemize}
+    \item \textbf{Sample size.} The redundancy and reliability findings reported
+    in the pilot rest on 12 images. Correlation estimates and the resulting
+    pruning decisions are unstable at this $n$; the membership of $M^{*}$ may
+    change on the full run. This is the single largest threat and is the reason
+    every pilot value is labelled as such.
+    \item \textbf{NaN handling in MPRT.} Model Parameter Randomisation produced
+    many NaNs for SqueezeNet (only 27.4\% valid observations in the pilot) and
+    for Grad-CAM on randomised ResNet. Discuss whether the surviving
+    observations are representative or a biased subsample, and whether the
+    differing MPR/sparseness correlation between the two models is a true
+    architectural effect or a sparse-data artefact.
+    \item \textbf{Target-class choice.} Attributions target the model's
+    prediction, not the ground-truth label; discuss how this interacts with
+    misclassified images.
+\end{itemize}
+
+\subsection{Construct Validity}
+\begin{itemize}
+    \item \textbf{Are the metrics measuring what they claim?} The
+    meta-evaluation partially addresses this, but NR and AR are themselves
+    proxies. Discuss the residual risk that a metric passes meta-evaluation yet
+    fails to capture human-meaningful explanation quality.
+    \item \textbf{Normalisation choice.} Second Moment Scaling (Decision~D1) was
+    adopted from NormEnsembleXAI; discuss sensitivity of the ranking to the
+    alternative $z$-score and min--max normalisations implemented for ablation.
+\end{itemize}
+
+\subsection{External Validity}
+\begin{itemize}
+    \item \textbf{Single dataset and domain.} All evidence comes from ISIC~2017
+    dermoscopy. Discuss the extent to which conclusions transfer to other
+    medical imaging modalities or to natural images, and why the medical domain
+    was nonetheless chosen (mask availability, motivation).
+    \item \textbf{Two architectures.} ResNet-18 and SqueezeNet are both
+    convolutional; transformer-based classifiers may interact differently with
+    gradient-based attributions and with MPRT.
+\end{itemize}
+
+%% ========================================================================
+\section{Limitations}
+\label{sec:disc-limitations}
+
+\begin{itemize}
+    \item Computational cost of the perturbation-based metrics and of LIME/
+    KernelSHAP constrained the method panel; discuss what was excluded and why.
+    \item The framework evaluates attribution \emph{maps}; it does not address
+    concept-level or counterfactual explanations.
+    \item Human-grounded validation (clinician studies) is explicitly out of
+    scope; the effectiveness index is functionally grounded only.
+\end{itemize}

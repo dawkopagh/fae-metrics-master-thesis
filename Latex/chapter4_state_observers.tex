@@ -1,0 +1,446 @@
+\chapter{Experiments and Results}
+\label{ch:experiments}
+
+This chapter reports the empirical evaluation of the framework developed in
+Chapter~\ref{ch:methodology}. The experiments are organised to mirror the four
+research contributions of Section~\ref{sec:celePracy}:
+Section~\ref{sec:exp-setup} fixes the experimental configuration;
+Section~\ref{sec:exp-redundancy} presents the metric redundancy analysis
+(Contribution~1); Section~\ref{sec:exp-meta} reports the meta-evaluation of
+metric reliability (Contribution~2); Section~\ref{sec:exp-ranking} compares the
+uniform, Autoweighted, and MetaQuantus-discounted aggregation schemes
+(Contributions~2--3); Section~\ref{sec:exp-ensemble} contrasts individual and
+NormEnsembleXAI-ensembled attributions (Contribution~3); and
+Section~\ref{sec:exp-stats} establishes statistical significance via Friedman,
+Nemenyi, and Wilcoxon testing (Contribution~4).
+
+\promoterinline{The full-scale experiment over all 600 ISIC~2017 test images has
+not yet been executed. All quantitative tables and figures in this chapter are
+presented as \emph{structures} keyed to the result artifacts under
+\texttt{results/}; cells that require the full run are marked
+\texttt{[pending full run]}. Where a result is genuinely available from the
+12-image pilot, it is labelled explicitly as a \emph{pilot} value and must not
+be read as a final finding.}
+
+%% ========================================================================
+\section{Experimental Setup}
+\label{sec:exp-setup}
+
+\subsection{Data and Splits}
+
+All experiments use the ISIC~2017 Challenge dataset (Task~1) described in
+Section~\ref{sec:dataset}: 2{,}000 training, 150 validation, and 600 test
+dermoscopic images across three diagnostic classes (melanoma, nevus,
+seborrheic keratosis), each paired with an expert-annotated binary lesion
+mask. The redundancy, meta-evaluation, aggregation, and statistical analyses
+are all computed on the test split. The 12-image pilot reported below is a
+fixed, reproducible subset of the test split used to validate the pipeline
+plumbing prior to the full run.
+
+\subsection{Models}
+
+Two classifiers act as the predictors whose decisions are explained: ResNet-18
+(final \texttt{fc}~$\to$~\texttt{Linear(512, 3)}) and SqueezeNet~1.1 (final
+classifier~$\to$~\texttt{Conv2d(512, 3, 1, 1)}). Both are trained with the
+protocol of Section~\ref{sec:models} (25 epochs, SGD with momentum,
+class-weighted cross-entropy, StepLR, fixed seed~42). Validation accuracy and
+trained-weight checksums are reported in Table~\ref{tab:model-summary}.
+
+\begin{table}[H]
+\centering
+\caption{Predictive models under evaluation and their training outcome.}
+\begin{tabularx}{\linewidth}{llcc}
+\toprule
+Model & Head & Best val.\ accuracy & Test accuracy \\
+\midrule
+ResNet-18      & Linear(512, 3)        & \texttt{[pending full run]} & \texttt{[pending full run]} \\
+SqueezeNet 1.1 & Conv2d(512, 3, 1, 1)  & \texttt{[pending full run]} & \texttt{[pending full run]} \\
+\bottomrule
+\end{tabularx}
+\label{tab:model-summary}
+% TODO: populate val/test accuracy after retraining on full ISIC 2017 (Step 4).
+% Pilot draft weights reported ResNet-18 75.3% / SqueezeNet 74.0% val acc;
+% these are preliminary and must be regenerated with the final stratified split.
+\end{table}
+
+\subsection{Attribution Methods}
+
+Seven FAE methods are evaluated (Section~\ref{sec:fae-methods}): Saliency,
+Integrated Gradients, Grad-CAM, Guided Backpropagation, DeepLift, LRP
+(gradient-based), and Occlusion (perturbation-based). LIME and KernelSHAP are
+in scope for the full run but excluded from the pilot for runtime reasons; if
+included, the tables in this chapter extend by two rows per model.
+
+\subsection{Metrics, Hardware, and Reproducibility}
+
+The twelve metrics of Table~\ref{tab:metrics} are computed with the
+hyperparameters listed there. Each experiment is driven by a YAML configuration
+under \texttt{configs/} with fixed random seeds, so that the redundancy matrix,
+the meta-evaluation scores, and the aggregated rankings are reproducible from
+the raw per-(model, image, FAE, metric) score table
+(\texttt{results/vertical\_slice\_7fae\_12metrics.csv}).
+
+\begin{table}[H]
+\centering
+\caption{Experiment scale: pilot vs.\ full run.}
+\begin{tabularx}{\linewidth}{lcc}
+\toprule
+Quantity & Pilot & Full run \\
+\midrule
+Test images        & 12  & 600 \\
+Models             & 2   & 2 \\
+FAE methods        & 7   & 7--9 \\
+Metrics            & 12  & 12 \\
+Score rows         & 2{,}016 & \texttt{[pending full run]} \\
+\bottomrule
+\end{tabularx}
+\label{tab:exp-scale}
+% TODO: full-run row count = 2 models x (7..9) FAE x 600 images x 12 metrics.
+\end{table}
+
+%% ========================================================================
+\section{Metric Redundancy Analysis (Contribution~1)}
+\label{sec:exp-redundancy}
+
+This section addresses whether the twelve metrics carry independent signal or
+duplicate one another. Following Decision~D4, for each model the metrics are
+first variance-pre-screened (a metric is dropped if, within a model group, the
+non-NaN fraction falls below 0.20 or the standard deviation falls below
+$10^{-6}$), then the Spearman rank-correlation matrix is computed across the
+test images, and pairs with $|\rho| > 0.85$ are greedily pruned, retaining in
+each pair the metric less correlated with the remainder. The surviving set is
+the reduced, non-redundant subset $M^{*}$ that feeds the aggregation stage.
+
+\paragraph{Pre-screen.}
+Two metrics are removed before correlation analysis on structural grounds:
+\emph{Completeness} (constant at $0.0$ for the methods that satisfy the axiom,
+hence zero-variance and uninformative for ranking) and \emph{Non-Sensitivity}
+(disabled by default due to $O(d)$ forward-pass cost). The remaining ten
+metrics enter the matrix. The exclusion of Completeness is justified by the
+axiom-verification result (Table~\ref{tab:axiom}) rather than by correlation.
+
+\paragraph{Correlation matrices.}
+Tables~\ref{tab:redundancy-resnet} and~\ref{tab:redundancy-squeeze} hold the
+within-category redundancy summaries for ResNet-18 and SqueezeNet, derived from
+\texttt{results/redundancy\_matrix\_resnet18.csv} and
+\texttt{results/redundancy\_matrix\_squeezenet.csv}. The full $10 \times 10$
+Spearman matrices are reproduced in those CSVs; only the summary and the pruned
+pairs are shown here for legibility.
+
+\begin{table}[H]
+\centering
+\caption{Redundancy summary --- ResNet-18: within-category mean $|\rho|$ and the
+pairs pruned at the $|\rho| > 0.85$ threshold. \emph{Pilot values (12 images);
+revalidate on full run.}}
+\begin{tabularx}{\linewidth}{lcc}
+\toprule
+Category & $n$ metrics & Mean $|\rho|$ (pilot) \\
+\midrule
+Complexity     & 2 & 0.997 \\
+Robustness     & 2 & 0.929 \\
+Randomization  & 2 & 0.829 \\
+Localization   & 2 & 0.180 \\
+Faithfulness   & 2 & 0.011 \\
+\bottomrule
+\end{tabularx}
+\label{tab:redundancy-resnet}
+% Pilot (12 images). Source: results/redundancy_matrix_resnet18.csv,
+% docs/redundancy_analysis_2026-05-19.md. TODO: rerun on 600 images.
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Redundancy summary --- SqueezeNet~1.1. \emph{Pilot values (12 images).}}
+\begin{tabularx}{\linewidth}{lcc}
+\toprule
+Category & $n$ metrics & Mean $|\rho|$ (pilot) \\
+\midrule
+Complexity     & 2 & 0.991 \\
+Robustness     & 2 & 0.969 \\
+Randomization  & 2 & 0.709 \\
+Localization   & 2 & 0.312 \\
+Faithfulness   & 2 & 0.003 \\
+\bottomrule
+\end{tabularx}
+\label{tab:redundancy-squeeze}
+% Pilot (12 images). Source: results/redundancy_matrix_squeezenet.csv.
+% TODO: rerun on 600 images.
+\end{table}
+
+\paragraph{Pruning outcome and $M^{*}$.}
+On the pilot data the Complexity pair (complexity / sparseness, $\rho \approx
+0.99$) and the Robustness pair (avg-/max-sensitivity, $\rho \approx 0.93$--$0.97$)
+are strongly redundant in both models, whereas the Faithfulness and Localization
+pairs are nearly orthogonal ($|\rho| < 0.35$). The conservative intersection
+$M^{*}$ that is valid for both models comprises seven metrics:
+\emph{faithfulness\_correlation}, \emph{max\_sensitivity},
+\emph{model\_parameter\_randomisation}, \emph{pixel\_flipping},
+\emph{pointing\_game}, \emph{random\_logit}, and
+\emph{relevance\_mass\_accuracy}. Table~\ref{tab:mstar} records the per-model
+and intersection sets; these are the metrics carried forward into aggregation.
+
+\begin{table}[H]
+\centering
+\caption{Reduced metric set $M^{*}$ after redundancy pruning. \emph{Pilot;
+membership may shift on the full run (see threats to validity in
+Chapter~\ref{ch:discussion}).}}
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+Set & Metrics retained \\
+\midrule
+ResNet-18 (7)     & f\_corr, max\_sens, MPR, pixel\_flip, point\_game, rand\_logit, RMA \\
+SqueezeNet (8)    & ResNet-18 set $+$ sparseness \\
+Intersection (7)  & f\_corr, max\_sens, MPR, pixel\_flip, point\_game, rand\_logit, RMA \\
+\bottomrule
+\end{tabularx}
+\label{tab:mstar}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Axiom verification (Completeness). All methods that satisfy the axiom
+by construction pass exactly. Pilot, $n = 12$ per cell.}
+\begin{tabularx}{\linewidth}{llcc}
+\toprule
+Model & FAE method & Mean violation & Passes \\
+\midrule
+ResNet-18 / SqueezeNet & Integrated Gradients & 0.000 & Yes \\
+ResNet-18 / SqueezeNet & DeepLift             & 0.000 & Yes \\
+ResNet-18 / SqueezeNet & LRP                  & 0.000 & Yes \\
+\bottomrule
+\end{tabularx}
+\label{tab:axiom}
+% Source: results/axiom_verification.csv (all 6 triplets pass, tol=1e-4).
+\end{table}
+
+%% ========================================================================
+\section{Meta-Evaluation: Metric Reliability (Contribution~2)}
+\label{sec:exp-meta}
+
+The redundancy analysis identifies which metrics overlap; meta-evaluation
+identifies which metrics can be \emph{trusted}. Each metric in $M^{*}$ is
+subjected to the two MetaQuantus stress tests of
+Section~\ref{subsec:meta-evaluation}: Noise Resilience (NR), measuring score
+stability under semantically meaningless input/weight perturbation, and
+Adversarial Reactivity (AR), measuring whether the score drops monotonically as
+the explanation is deliberately degraded. The combined reliability
+$r_k = \tfrac{1}{2}(\mathrm{NR}_k + \mathrm{AR}_k)$ is the discount coefficient
+used in Equation~\eqref{eq:mq-discount}.
+
+Table~\ref{tab:meta} reports NR, AR, and combined reliability per metric,
+averaged over the (model, FAE) cells in which each metric is defined, read from
+\texttt{results/meta\_evaluation\_reliability.csv}. The accompanying runtime
+column documents the cost of each metric and motivates the exclusion of the
+most expensive metrics from default runs.
+
+\begin{table}[H]
+\centering
+\caption{Metric reliability from MetaQuantus (NR, AR, combined), averaged over
+(model, FAE) cells. \texttt{[pending full run]} where the full-scale aggregate
+is not yet computed.}
+\begin{tabularx}{\linewidth}{lcccc}
+\toprule
+Metric & NR & AR & Combined $r_k$ & Mean runtime (s) \\
+\midrule
+faithfulness\_correlation       & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+max\_sensitivity                & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+model\_parameter\_randomisation & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+pixel\_flipping                 & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+pointing\_game                  & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+random\_logit                   & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+relevance\_mass\_accuracy       & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+\bottomrule
+\end{tabularx}
+\label{tab:meta}
+% TODO: populate from results/meta_evaluation_reliability.csv after 600-image run,
+% averaging combined_reliability over (model, fae_method) per metric.
+% Pilot note: pilot combined_reliability ranged ~0.45 (faithfulness_correlation)
+% to ~0.999 (complexity/sparseness) on resnet18/deep_lift; preliminary only.
+\end{table}
+
+The reliability table is read as follows: a metric with high NR but low AR is
+stable but insensitive (it does not react when the explanation degrades); a
+metric with low NR is noisy. Only metrics with high combined reliability should
+receive substantial weight in the aggregated index, which is precisely the
+behaviour enforced by the MetaQuantus discount.
+
+%% ========================================================================
+\section{Aggregation and Ranking Comparison (Contributions~2--3)}
+\label{sec:exp-ranking}
+
+This section measures whether \emph{how} metrics are combined changes the
+conclusion about which FAE method is best. Three weighting schemes are applied
+to the same normalised scores over $M^{*}$:
+(i)~\textbf{uniform} ($w_k = 1/|M^{*}|$);
+(ii)~\textbf{Autoweighted} (weights from ensemble agreement $\mathrm{ES}_k$);
+(iii)~\textbf{MQ-discounted} (Equation~\eqref{eq:mq-discount}, agreement
+attenuated by reliability). A single-metric baseline (Faithfulness Correlation
+alone, \texttt{effectiveness\_single\_fc}) is included to quantify how far a
+naive one-metric ranking departs from the multi-criteria index. All four columns
+are present in \texttt{results/ranking\_comparison.csv}.
+
+\begin{table}[H]
+\centering
+\caption{Mean effectiveness index $E(\Phi)$ per FAE method under each weighting
+scheme (ResNet-18, averaged over test images). Lower-cased method names match
+the result CSV. \texttt{[pending full run]} throughout.}
+\begin{tabularx}{\linewidth}{lcccc}
+\toprule
+FAE method & Uniform & Autoweighted & MQ-discount & Single-FC \\
+\midrule
+integrated\_gradients & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+saliency              & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+gradcam               & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+guided\_backprop      & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+deep\_lift            & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+lrp                   & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+occlusion             & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+\bottomrule
+\end{tabularx}
+\label{tab:ranking-resnet}
+% TODO: populate from results/ranking_comparison.csv, grouping by fae_method,
+% mean over image_id, for model=resnet18. Repeat table for squeezenet.
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Induced FAE-method ranks under each weighting scheme, and rank-stability
+summary. A small mean rank shift indicates that the weighting choice does not
+materially change the conclusion; a large shift indicates sensitivity.
+\texttt{[pending full run]}.}
+\begin{tabularx}{\linewidth}{lcccc}
+\toprule
+Comparison & Uniform vs.\ AW & Uniform vs.\ MQ & AW vs.\ MQ & Single-FC vs.\ MQ \\
+\midrule
+Spearman rank corr.\ (ResNet-18)  & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+Spearman rank corr.\ (SqueezeNet) & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+\# rank inversions                & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+\bottomrule
+\end{tabularx}
+\label{tab:rank-stability}
+% TODO: compute Spearman rank correlation between the per-method mean-E rankings
+% of each pair of columns in ranking_comparison.csv, and count discordant pairs.
+\end{table}
+
+The central question of Contribution~3 is answered by
+Table~\ref{tab:rank-stability}: where the single-metric ranking and the
+MQ-discounted ranking diverge, the multi-criteria framework demonstrably adds
+information; where they agree, the extra machinery is confirmatory. The
+narrative interpretation of these numbers is deferred to
+Chapter~\ref{ch:discussion}.
+
+%% ========================================================================
+\section{Individual vs.\ Ensembled Attributions (Contribution~3)}
+\label{sec:exp-ensemble}
+
+Beyond comparing individual methods, the framework is applied to attributions
+produced by NormEnsembleXAI (Decision~D6: Mean aggregation with Second Moment
+normalisation). The hypothesis under test is that an ensembled attribution
+achieves a higher---or at least more balanced---effectiveness index than its
+constituent individual methods, particularly on the Robustness axis where
+single methods are known to be unstable.
+
+\begin{table}[H]
+\centering
+\caption{Effectiveness index $E(\Phi)$ of the NormEnsembleXAI-ensembled
+attribution against the best and mean individual method, per model.
+\texttt{[pending full run]}.}
+\begin{tabularx}{\linewidth}{lcccc}
+\toprule
+Model & Ensembled $E$ & Best individual $E$ & Mean individual $E$ & $\Delta$ (ens.\ $-$ best) \\
+\midrule
+ResNet-18  & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+SqueezeNet & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+\bottomrule
+\end{tabularx}
+\label{tab:ensemble}
+% TODO: requires the NormEnsembleXAI wrapper output to be scored through the
+% same M* pipeline; not present in current pilot CSVs. Generate in full run.
+\end{table}
+
+Per-axis effectiveness (one effectiveness value per metric category for the
+ensembled vs.\ individual attributions) is reported in
+Figure~\ref{fig:ensemble-radar} so that trade-offs---e.g.\ a gain in Robustness
+purchased at the cost of Localization---are visible rather than hidden by the
+scalar index.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][0.30\textheight][c]{0.8\linewidth}{\centering
+        \texttt{[pending full run]}\\[1ex]
+        Per-category effectiveness: ensembled vs.\ individual attributions.\\
+        To be generated from the full-run aggregation output\\
+        (radar / grouped-bar over the six metric categories).}}
+    \caption{Placeholder for the per-category comparison of individual and
+    NormEnsembleXAI-ensembled attributions. \emph{Figure to be produced after
+    the 600-image run.}}
+    \label{fig:ensemble-radar}
+\end{figure}
+
+%% ========================================================================
+\section{Statistical Significance (Contribution~4)}
+\label{sec:exp-stats}
+
+The final stage tests whether the observed ranking differences are
+statistically significant rather than artefacts of sampling
+(Decision~D5). Two complementary procedures are applied to the per-image
+effectiveness distributions:
+
+\begin{itemize}
+    \item \textbf{Friedman test $+$ Nemenyi post-hoc} across all FAE methods.
+    The Friedman test detects whether at least one method differs in mean rank
+    across the test images; the Nemenyi post-hoc identifies which pairs differ,
+    visualised as a critical-difference (CD) diagram.
+    \item \textbf{Wilcoxon signed-rank test} for the paired comparison of
+    individual vs.\ NormEnsembleXAI-ensembled attributions
+    (Section~\ref{sec:exp-ensemble}), which is inherently paired per image.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Friedman omnibus test over FAE methods, per model and per weighting
+scheme. \texttt{[pending full run]}.}
+\begin{tabularx}{\linewidth}{llccc}
+\toprule
+Model & Weighting & Friedman $\chi^2$ & $p$-value & Significant ($\alpha=0.05$) \\
+\midrule
+ResNet-18  & MQ-discount & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+SqueezeNet & MQ-discount & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+\bottomrule
+\end{tabularx}
+\label{tab:friedman}
+% TODO: Friedman over per-image E(Phi) grouped by fae_method; report chi2, p.
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][0.26\textheight][c]{0.8\linewidth}{\centering
+        \texttt{[pending full run]}\\[1ex]
+        Nemenyi critical-difference (CD) diagram over the seven FAE methods\\
+        (mean rank axis; methods within one CD connected by a bar).}}
+    \caption{Placeholder for the Nemenyi critical-difference diagram.
+    \emph{To be generated from the full-run per-image rankings.}}
+    \label{fig:cd-diagram}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Wilcoxon signed-rank test: individual vs.\ ensembled attribution
+effectiveness, paired per image. \texttt{[pending full run]}.}
+\begin{tabularx}{\linewidth}{llccc}
+\toprule
+Model & Pair & $W$ statistic & $p$-value & Significant \\
+\midrule
+ResNet-18  & ensemble vs.\ best individual & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+SqueezeNet & ensemble vs.\ best individual & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+\bottomrule
+\end{tabularx}
+\label{tab:wilcoxon}
+% TODO: paired Wilcoxon over per-image E for ensemble vs individual; report W, p.
+\end{table}
+
+The interpretation of these tests---in particular whether the
+MetaQuantus-discounted aggregation yields a ranking with greater statistical
+separation than the uniform baseline, and whether ensembling produces a
+significant improvement---is carried into the discussion of
+Chapter~\ref{ch:discussion}.

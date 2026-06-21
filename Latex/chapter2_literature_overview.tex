@@ -65,7 +65,7 @@ The Pointing Game evaluates whether the single most salient pixel in the attribu
 \begin{equation}
     \text{PG} = \begin{cases} 1 & \text{if } \operatorname{argmax}_{i}|E_i| \in \mathcal{M}, \\ 0 & \text{otherwise.} \end{cases}
 \end{equation}
-The metric is typically averaged across the test set to produce a hit rate. Its binary nature makes it interpretable but coarse: a method that assigns high attribution to many pixels inside the mask but whose global maximum lies just outside receives a score of zero \cite{MISSING-pg}.
+The metric is typically averaged across the test set to produce a hit rate. Its binary nature makes it interpretable but coarse: a method that assigns high attribution to many pixels inside the mask but whose global maximum lies just outside receives a score of zero \cite{pg}.
 \studentinline{VERIFY citation: find Zhou et al.\ 2016 Pointing Game paper (Learning Deep Features for Discriminative Localization).}
 
 \subsubsection{Relevance Mass Accuracy}
@@ -79,6 +79,7 @@ RMA ranges from $0$ (no positive attribution inside the mask) to $1$ (all positi
 Both Pointing Game and RMA require a binary segmentation mask aligned with the input image. This requirement limits Localization evaluation to datasets that provide pixel-level annotations. The ISIC 2017 dataset (Task~1) includes expert-annotated lesion boundaries for every image, enabling Localization assessment without any additional labeling effort. Many commonly used benchmarks lack such masks, which is one reason Localization metrics are underreported in the literature despite their intuitive appeal.
 
 \section{The Crisis of Evaluation}
+\label{sec:crisis}
 
 A critical challenge in XAI research is the absence of "ground truth." Unlike classification tasks where a label $y$ is known, there is rarely a verified map of which pixels a neural network \textit{actually} used. This ambiguity led to a reliance on "Plausibility" - visual assessment by humans - which proved deceptive.
 
@@ -89,6 +90,7 @@ A seminal study by Adebayo et al., titled "Sanity Checks for Saliency Maps," dem
 \end{itemize}
 
 \section{Taxonomy of Evaluation Metrics}
+\label{sec:taxonomy}
 
 To rigorously assess FAE models, recent literature proposes a modular taxonomy of metrics. This thesis adopts the framework formalized by Quantus \cite{hedstrom2023quantus}, focusing on Faithfulness, Robustness, and Complexity.
 
@@ -96,7 +98,7 @@ To rigorously assess FAE models, recent literature proposes a modular taxonomy o
 Faithfulness quantifies how accurately the explanation reflects the model's internal decision logic, regardless of human intelligibility.
 
 \subsubsection{Pixel Flipping (AUC)}
-Pixel Flipping, introduced by Samek et al., evaluates faithfulness by iteratively removing the most important features (as ranked by the attribution map) and measuring the resulting degradation in the model's output \cite{MISSING-pixelflip}.
+Pixel Flipping, introduced by Samek et al., evaluates faithfulness by iteratively removing the most important features (as ranked by the attribution map) and measuring the resulting degradation in the model's output \cite{pixelflip}.
 \studentinline{VERIFY citation: Samek et al.\ 2017 --- ``Evaluating the Visualization of What a Deep Neural Network Has Learned.''}
 Pixels are replaced in descending order of attribution magnitude with a baseline value (e.g., black). The metric aggregates the output change across all removal steps into an area-under-the-curve (AUC) score:
 \begin{equation}
@@ -122,7 +124,7 @@ Robustness ensures that slight, non-semantic changes to the input (e.g., Gaussia
 The theoretical foundation for explanation robustness is Lipschitz continuity: a method $\Phi$ is robust if the ratio $\|\Phi(x) - \Phi(x')\| / \|x - x'\|$ remains bounded for inputs $x'$ in a neighborhood of $x$ \cite{alvarez2018robustness}. The metrics adopted in this thesis operationalize this principle via sensitivity analysis under random perturbations.
 
 \subsubsection{Max-Sensitivity}
-Max-Sensitivity, proposed by Yeh et al., measures the worst-case explanation change under small random perturbations of the input \cite{MISSING-yeh2019}.
+Max-Sensitivity, proposed by Yeh et al., measures the worst-case explanation change under small random perturbations of the input \cite{yeh2019}.
 \studentinline{VERIFY citation: Yeh et al.\ 2019 --- ``On the (In)fidelity and Sensitivity of Explanations.''}
 Given $N$ perturbation samples $\delta_1, \dots, \delta_N$ drawn from $\mathcal{N}(0, \sigma^2 I)$ with $\|\delta_j\| \leq \varepsilon$:
 \begin{equation}

@@ -1,0 +1,71 @@
+\chapter{Conclusions and Future Work}
+\label{ch:conclusions}
+
+This thesis set out to evaluate Feature Attribution Explanation methods under
+multiple, potentially conflicting effectiveness criteria, treating the
+evaluation pipeline---rather than any new explanation method---as the unit of
+contribution. This chapter summarises the outcome against each of the four
+contributions and outlines the directions that the work opens.
+
+\promoterinline{This chapter is a scaffold mapping each contribution to a
+conclusion stub. The stubs are to be completed with the empirical verdict once
+the full 600-image run is available; no specific quantitative outcome is
+asserted here.}
+
+%% ========================================================================
+\section{Summary of Contributions}
+\label{sec:concl-summary}
+
+\paragraph{Contribution~1 --- Non-redundancy analysis.}
+A correlation-based redundancy analysis across the six Quantus categories was
+developed (Section~\ref{sec:exp-redundancy}) and a reduced, non-redundant metric
+set $M^{*}$ was derived. \emph{[Conclusion stub: state, after the full run,
+which categories proved redundant and which carried independent signal, and how
+stable $M^{*}$ was across the two models.]}
+
+\paragraph{Contribution~2 --- Multi-criteria aggregation framework.}
+A framework integrating MetaQuantus meta-validation with Autoweighted
+aggregation was formalised, and a novel MetaQuantus-discounted weighting
+operator (Equation~\eqref{eq:mq-discount}) was proposed and implemented.
+\emph{[Conclusion stub: state whether the reliability discount measurably
+changed the metric weights and the resulting ranking.]}
+
+\paragraph{Contribution~3 --- Empirical characterisation of ensembling.}
+The framework was used to compare single-metric and aggregated rankings, and
+individual against NormEnsembleXAI-ensembled attributions
+(Sections~\ref{sec:exp-ranking}--\ref{sec:exp-ensemble}). \emph{[Conclusion
+stub: state where aggregation diverged from single-metric rankings, and whether
+ensembling improved the effectiveness index and on which axes.]}
+
+\paragraph{Contribution~4 --- Empirical validation on ISIC~2017.}
+The framework was validated on expert-annotated dermoscopic data with Friedman,
+Nemenyi, and Wilcoxon testing (Section~\ref{sec:exp-stats}). \emph{[Conclusion
+stub: state whether method differences and ensembling gains were statistically
+significant, and at what effect size.]}
+
+%% ========================================================================
+\section{Future Work}
+\label{sec:concl-future}
+
+\begin{itemize}
+    \item \textbf{Scale and stability.} Re-run the redundancy and reliability
+    analyses on the full 600-image test set (and ideally repeated
+    subsamples) to establish the stability of $M^{*}$ and of the metric
+    weights; the pilot $n$ is too small for firm claims.
+    \item \textbf{Within-category pruning.} Resolve the greedy cross-category
+    pruning issue (Decision~D4) and report how a strictly within-category
+    pruning policy changes $M^{*}$ and the downstream ranking.
+    \item \textbf{Broader method and model panels.} Add LIME and KernelSHAP to
+    the FAE panel and a transformer-based classifier to the model panel to test
+    the generality of the conclusions.
+    \item \textbf{Additional datasets.} Extend beyond ISIC~2017 to a second
+    masked medical dataset to assess cross-domain transfer of the redundancy and
+    reliability structure.
+    \item \textbf{Aggregation operators.} Compare the recommended weighted mean
+    against the min and geometric-mean operators (Decision~D2) under the
+    MQ-discount weighting, particularly for safety-critical interpretations.
+    \item \textbf{Regulatory alignment.} Connect the reproducible,
+    meta-validated pipeline to the transparency requirements of the EU AI Act,
+    following \citet{hedstrom2025bridging}, as a step toward an auditable
+    evaluation standard.
+\end{itemize}
