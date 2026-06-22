@@ -53,6 +53,7 @@ def compute_all_metrics(
     fae_method: Optional[str] = None,
     num_classes: int = 3,
     include_non_sensitivity: bool = False,
+    include_model_parameter_randomisation: bool = True,
     return_timings: bool = False,
 ) -> dict[str, float] | tuple[dict[str, float], dict[str, float]]:
     """Compute evaluation metrics for a single image attribution.
@@ -61,6 +62,13 @@ def compute_all_metrics(
     it requires ~9k forward passes per image (Quantus features_in_step
     bug forces features_in_step=1). Set ``include_non_sensitivity=True``
     to include it at the cost of significant runtime.
+
+    ``ModelParameterRandomisation`` is computed by default but can be
+    disabled with ``include_model_parameter_randomisation=False`` (records
+    NaN, preserving the metric schema). On ISIC 2017 with Quantus 0.6.0 it
+    raises an AssertionError on every sample and emits a per-call deprecation
+    notice; disabling it removes that noise and wasted compute. The
+    Randomization category is still represented by RandomLogit.
 
     Parameters
     ----------
@@ -347,32 +355,44 @@ def compute_all_metrics(
     # --- ModelParameterRandomisation (direction: -1) ---
     # Returns correlation between original and randomised-model explanations.
     # Lower = better (more different from random → more dependent on params).
-    t0 = time.perf_counter()
-    try:
-        mprt = quantus.ModelParameterRandomisation(
-            layer_order="top_down",
-            normalise=True,
-            abs=True,
-            return_average_correlation=True,
-            return_aggregate=False,
-            disable_warnings=True,
-        )
-        scores = mprt(
-            model=model,
-            x_batch=x_batch,
-            y_batch=y_batch,
-            a_batch=a_batch,
-            channel_first=True,
-            explain_func=ef,
-            explain_func_kwargs=ef_kwargs,
-            device=device,
-        )
-        results["model_parameter_randomisation"] = float(scores[0])
-    except Exception as exc:
-        logger.warning("ModelParameterRandomisation failed: %s: %s", type(exc).__name__, exc)
+    #
+    # Excluded via include_model_parameter_randomisation=False on ISIC 2017:
+    # Quantus 0.6.0's MPRT raises AssertionError on every (model, image) here
+    # (it also emits a deprecation notice per call), so it contributes only
+    # NaN and floods the log. The Randomization category is still covered by
+    # RandomLogit below. When disabled we record NaN to keep the 12-metric
+    # schema stable (mirrors the NonSensitivity handling).
+    if not include_model_parameter_randomisation:
+        t0 = time.perf_counter()
         results["model_parameter_randomisation"] = float("nan")
-    finally:
         timings["model_parameter_randomisation"] = time.perf_counter() - t0
+    else:
+        t0 = time.perf_counter()
+        try:
+            mprt = quantus.ModelParameterRandomisation(
+                layer_order="top_down",
+                normalise=True,
+                abs=True,
+                return_average_correlation=True,
+                return_aggregate=False,
+                disable_warnings=True,
+            )
+            scores = mprt(
+                model=model,
+                x_batch=x_batch,
+                y_batch=y_batch,
+                a_batch=a_batch,
+                channel_first=True,
+                explain_func=ef,
+                explain_func_kwargs=ef_kwargs,
+                device=device,
+            )
+            results["model_parameter_randomisation"] = float(scores[0])
+        except Exception as exc:
+            logger.warning("ModelParameterRandomisation failed: %s: %s", type(exc).__name__, exc)
+            results["model_parameter_randomisation"] = float("nan")
+        finally:
+            timings["model_parameter_randomisation"] = time.perf_counter() - t0
 
     # --- RandomLogit (direction: -1) ---
     # Correlation between attribution for true target and random target.
