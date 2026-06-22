@@ -4,116 +4,275 @@
 This chapter interprets the experimental results of
 Chapter~\ref{ch:experiments} in the light of the research questions, examines
 the threats to the validity of the conclusions, and delimits the scope within
-which the findings can be generalised.
+which the findings can be generalised. The discussion is organised so that the
+contribution of the proposed evaluation framework can be appraised
+\emph{independently} of any particular ranking it produces: the framework is a
+methodological artefact whose value lies in how it structures the comparison,
+and that value does not stand or fall with the specific ordering of FAE methods
+that the full run will report.
 
-\promoterinline{This chapter is a scaffold. The interpretive claims below are
-written as guiding prompts and are to be completed once the full 600-image run
-populates the tables and figures of Chapter~\ref{ch:experiments}. No empirical
-claim should be asserted here until the corresponding result cell is filled.}
+\promoterinline{This chapter is a scaffold. The interpretive claims that depend
+on specific rankings or numbers are written as guiding prompts and are to be
+completed once the full 600-image run populates the tables and figures of
+Chapter~\ref{ch:experiments}. No empirical claim should be asserted here until
+the corresponding result cell is filled.}
 
 %% ========================================================================
 \section{Interpretation of the Rankings}
 \label{sec:disc-rankings}
 
-This section will discuss what the aggregated rankings of
+% TODO: fill after 600-image run
+This section interprets what the aggregated rankings of
 Section~\ref{sec:exp-ranking} imply for practitioners selecting an FAE method.
+Each item below names the comparison to be made; the empirical verdict is
+\textbf{[pending full run]} until the corresponding result cell is populated.
 
 \begin{itemize}
     \item \textbf{Does multi-criteria aggregation change the verdict?}
     Compare the FAE-method ordering under the single-metric baseline against the
-    MetaQuantus-discounted index (Table~\ref{tab:rank-stability}). Discuss the
-    cases in which a method that ``wins'' on Faithfulness alone is demoted once
-    Robustness, Localization, and Randomization enter the aggregate.
+    MetaQuantus-discounted index (Table~\ref{tab:rank-stability}), and discuss
+    the cases in which a method that ``wins'' on Faithfulness alone is demoted
+    once Robustness, Localization, and Randomization enter the aggregate.
+    \textbf{[pending full run]}
     \item \textbf{Effect of the weighting scheme.} Contrast uniform,
-    Autoweighted, and MQ-discounted weights. Where the three agree, argue that
-    the conclusion is robust to the aggregation choice; where they disagree,
+    Autoweighted, and MQ-discounted weights. Where the three agree, the
+    conclusion is robust to the aggregation choice; where they disagree,
     identify which metrics drive the divergence and whether the divergence
-    tracks the reliability discount.
+    tracks the reliability discount. \textbf{[pending full run]}
     \item \textbf{Per-category trade-offs.} Use the ensembling comparison
     (Section~\ref{sec:exp-ensemble}) to discuss whether NormEnsembleXAI buys
     Robustness at the expense of Localization or Complexity, and whether the
-    scalar index hides such trade-offs.
+    scalar index hides such trade-offs. \textbf{[pending full run]}
     \item \textbf{Cross-model consistency.} Discuss whether the ResNet-18 and
     SqueezeNet rankings agree; persistent agreement strengthens the claim that
     the framework measures a method-intrinsic property rather than a
-    model-specific artefact.
+    model-specific artefact. \textbf{[pending full run]}
 \end{itemize}
 
 %% ========================================================================
 \section{Implications of the Redundancy and Reliability Findings}
 \label{sec:disc-redundancy}
 
+% TODO: fill after 600-image run
+The detailed numerical conclusions of this section depend on the full
+correlation and reliability tables of Chapter~\ref{ch:experiments} and are
+therefore marked \textbf{[pending full run]}. The structural implications,
+however, can already be stated: the redundancy and reliability analyses are
+complementary filters acting on the same metric set, and their interaction is
+the point of methodological interest regardless of which metrics survive.
+
 \begin{itemize}
-    \item \textbf{Redundant categories.} The pilot indicates near-perfect
-    correlation within the Complexity and Robustness categories and near-zero
-    correlation within Faithfulness and Localization. Discuss the implication:
-    reporting both members of a redundant pair overstates evidence, and the
-    orthogonal categories carry the discriminative signal.
+    \item \textbf{Redundant categories.} Once the correlation matrix is
+    estimated on the full test set, report which categories collapse to a
+    single effective dimension and which carry independent signal. The
+    implication is qualitative and independent of the exact coefficients:
+    reporting both members of a redundant pair overstates evidence, because two
+    near-collinear metrics constitute one vote, while the orthogonal categories
+    carry the discriminative signal that justifies a multi-criteria index in the
+    first place. \textbf{[pending full run]}
     \item \textbf{Greedy cross-category pruning.} The current pruning is greedy
     and can drop a metric because it correlates with a metric in a
     \emph{different} category (Outstanding Issue~2 in the redundancy report).
-    Discuss whether within-category pruning (Decision~D4 as originally stated)
-    would yield a more defensible $M^{*}$ and how the choice affects the
-    downstream ranking.
-    \item \textbf{Reliability vs.\ agreement.} Discuss whether the
-    MetaQuantus reliability ordering coincides with the ensemble-agreement
-    ordering. If a metric is highly agreeing but unreliable (or vice versa), the
-    MQ-discount changes its weight; quantify how often this occurs.
+    Discuss whether a strictly within-category pruning policy (Decision~D4 as
+    originally stated) would yield a more defensible $M^{*}$ and how the choice
+    propagates to the downstream ranking. \textbf{[pending full run]}
+    \item \textbf{Reliability vs.\ agreement.} The MetaQuantus reliability
+    ordering and the ensemble-agreement ordering are conceptually distinct: a
+    metric can agree strongly with the ensemble consensus yet be unreliable
+    under noise or adversarial degradation, in which case the MQ-discount lowers
+    its weight relative to a naive Autoweighted scheme. Report how often the two
+    orderings diverge and how much the discount moves the weights.
+    \textbf{[pending full run]}
 \end{itemize}
+
+%% ========================================================================
+\section{The Value of the Aggregation Framework Independent of the Rankings}
+\label{sec:disc-framework-value}
+
+A central claim of this thesis is that the proposed evaluation pipeline is a
+contribution in its own right, separable from whichever FAE method it happens
+to rank highest on ISIC~2017. Three arguments support reading the framework's
+value independently of the specific rankings it produces.
+
+First, the pipeline makes the configuration of an evaluation \emph{explicit and
+reproducible}. The four-stage decomposition---redundancy-aware metric
+selection, meta-validation, direction-rectified normalisation, and weighted
+aggregation---separates the choices that an evaluator must make (which metrics,
+which normalisation, which aggregator, which weighting) from the method under
+test. Two researchers who disagree about the conclusion can now locate the
+disagreement in a named configuration decision rather than in an opaque,
+ad-hoc averaging of scores. This is precisely the property that
+\citet{hedstrom2025bridging} argue is required for an evaluation to function as
+an auditable, compliance-grade instrument, and it holds whatever the rankings
+turn out to be.
+
+Second, the framework operationalises a defensible answer to the metric
+disagreement documented in the literature. \citet{krishna2024disagreement} and
+\citet{tomsett2020sanity} show that XAI metrics frequently disagree and that
+the apparent rigour of reporting ``many'' metrics is illusory when those
+metrics are correlated. The redundancy stage answers this by collapsing
+correlated metrics to representatives; the meta-validation stage answers the
+companion concern---that some metrics are simply unreliable
+\citep{hedstrom2024metaquantus}---by discounting metrics that fail Noise
+Resilience or Adversarial Reactivity. The novel MQ-discounted Autoweighted
+operator fuses both filters into a single, data-adaptive weight derivation. The
+methodological claim---that aggregation should be preceded by redundancy
+pruning and weighted by reliability---is testable and transferable even if a
+different dataset or method panel changes the leaderboard.
+
+Third, the framework yields a \emph{stable apparatus for asking conditional
+questions} rather than a single verdict. By reporting three aggregation
+operators (weighted mean, minimum, geometric mean) and three weighting schemes,
+the pipeline exposes how sensitive any conclusion is to the evaluator's
+priorities. The minimum operator encodes a worst-dimension, safety-critical
+stance; the geometric mean penalises catastrophic failure on any axis; the
+weighted mean expresses a compensatory trade-off. A practitioner in a
+high-stakes medical setting and a practitioner prototyping a research model can
+read different recommendations off the same computation. The framework's
+contribution is to make that conditionality visible and principled, which is
+independent of the numerical outcome of any one configuration.
 
 %% ========================================================================
 \section{Threats to Validity}
 \label{sec:disc-threats}
 
 \subsection{Internal Validity}
-\begin{itemize}
-    \item \textbf{Sample size.} The redundancy and reliability findings reported
-    in the pilot rest on 12 images. Correlation estimates and the resulting
-    pruning decisions are unstable at this $n$; the membership of $M^{*}$ may
-    change on the full run. This is the single largest threat and is the reason
-    every pilot value is labelled as such.
-    \item \textbf{NaN handling in MPRT.} Model Parameter Randomisation produced
-    many NaNs for SqueezeNet (only 27.4\% valid observations in the pilot) and
-    for Grad-CAM on randomised ResNet. Discuss whether the surviving
-    observations are representative or a biased subsample, and whether the
-    differing MPR/sparseness correlation between the two models is a true
-    architectural effect or a sparse-data artefact.
-    \item \textbf{Target-class choice.} Attributions target the model's
-    prediction, not the ground-truth label; discuss how this interacts with
-    misclassified images.
-\end{itemize}
+
+Several design decisions could bias the conclusions drawn from within the study
+itself, independently of how far they generalise.
+
+The most consequential internal threat concerns \textbf{intermittent metric
+failures and missing-value handling}. Two metrics in particular produced
+unstable observations during the pilot. The Model Parameter Randomisation Test
+(MPRT) yielded large numbers of \texttt{NaN} values---most acutely for
+SqueezeNet, where only a small fraction of observations survived, and for
+Grad-CAM on the randomised ResNet. When a metric is computable on only a biased
+subsample of images, any correlation or reliability estimate derived from it is
+suspect: an apparent architectural difference in, say, the
+MPRT--Sparseness relationship between the two models may be a genuine effect or
+merely an artefact of which images happened to produce a finite score. For this
+reason the framework excludes MPRT from the aggregated index wherever its valid
+fraction falls below a documented threshold, and treats any surviving MPRT
+finding as suggestive rather than confirmatory. Similarly, Non-Sensitivity is
+excluded from the routine evaluation because its $O(d)$ forward-pass cost forces
+aggressive input downsampling, which changes what the metric measures and makes
+its scores non-comparable with the per-pixel metrics; it is reported, if at
+all, only as a standalone diagnostic. Completeness is intrinsically defined only
+for the axiomatic methods (Integrated Gradients, DeepLift, LRP) and returns
+\texttt{NaN} elsewhere by construction; this is handled by per-metric masking
+rather than imputation, so that no method is credited or penalised on an
+inapplicable axis.
+
+A second internal threat is the \textbf{target-class convention}. Attributions
+are computed for the model's predicted class rather than the ground-truth label.
+This is the correct choice for a faithfulness study---the explanation should
+describe the decision the model actually made---but it interacts with
+misclassified images, where the explained logit corresponds to a wrong class and
+the Localization metrics are scored against a mask that need not align with what
+the model attended to. The proportion of misclassified test images therefore
+bounds the interpretability of the Localization results, and this proportion
+must be reported alongside them.
+
+A third internal threat is \textbf{sample size}. The redundancy and reliability
+structure observed in the pilot rests on a very small number of images;
+correlation estimates and the pruning decisions that follow from them are
+unstable at that scale, and the membership of $M^{*}$ may change on the full
+run. This is the single largest reason the pilot values are not promoted to
+findings, and it motivates the repeated-subsample stability check listed in the
+future-work section.
 
 \subsection{Construct Validity}
-\begin{itemize}
-    \item \textbf{Are the metrics measuring what they claim?} The
-    meta-evaluation partially addresses this, but NR and AR are themselves
-    proxies. Discuss the residual risk that a metric passes meta-evaluation yet
-    fails to capture human-meaningful explanation quality.
-    \item \textbf{Normalisation choice.} Second Moment Scaling (Decision~D1) was
-    adopted from NormEnsembleXAI; discuss sensitivity of the ranking to the
-    alternative $z$-score and min--max normalisations implemented for ablation.
-\end{itemize}
+
+Construct validity asks whether the chosen metrics actually capture the quality
+dimensions they are named for. The framework's premise is that the six Quantus
+categories---Faithfulness, Robustness, Localization, Complexity, Randomization,
+and Axiomatic correctness---together span the relevant notion of explanation
+``effectiveness.'' Two residual risks remain even after redundancy pruning and
+meta-validation.
+
+The first is that meta-validation itself relies on proxies. Noise Resilience
+and Adversarial Reactivity \citep{hedstrom2024metaquantus} are plausible
+necessary conditions for a trustworthy metric, but they are not sufficient: a
+metric can be stable under noise and reactive to explanation degradation while
+still failing to track any human-meaningful sense of explanation quality.
+Because the entire study is functionally grounded---no clinician judgements
+enter the loop---there is an irreducible gap between ``passes the
+meta-evaluation stress tests'' and ``measures what a domain expert would call a
+good explanation.'' The framework narrows this gap but cannot close it without
+the human-grounded validation that is explicitly out of scope.
+
+The second construct risk concerns \textbf{normalisation}. Second Moment
+Scaling was adopted from NormEnsembleXAI \citep{hryniewska2024normensemblexai}
+because it aligns heterogeneous attribution scales without the outlier
+sensitivity of min--max scaling, but the choice is a modelling assumption about
+what makes two metric scores ``comparable.'' The ranking could in principle
+shift under $z$-score or min--max normalisation; the ablation that varies the
+normaliser (reported in Chapter~\ref{ch:experiments}) is the safeguard, and any
+conclusion that is not stable across normalisers must be stated as
+normaliser-conditional. \textbf{[pending full run: report normaliser
+sensitivity.]}
 
 \subsection{External Validity}
-\begin{itemize}
-    \item \textbf{Single dataset and domain.} All evidence comes from ISIC~2017
-    dermoscopy. Discuss the extent to which conclusions transfer to other
-    medical imaging modalities or to natural images, and why the medical domain
-    was nonetheless chosen (mask availability, motivation).
-    \item \textbf{Two architectures.} ResNet-18 and SqueezeNet are both
-    convolutional; transformer-based classifiers may interact differently with
-    gradient-based attributions and with MPRT.
-\end{itemize}
+
+External validity concerns the reach of the conclusions beyond the precise
+conditions of the experiment, and it is where the study is most deliberately
+bounded.
+
+All evidence comes from a \textbf{single dataset and domain}: ISIC~2017
+dermoscopy. The medical domain was chosen deliberately---it supplies the
+expert-annotated lesion masks that make the Localization category measurable at
+all, and it grounds the regulatory motivation of the thesis---but a single
+domain limits how far the redundancy and reliability \emph{structure} can be
+assumed to transfer. The correlation between two faithfulness metrics, or the
+reliability of MPRT, may differ on natural images or on a different imaging
+modality; the framework is portable, but the particular $M^{*}$ and weight
+vector it produces are not claimed to be.
+
+The study uses \textbf{only two architectures}, ResNet-18 and SqueezeNet~1.1,
+both convolutional. Transformer-based classifiers route gradients differently
+and may interact differently with gradient-based attributions and with the
+layer-wise randomisation that MPRT performs; nothing in this study speaks to
+that regime. The two-model design does, however, allow a minimal
+cross-architecture consistency check, which is the strongest external-validity
+signal available within scope.
+
+Finally, the \textbf{sample-size limits of the redundancy and reliability
+estimates} are an external as well as an internal concern: the test set, though
+larger than the pilot, is a single finite sample from one challenge
+distribution. Confidence intervals on the correlation and reliability estimates,
+and the repeated-subsample stability analysis, are necessary before the metric
+structure reported here is treated as a property of the domain rather than of
+this particular draw of images. \textbf{[pending full run.]}
 
 %% ========================================================================
 \section{Limitations}
 \label{sec:disc-limitations}
 
+Beyond the validity threats above, several scope limitations bound the
+contribution and are stated here so that the conclusions of
+Chapter~\ref{ch:conclusions} are read in context.
+
 \begin{itemize}
-    \item Computational cost of the perturbation-based metrics and of LIME/
-    KernelSHAP constrained the method panel; discuss what was excluded and why.
-    \item The framework evaluates attribution \emph{maps}; it does not address
-    concept-level or counterfactual explanations.
-    \item Human-grounded validation (clinician studies) is explicitly out of
-    scope; the effectiveness index is functionally grounded only.
+    \item \textbf{Restricted method panel.} The computational cost of fitting
+    per-instance surrogate models (LIME) and sampling Shapley coalitions
+    (KernelSHAP), together with the differentiability requirements of several
+    Robustness metrics, constrained the evaluated panel to the seven methods
+    retained in Chapter~\ref{ch:methodology} (Integrated Gradients, Saliency,
+    Grad-CAM, DeepLift, Guided Backpropagation, LRP, and Occlusion). The two
+    perturbation-based surrogate methods are therefore deferred rather than
+    dismissed, and their integration is identified as future work.
+    \item \textbf{Map-level explanations only.} The framework evaluates
+    attribution \emph{maps}. It does not address concept-level, prototype-based,
+    or counterfactual explanations, whose quality criteria differ and would
+    require a separate metric taxonomy.
+    \item \textbf{Functionally grounded evaluation only.} Human-grounded
+    validation---clinician studies of whether the highlighted regions are
+    clinically sensible---is explicitly out of scope. The effectiveness index is
+    a functional measure, and its alignment with expert judgement is an open
+    question rather than an established result.
+    \item \textbf{Aggregation to a scalar.} Collapsing a multi-criteria profile
+    to a single effectiveness index is itself a modelling choice that can hide
+    trade-offs between categories. The thesis mitigates this by reporting the
+    underlying per-category profiles alongside the scalar index, but the scalar
+    remains a summary, not a substitute for the profile.
 \end{itemize}

@@ -11,11 +11,9 @@ Current literature broadly categorizes these methods based on their access to th
 
 
 \subsection{Gradient-based Methods (White-box)}
-Gradient-based methods exploit the differentiable nature of neural networks. They require access to the model's weights and gradients, operating on the intuition that the gradient of the output with respect to the input represents the model's sensitivity to feature changes.
+Gradient-based methods exploit the differentiable nature of neural networks. They require access to the model's weights and gradients, operating on the intuition that the gradient of the output with respect to the input represents the model's sensitivity to feature changes. The methods below form a progression: from raw gradients, to path-integrated gradients that restore axiomatic guarantees, to feature-space gradients that trade pixel resolution for class-discriminative localization.
 
-
-
-\subsubsection{Saliency Maps }
+\subsubsection{Saliency Maps}
 The foundational approach, proposed by Simonyan et al., computes the gradient of the class score $S_c$ with respect to the input image $I$ \cite{selvaraju2017grad}. The relevance map is defined as:
 \begin{equation}
     E_{Vanilla} = \left| \frac{\partial S_c}{\partial I} \right|
@@ -37,9 +35,7 @@ Gradient-weighted Class Activation Mapping (Grad-CAM) moves away from pixel-spac
 where $A^k$ is the $k$-th feature map. The final map is a ReLU-activated linear combination of these maps. Grad-CAM is highly effective for localization but lacks fine-grained pixel detail, often necessitating combination with Guided Backpropagation (Guided Grad-CAM).
 
 \subsection{Perturbation-based Methods (Black-box)}
-Perturbation-based methods operate under a model-agnostic paradigm. They estimate feature importance by systematically modifying (perturbing) the input and observing the resulting changes in the model's output prediction.
-
-
+Perturbation-based methods operate under a model-agnostic paradigm. They estimate feature importance by systematically modifying (perturbing) the input and observing the resulting changes in the model's output prediction. Because they treat the model as a black box, they apply uniformly across architectures, but their reliance on sampling makes them both computationally expensive and, as noted below, susceptible to estimation noise. The thesis surveys LIME and SHAP here for completeness, but---as Chapter~\ref{ch:methodology} details---the final evaluation panel retains only the gradient-based methods together with Occlusion, since the surrogate-fitting cost and the differentiability requirements of several Robustness metrics make LIME and KernelSHAP impractical at the scale of the full study.
 
 \subsubsection{LIME (Local Interpretable Model-agnostic Explanations)}
 LIME creates a surrogate model $g$ (e.g., a linear regression) that is locally faithful to the complex model $f$ around the instance $x$ \cite{ribeiro2016why}. It generates a neighborhood of perturbed samples $\mathcal{Z}$ weighted by a proximity kernel $\pi_x$. The explanation is found by minimizing the loss $\mathcal{L}$:
@@ -65,8 +61,7 @@ The Pointing Game evaluates whether the single most salient pixel in the attribu
 \begin{equation}
     \text{PG} = \begin{cases} 1 & \text{if } \operatorname{argmax}_{i}|E_i| \in \mathcal{M}, \\ 0 & \text{otherwise.} \end{cases}
 \end{equation}
-The metric is typically averaged across the test set to produce a hit rate. Its binary nature makes it interpretable but coarse: a method that assigns high attribution to many pixels inside the mask but whose global maximum lies just outside receives a score of zero \cite{pg}.
-\studentinline{VERIFY citation: find Zhou et al.\ 2016 Pointing Game paper (Learning Deep Features for Discriminative Localization).}
+The metric is typically averaged across the test set to produce a hit rate. Its binary nature makes it interpretable but coarse: a method that assigns high attribution to many pixels inside the mask but whose global maximum lies just outside receives a score of zero. The Pointing Game in its present form was introduced by \citet{pg} as part of the Excitation Backprop study, building on the class-activation-mapping line of work that first established the use of localization maps for weakly supervised tasks.
 
 \subsubsection{Relevance Mass Accuracy}
 Relevance Mass Accuracy (RMA) captures the fraction of total positive attribution mass that falls within the segmentation mask:
@@ -98,8 +93,7 @@ To rigorously assess FAE models, recent literature proposes a modular taxonomy o
 Faithfulness quantifies how accurately the explanation reflects the model's internal decision logic, regardless of human intelligibility.
 
 \subsubsection{Pixel Flipping (AUC)}
-Pixel Flipping, introduced by Samek et al., evaluates faithfulness by iteratively removing the most important features (as ranked by the attribution map) and measuring the resulting degradation in the model's output \cite{pixelflip}.
-\studentinline{VERIFY citation: Samek et al.\ 2017 --- ``Evaluating the Visualization of What a Deep Neural Network Has Learned.''}
+Pixel Flipping, introduced by \citet{pixelflip} in ``Evaluating the Visualization of What a Deep Neural Network Has Learned,'' evaluates faithfulness by iteratively removing the most important features (as ranked by the attribution map) and measuring the resulting degradation in the model's output.
 Pixels are replaced in descending order of attribution magnitude with a baseline value (e.g., black). The metric aggregates the output change across all removal steps into an area-under-the-curve (AUC) score:
 \begin{equation}
     \text{PixelFlipping}(x) = \frac{1}{N} \sum_{k=1}^{N} \bigl(f(x) - f(x^{(k)})\bigr),
@@ -124,8 +118,7 @@ Robustness ensures that slight, non-semantic changes to the input (e.g., Gaussia
 The theoretical foundation for explanation robustness is Lipschitz continuity: a method $\Phi$ is robust if the ratio $\|\Phi(x) - \Phi(x')\| / \|x - x'\|$ remains bounded for inputs $x'$ in a neighborhood of $x$ \cite{alvarez2018robustness}. The metrics adopted in this thesis operationalize this principle via sensitivity analysis under random perturbations.
 
 \subsubsection{Max-Sensitivity}
-Max-Sensitivity, proposed by Yeh et al., measures the worst-case explanation change under small random perturbations of the input \cite{yeh2019}.
-\studentinline{VERIFY citation: Yeh et al.\ 2019 --- ``On the (In)fidelity and Sensitivity of Explanations.''}
+Max-Sensitivity, proposed by \citet{yeh2019} in ``On the (In)fidelity and Sensitivity of Explanations,'' measures the worst-case explanation change under small random perturbations of the input.
 Given $N$ perturbation samples $\delta_1, \dots, \delta_N$ drawn from $\mathcal{N}(0, \sigma^2 I)$ with $\|\delta_j\| \leq \varepsilon$:
 \begin{equation}
     \text{MaxSens}(\Phi, x) = \max_{j = 1, \dots, N} \frac{\|\Phi(x + \delta_j) - \Phi(x)\|}{\|\delta_j\|}.

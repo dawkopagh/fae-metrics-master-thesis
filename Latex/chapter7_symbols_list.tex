@@ -1,0 +1,89 @@
+\chapter{List of Symbols and Abbreviations}
+\label{ch:symbols}
+
+This chapter collects the abbreviations and mathematical notation used
+throughout the thesis. The abbreviations are listed first, followed by the
+mathematical symbols introduced in the formalisation of the evaluation
+framework (Chapters~\ref{ch:sota} and~\ref{ch:methodology}).
+
+\section*{Abbreviations}
+\addcontentsline{toc}{section}{Abbreviations}
+
+\begin{description}
+    \item[AI] Artificial Intelligence
+    \item[XAI] Explainable Artificial Intelligence
+    \item[DL] Deep Learning
+    \item[CNN] Convolutional Neural Network
+    \item[FAE] Feature Attribution Explanation
+    \item[IG] Integrated Gradients
+    \item[Grad-CAM] Gradient-weighted Class Activation Mapping
+    \item[LRP] Layer-wise Relevance Propagation
+    \item[LIME] Local Interpretable Model-agnostic Explanations
+    \item[SHAP] SHapley Additive exPlanations
+    \item[AUC] Area Under the Curve
+    \item[ReLU] Rectified Linear Unit
+    \item[SGD] Stochastic Gradient Descent
+    \item[PG] Pointing Game (Localization metric)
+    \item[RMA] Relevance Mass Accuracy (Localization metric)
+    \item[FC] Faithfulness Correlation (Faithfulness metric)
+    \item[MPRT] Model Parameter Randomisation Test (Randomization metric)
+    \item[NR] Noise Resilience (MetaQuantus meta-evaluation test)
+    \item[AR] Adversarial Reactivity (MetaQuantus meta-evaluation test)
+    \item[SMS] Second Moment Scaling (normalization transformation)
+    \item[ES] Ensemble Score (per-metric ensemble agreement)
+    \item[MQ] MetaQuantus (meta-evaluation of metrics)
+    \item[CD] Critical Difference (Nemenyi post-hoc significance)
+    \item[ISIC] International Skin Imaging Collaboration (dataset)
+    \item[EU] European Union
+    \item[GDPR] General Data Protection Regulation
+    \item[CSV] Comma-Separated Values
+    \item[YAML] YAML Ain't Markup Language (configuration format)
+\end{description}
+
+\section*{Mathematical Symbols}
+\addcontentsline{toc}{section}{Mathematical Symbols}
+
+\begin{description}
+    \item[$f$] Predictive model (classifier) whose decisions are explained
+    \item[$x$] Input image (instance) presented to the model
+    \item[$x'$] Baseline input used by attribution methods (e.g.\ a black image)
+    \item[$c$] Target class index for which an explanation is produced
+    \item[$\hat{y}$] Model's top-1 prediction, $\hat{y} = \operatorname{argmax}_c f(x)_c$, used as attribution target
+    \item[$\Phi$] Feature attribution explanation method (estimator)
+    \item[$\Phi(f, x)$] Attribution map produced by method $\Phi$ for model $f$ and input $x$
+    \item[$E$] Explanation (attribution) map, $E = \Phi(f, x)$, $E \in \mathbb{R}^{d}$
+    \item[$E_i$, $R_i$] Relevance score assigned to input feature $x_i$
+    \item[$d$] Dimensionality of the input (number of features / pixels)
+    \item[$C, H, W$] Channel, height, and width dimensions of an attribution map $\Phi(f,x) \in \mathbb{R}^{C \times H \times W}$
+    \item[$\mathcal{M}$] Binary segmentation (lesion) mask used by Localization metrics
+    \item[$\mathcal{D}$] Test set over which metrics and correlations are computed
+    \item[$M_k$] The $k$-th evaluation metric (raw score $M_k(\Phi)$)
+    \item[$K$] Number of evaluation metrics under consideration
+    \item[$\{M_1,\dots,M_K\}$] Full set of available evaluation metrics
+    \item[$M^{*}$] Reduced, non-redundant and meta-validated subset of metrics
+    \item[$E(\Phi)$] Aggregated effectiveness index of method $\Phi$
+    \item[$s_k$] Direction sign of metric $k$, $s_k \in \{+1, -1\}$ ($+1$ = higher-is-better)
+    \item[$\hat{M}_k$] Direction-rectified score, $\hat{M}_k = s_k \cdot M_k$
+    \item[$\psi_k$] Scale-rectifying normalization transformation for metric $k$
+    \item[$\tilde{M}_k$] Normalized (rectified and scaled) score of metric $k$
+    \item[$\mathcal{N}$] Normalization function applied to attributions before ensembling
+    \item[$\mathcal{A}$] Aggregation (combinator) operator over normalized scores
+    \item[$w_k$] Weight assigned to metric $k$ in the aggregation, $w_k \geq 0$, $\sum_k w_k = 1$
+    \item[$\mathbf{w}$] Weight vector $\mathbf{w} = (w_1, \dots, w_k)$
+    \item[$\mathrm{ES}_k$] Ensemble (agreement) score of metric $k$ (Autoweighted derivation)
+    \item[$\mathrm{cv}_k$] Coefficient of variation of metric $k$'s raw scores across the test set
+    \item[$a_k$] Autoweighted agreement weight of metric $k$, $a_k = 1/(\mathrm{cv}_k + \varepsilon)$
+    \item[$w_k^{\mathrm{AW}}$] Normalized Autoweighted coefficient of metric $k$
+    \item[$\mathrm{NR}_k$] Noise Resilience score of metric $k$ from meta-evaluation
+    \item[$\mathrm{AR}_k$] Adversarial Reactivity score of metric $k$ from meta-evaluation
+    \item[$\lambda_k$] Combined-reliability coefficient of metric $k$, $\lambda_k \in [0,1]$ (meta-evaluation discount)
+    \item[$\rho$] Correlation measure (Spearman/Pearson) used in MPRT and Random Logit
+    \item[$\rho_{ij}$] Empirical correlation between metrics $M_i$ and $M_j$ over $\mathcal{D}$
+    \item[$r(\cdot,\cdot)$] Pearson correlation coefficient
+    \item[$\mu_k, \sigma_k$] Group mean and standard deviation of metric $k$ ($z$-score normalization)
+    \item[$\varepsilon$] Small positive constant (geometric-mean stabiliser / perturbation bound)
+    \item[$\delta_j$] Random input perturbation drawn from $\mathcal{N}(0, \sigma^2 I)$ in robustness metrics
+    \item[$\alpha_k^c$] Grad-CAM neuron-importance weight for feature map $k$ and class $c$
+    \item[$\mathbb{E}[\cdot]$] Expectation operator
+    \item[$\mathbb{R}$] Set of real numbers
+\end{description}

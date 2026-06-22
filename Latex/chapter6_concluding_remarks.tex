@@ -3,69 +3,157 @@
 
 This thesis set out to evaluate Feature Attribution Explanation methods under
 multiple, potentially conflicting effectiveness criteria, treating the
-evaluation pipeline---rather than any new explanation method---as the unit of
-contribution. This chapter summarises the outcome against each of the four
+evaluation pipeline---rather than any new explanation method or predictive
+model---as the unit of contribution. The motivating problem is well documented:
+the proliferation of XAI evaluation metrics has not produced consensus, because
+the metrics disagree, partially duplicate one another, and are themselves of
+uncertain reliability. The response developed here is a single, reproducible
+pipeline that prunes redundant metrics, discounts unreliable ones, and
+aggregates the survivors into an effectiveness index with explicit, auditable
+configuration. This chapter summarises the outcome against each of the four
 contributions and outlines the directions that the work opens.
 
 \promoterinline{This chapter is a scaffold mapping each contribution to a
-conclusion stub. The stubs are to be completed with the empirical verdict once
-the full 600-image run is available; no specific quantitative outcome is
-asserted here.}
+conclusion stub. The stubs that depend on the empirical verdict are to be
+completed once the full 600-image run is available; no specific quantitative
+outcome is asserted here.}
 
 %% ========================================================================
 \section{Summary of Contributions}
 \label{sec:concl-summary}
 
-\paragraph{Contribution~1 --- Non-redundancy analysis.}
-A correlation-based redundancy analysis across the six Quantus categories was
-developed (Section~\ref{sec:exp-redundancy}) and a reduced, non-redundant metric
-set $M^{*}$ was derived. \emph{[Conclusion stub: state, after the full run,
-which categories proved redundant and which carried independent signal, and how
-stable $M^{*}$ was across the two models.]}
+The four contributions map onto what the thesis set out to do as follows. Each
+paragraph states the methodological outcome---what was developed, proposed, or
+validated---and reserves the quantitative verdict for the marked stub, to be
+filled once Chapter~\ref{ch:experiments} is complete.
+
+\paragraph{Contribution~1 --- Non-redundancy analysis of FAE evaluation
+metrics.}
+The thesis develops a correlation-based redundancy analysis across the six
+Quantus categories (Section~\ref{sec:exp-redundancy}), with a documented
+pruning rule, and derives a reduced, non-redundant metric set $M^{*}$. The
+methodological outcome is a transferable procedure for diagnosing and removing
+metric redundancy before any comparison is made, directly addressing the
+``many correlated metrics overstate evidence'' problem identified by
+\citet{tomsett2020sanity} and \citet{kadir2024evaluating}.
+% TODO: fill after 600-image run
+\emph{[Conclusion stub: state, after the full run, which categories proved
+redundant and which carried independent signal, and how stable $M^{*}$ was
+across the two models.]} \textbf{[pending full run]}
 
 \paragraph{Contribution~2 --- Multi-criteria aggregation framework.}
-A framework integrating MetaQuantus meta-validation with Autoweighted
-aggregation was formalised, and a novel MetaQuantus-discounted weighting
-operator (Equation~\eqref{eq:mq-discount}) was proposed and implemented.
+The thesis proposes and implements a framework that integrates MetaQuantus
+meta-validation \citep{hedstrom2024metaquantus} with the Autoweighted
+aggregation of NormEnsembleXAI \citep{hryniewska2024normensemblexai}, and
+introduces a novel MetaQuantus-discounted weighting operator
+(Equation~\eqref{eq:mq-discount}) in which each metric's aggregation weight is
+attenuated by its measured reliability. The methodological outcome is a single
+weight-derivation step that fuses redundancy-aware selection with
+reliability-aware weighting---the central technical novelty of the thesis,
+which stands independently of the rankings it produces.
+% TODO: fill after 600-image run
 \emph{[Conclusion stub: state whether the reliability discount measurably
-changed the metric weights and the resulting ranking.]}
+changed the metric weights and the resulting ranking.]} \textbf{[pending full
+run]}
 
-\paragraph{Contribution~3 --- Empirical characterisation of ensembling.}
-The framework was used to compare single-metric and aggregated rankings, and
-individual against NormEnsembleXAI-ensembled attributions
-(Sections~\ref{sec:exp-ranking}--\ref{sec:exp-ensemble}). \emph{[Conclusion
-stub: state where aggregation diverged from single-metric rankings, and whether
-ensembling improved the effectiveness index and on which axes.]}
+\paragraph{Contribution~3 --- Empirical characterisation of metric ensembling.}
+The thesis uses the framework to characterise where aggregation of metric
+scores produces rankings that diverge from single-metric rankings and where it
+does not, and to compare individual against NormEnsembleXAI-ensembled
+attributions (Sections~\ref{sec:exp-ranking}--\ref{sec:exp-ensemble}). The
+methodological outcome is an experimental protocol for isolating the effect of
+aggregation, and of attribution ensembling, on method ordering.
+% TODO: fill after 600-image run
+\emph{[Conclusion stub: state where aggregation diverged from single-metric
+rankings, which metric families drove the divergence, and whether ensembling
+improved the effectiveness index and on which axes.]} \textbf{[pending full
+run]}
 
 \paragraph{Contribution~4 --- Empirical validation on ISIC~2017.}
-The framework was validated on expert-annotated dermoscopic data with Friedman,
-Nemenyi, and Wilcoxon testing (Section~\ref{sec:exp-stats}). \emph{[Conclusion
-stub: state whether method differences and ensembling gains were statistically
-significant, and at what effect size.]}
+The thesis validates the framework on expert-annotated dermoscopic data, using
+the segmentation masks to make the Localization category measurable, and
+applies Friedman, Nemenyi, and Wilcoxon testing to assess the significance of
+method and ensembling differences (Section~\ref{sec:exp-stats}). The
+methodological outcome is an end-to-end, statistically grounded instantiation of
+the framework on a real, mask-annotated medical task.
+% TODO: fill after 600-image run
+\emph{[Conclusion stub: state whether method differences and ensembling gains
+were statistically significant, and at what effect size.]} \textbf{[pending
+full run]}
+
+Taken together, the four contributions answer the thesis objective not with a
+single ``best'' FAE method---which would be dataset- and configuration-specific
+and of limited durability---but with a principled, reproducible apparatus for
+reaching such a verdict and for stating the conditions under which it holds.
 
 %% ========================================================================
 \section{Future Work}
 \label{sec:concl-future}
 
-\begin{itemize}
-    \item \textbf{Scale and stability.} Re-run the redundancy and reliability
-    analyses on the full 600-image test set (and ideally repeated
-    subsamples) to establish the stability of $M^{*}$ and of the metric
-    weights; the pilot $n$ is too small for firm claims.
-    \item \textbf{Within-category pruning.} Resolve the greedy cross-category
-    pruning issue (Decision~D4) and report how a strictly within-category
-    pruning policy changes $M^{*}$ and the downstream ranking.
-    \item \textbf{Broader method and model panels.} Add LIME and KernelSHAP to
-    the FAE panel and a transformer-based classifier to the model panel to test
-    the generality of the conclusions.
-    \item \textbf{Additional datasets.} Extend beyond ISIC~2017 to a second
-    masked medical dataset to assess cross-domain transfer of the redundancy and
-    reliability structure.
-    \item \textbf{Aggregation operators.} Compare the recommended weighted mean
-    against the min and geometric-mean operators (Decision~D2) under the
-    MQ-discount weighting, particularly for safety-critical interpretations.
-    \item \textbf{Regulatory alignment.} Connect the reproducible,
-    meta-validated pipeline to the transparency requirements of the EU AI Act,
-    following \citet{hedstrom2025bridging}, as a step toward an auditable
-    evaluation standard.
-\end{itemize}
+The framework was deliberately bounded in scope (Chapter~\ref{ch:discussion}),
+and each boundary suggests a concrete extension. The directions below are
+ordered roughly from those that consolidate the present results to those that
+broaden the framework's reach.
+
+\paragraph{Scaling the statistical analysis.}
+The redundancy and reliability estimates rest on a finite sample from a single
+challenge distribution, and the pilot $n$ is too small for firm claims. The
+immediate next step is to re-run the redundancy and meta-validation analyses on
+the full 600-image test set and, ideally, on repeated subsamples, reporting
+confidence intervals on the correlation and reliability estimates and a
+stability analysis of the membership of $M^{*}$ and of the metric weights. This
+would move the metric structure from a property of one draw of images to a
+property of the domain. A related refinement is to resolve the greedy
+cross-category pruning behaviour and report how a strictly within-category
+pruning policy (Decision~D4) changes $M^{*}$ and the downstream ranking.
+
+\paragraph{Automated meta-validation.}
+Meta-validation is currently a configured stage applied once to a fixed metric
+set. A natural extension is to fold it into a fully automated loop that, given a
+new dataset or model, re-derives the reliable, non-redundant metric subset and
+the MQ-discounted weights without manual intervention. This would turn the
+pipeline from a study-specific configuration into a reusable
+``evaluate-the-evaluators'' service, and would let the framework adapt its
+metric set to each new domain rather than assuming the ISIC~2017 structure
+transfers.
+
+\paragraph{More datasets and architectures.}
+All evidence here comes from ISIC~2017 dermoscopy and from two convolutional
+classifiers. Extending the study to a second mask-annotated medical dataset
+would test whether the redundancy and reliability structure transfers across
+domains, while adding a transformer-based classifier would test whether
+gradient-based attributions and the layer-wise MPRT behave differently outside
+the convolutional regime. Both extensions directly probe the external-validity
+limits identified in Chapter~\ref{ch:discussion}.
+
+\paragraph{Additional FAE methods, including the deferred perturbation
+methods.}
+The evaluated panel was restricted to seven methods for reasons of
+computational cost and metric compatibility; LIME and KernelSHAP were deferred
+rather than dismissed. Re-introducing the perturbation-based methods---and
+resolving their incompatibility with the differentiable Robustness metrics,
+perhaps via surrogate-gradient or finite-difference approximations---would test
+whether the framework's conclusions hold across the gradient/perturbation
+divide and would let the redundancy analysis speak to whether perturbation-based
+faithfulness metrics are redundant with their gradient-based counterparts.
+
+\paragraph{Aggregation operators and weighting.}
+The thesis recommends the weighted arithmetic mean but reports the minimum and
+geometric-mean operators as alternatives encoding worst-dimension and
+catastrophic-failure-averse stances respectively. A focused study could compare
+these operators under the MQ-discount weighting, particularly for
+safety-critical interpretations where the minimum operator's
+``acceptable-on-every-axis'' semantics are most defensible, and could explore
+learned or preference-elicited weightings as a successor to the data-adaptive
+Autoweighted scheme.
+
+\paragraph{Regulatory alignment and auditability.}
+Finally, the reproducible, meta-validated pipeline is well positioned to serve
+as a transparency instrument under emerging regulation. Following
+\citet{hedstrom2025bridging}, a promising direction is to connect the framework
+explicitly to the transparency and documentation requirements of the EU AI Act,
+formalising the pipeline's configuration record as an auditable evaluation
+artefact and assessing what additional evidence---human-grounded validation in
+particular---a regulator would require before a functionally grounded
+effectiveness index could support a compliance claim. This would extend the
+contribution from a research methodology toward a candidate evaluation standard.

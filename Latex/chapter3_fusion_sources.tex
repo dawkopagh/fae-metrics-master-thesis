@@ -61,10 +61,13 @@ seborrheic keratosis.
     0.225]$).
 \end{itemize}
 
-The vertical-slice validation (Section~\ref{sec:pipeline}) uses a subset of
-12 images from the test split. The full experiment scales to all 600 test
-images.
-\studentinline{TODO: Update image counts and confirm split sizes after full experiment run.}
+The vertical-slice validation (Section~\ref{sec:pipeline}) uses a fixed
+subset of 12 images drawn from the test split to verify the end-to-end
+plumbing at low computational cost; the full experiment scales the
+identical pipeline to all 600 test images. The split sizes above
+(2{,}000~/~150~/~600) are those of the official ISIC 2017 Task~1 release
+and are held fixed for all experiments to preserve comparability with the
+challenge protocol.
 
 %% ========================================================================
 \section{Predictive Models}
@@ -78,8 +81,7 @@ scores.
 \subsection{ResNet-18}
 
 ResNet-18 is a residual network with 18 layers organized in four residual
-blocks with skip connections \cite{he2016resnet}.
-\studentinline{VERIFY citation: He et al.\ 2016 --- ``Deep Residual Learning for Image Recognition.''} The final
+blocks with skip connections \cite{he2016resnet}. The final
 fully connected layer is replaced with $\text{Linear}(512, 3)$ to match the
 three-class ISIC 2017 classification task.
 
@@ -88,8 +90,7 @@ three-class ISIC 2017 classification task.
 SqueezeNet 1.1 is a compact architecture that achieves AlexNet-level accuracy
 with $\sim$50$\times$ fewer parameters, using Fire modules that combine
 $1 \times 1$ squeeze convolutions with mixed $1 \times 1$ and $3 \times 3$
-expand convolutions \cite{iandola2016squeeze}.
-\studentinline{VERIFY citation: Iandola et al.\ 2016 --- ``SqueezeNet: AlexNet-Level Accuracy with 50x Fewer Parameters.''} The final classifier layer is replaced with
+expand convolutions \cite{iandola2016squeeze}. The final classifier layer is replaced with
 $\text{Conv2d}(512, 3, 1, 1)$ for three-class output.
 
 \subsection{Training Protocol}
@@ -143,35 +144,51 @@ Propagates gradients through only the positive activations at each ReLU
 layer, producing sharper maps than vanilla gradients but at the risk of
 acting as an edge detector independent of model parameters
 \cite{springenberg2015}.
-\studentinline{VERIFY citation: Springenberg et al.\ 2015 --- ``Striving for Simplicity: The All Convolutional Net.''}
 
 \subsubsection{DeepLift}
 Computes attribution by comparing each neuron's activation to a reference
 activation produced by a black baseline input ($x' = 0$). Decomposes the
 output difference $f(x) - f(x')$ into individual feature contributions
-\cite{shrikumar2017deeplift}.
-\studentinline{VERIFY citation: Shrikumar et al.\ 2017 --- ``Learning Important Features Through Propagating Activation Differences.''}
+\cite{shrikumar2017deeplift}. Because the torchvision \texttt{BasicBlock}
+(ResNet) and \texttt{Fire} (SqueezeNet) modules reuse a single in-place
+ReLU across multiple call sites, the implementation operates on a deep
+copy of the model in which shared ReLU modules are replaced by unique
+non-in-place instances, as required by the Captum DeepLift backend.
 
 \subsubsection{Layer-wise Relevance Propagation (LRP)}
 Redistributes the model output backward through the network according to
 propagation rules that preserve the total relevance at each layer
-\cite{bach2015lrp}.
-\studentinline{VERIFY citation: Bach et al.\ 2015 --- ``On Pixel-Wise Explanations for Non-Linear Classifier Decisions by Layer-Wise Relevance Propagation.''}
+\cite{bach2015lrp}. Captum's default LRP rules are applied; both base
+classifiers are composed exclusively of layer types supported by these
+rules.
 
 \subsection{Perturbation-based Methods}
 
 \subsubsection{Occlusion}
 A sliding window of size $(3, 15, 15)$ with stride $(3, 8, 8)$ is passed
-over the input, replacing occluded regions with a black baseline. The change
-in model output for each position yields a sensitivity map
-\cite{zeiler2014}.
-\studentinline{VERIFY citation: Zeiler \& Fergus 2014 --- ``Visualizing and Understanding Convolutional Networks.''}
+over the input, replacing occluded regions with a black baseline ($x' = 0$).
+The change in model output for each window position yields a perturbation
+sensitivity map \cite{zeiler2014}. Occlusion is the sole perturbation-based
+method retained in the final evaluation set.
 
-\medskip
-\noindent
-LIME and KernelSHAP are in scope for the full experiment but are excluded
-from the vertical slice due to their substantially higher runtime cost.
-\studentinline{TODO: Update this section if LIME/KernelSHAP are added in the full experiment.}
+\subsection{Excluded Candidates}
+\label{subsec:excluded-fae}
+
+LIME and KernelSHAP were initially considered as additional perturbation-based
+(black-box) methods, alongside Occlusion. They were excluded from the final
+evaluation set after compatibility testing on the vertical slice. The
+Robustness metrics (Max-Sensitivity and Avg-Sensitivity) and the
+Randomization metrics re-invoke the attribution method on perturbed inputs or
+randomized models through a Quantus \texttt{explain\_func} callback; the
+sampling-based LIME and KernelSHAP estimators are both prohibitively expensive
+to re-run for every perturbation sample and produce attribution maps whose
+stochastic surrogate fitting makes the resulting sensitivity scores unstable
+and difficult to interpret. Occlusion provides a deterministic, Captum-native
+perturbation baseline that integrates cleanly with these inner re-computations,
+so it alone represents the perturbation family. The final evaluation set is
+therefore the seven methods above: six gradient/back-propagation methods
+(Saliency, Integrated Gradients, Grad-CAM, Guided Backpropagation, DeepLift,
+and LRP) and one perturbation method (Occlusion).
 
 \subsection{Attribution Caching}
 \label{subsec:caching}
@@ -211,14 +228,47 @@ Localization & RelevanceMassAccuracy   & $\uparrow$ & requires mask \\
 Localization & PointingGame            & $\uparrow$ & requires mask \\
 Complexity   & Sparseness              & $\uparrow$ & Gini-like coefficient \\
 Complexity   & Complexity              & $\downarrow$ & Shannon entropy \\
-Randomization & ModelParameterRandomisation & $\downarrow$ & layer\_order=top\_down \\
+Randomization & ModelParameterRandomisation & $\downarrow$ & layer\_order=top\_down; excluded on ISIC$^{\dagger}$ \\
 Randomization & RandomLogit            & $\downarrow$ & num\_classes=3 \\
 Axiomatic    & Completeness            & $\downarrow$ & black baseline; IG/DeepLift/LRP only \\
-Axiomatic    & NonSensitivity          & $\downarrow$ & downsampled to 56$\times$56; excluded by default \\
+Axiomatic    & NonSensitivity          & $\downarrow$ & downsampled to 56$\times$56; excluded by default$^{\ddagger}$ \\
 \bottomrule
 \end{tabularx}
 \label{tab:metrics}
 \end{table}
+
+\noindent
+The schema retains all twelve metric slots for every attribution triple so
+that the result tables have a stable shape, but two of them are excluded
+from computation as implementation-driven decisions and recorded as NaN
+(subsequently dropped from aggregation rather than imputed):
+
+\begin{itemize}
+    \item[$\dagger$] \textbf{ModelParameterRandomisation} is disabled on ISIC
+    2017. Under Quantus~0.6.0 its implementation raises an
+    \texttt{AssertionError} on every (model, image) sample in this dataset and
+    additionally emits a per-call deprecation notice, so it contributes only
+    NaN while flooding the log and wasting compute. The Randomization category
+    remains represented by RandomLogit, which exercises the same sanity-check
+    principle (an explanation should change when the target logit is replaced),
+    so the category is not lost.
+    \item[$\ddagger$] \textbf{NonSensitivity} is excluded by default. A Quantus
+    shape bug forces \texttt{features\_in\_step}~=~1, turning the metric into one
+    forward pass per feature; at $224 \times 224 \times 3$ this is roughly
+    $150{,}000$ passes per image. Even with the input and attribution
+    downsampled to $56 \times 56$ (about $9{,}000$ passes, $\sim$34\,s per
+    image) the cost is prohibitive at the scale of the full experiment. It can
+    be enabled through an \texttt{include\_non\_sensitivity} flag for targeted
+    runs.
+\end{itemize}
+
+\noindent
+With these two exclusions, eleven metrics are computed per attribution triple
+in the default ISIC~2017 configuration (FaithfulnessCorrelation, PixelFlipping,
+MaxSensitivity, AvgSensitivity, RelevanceMassAccuracy, PointingGame,
+Sparseness, Complexity, RandomLogit, and Completeness, with Completeness
+itself defined only for the three completeness-claiming methods). All six
+Quantus categories remain covered.
 
 \paragraph{Faithfulness.}
 FaithfulnessCorrelation and PixelFlipping both quantify how well the
@@ -253,7 +303,9 @@ ModelParameterRandomisation (MPRT) progressively randomizes model weights
 top-down and measures correlation decay. RandomLogit replaces the target
 class and measures explanation change. Lower correlation is better for both,
 indicating that the explanation genuinely depends on learned parameters and
-the specified target class \cite{hedstrom2023quantus}.
+the specified target class \cite{hedstrom2023quantus}. As noted above, MPRT
+is disabled on ISIC~2017 because of a Quantus~0.6.0 incompatibility, leaving
+RandomLogit as the operative Randomization metric.
 
 \paragraph{Axiomatic.}
 Completeness measures the absolute deviation from the completeness axiom
@@ -345,73 +397,76 @@ described in Chapter~\ref{ch:sota}.
 \subsection{Autoweighted Extension}
 \label{sec:weighting}
 
-The Autoweighted mechanism, inspired by \citet{hryniewska2024normensemblexai},
-derives weights from each metric's ensemble score $\mathrm{ES}_k$:
+The Autoweighted mechanism, adopted from \citet{hryniewska2024normensemblexai},
+derives a weight for each metric from the dispersion of its scores across the
+test set: metrics whose scores are internally consistent are trusted more than
+metrics whose scores are noisy. Concretely, for each (model) group and each
+metric $k$, let $\mathrm{cv}_k = \mathrm{std}(s_k) / |\mathrm{mean}(s_k)|$ be
+the coefficient of variation of metric $k$'s raw scores over the test images.
+The agreement weight is the inverse coefficient of variation, normalised to a
+convex combination:
 \begin{equation}
-    w_k = \frac{\mathrm{ES}_k}{\sum_{j} \mathrm{ES}_j}.
+    a_k = \frac{1}{\mathrm{cv}_k + \varepsilon},
+    \qquad
+    w_k^{\mathrm{AW}} = \frac{a_k}{\sum_{j \in M^{*}} a_j},
+    \label{eq:autoweighted}
 \end{equation}
-In this thesis, $\mathrm{ES}_k$ denotes the MetaQuantus-discounted ensemble
-score: the raw ensemble agreement of metric $k$ is attenuated by its
-reliability as assessed by the Noise Resilience and Adversarial Reactivity
-tests of \citet{hedstrom2024metaquantus}. This ensures that unreliable
-metrics receive lower weight in the final aggregation, even if their raw
-ensemble scores are high.
+where $\varepsilon = 10^{-8}$ provides numerical stability and all statistics
+are NaN-aware. A metric with a low coefficient of variation (stable across
+images relative to its mean) receives a high weight; a noisy metric receives a
+small one. Metrics whose scores are all-NaN in a group receive $a_k = 0$, and
+the remaining weights renormalise so that $\sum_k w_k^{\mathrm{AW}} = 1$. The
+coefficient of variation is scale-invariant, so Autoweighted yields the same
+result whether computed on raw or Second-Moment-scaled scores.
 
 \subsection{MetaQuantus-discounted Weighting (Contribution~2)}
 \label{subsec:mq-discount}
 
-The novel weighting scheme of this thesis (Decision~D3) combines two
-signals that are conventionally treated in isolation: how strongly a metric
-agrees with the cross-metric consensus, and how reliable that metric is when
-probed by meta-evaluation. The derivation proceeds in three steps.
+The novel weighting scheme of this thesis (Decision~D3) combines two signals
+that are conventionally treated in isolation: how internally consistent a
+metric's scores are (the Autoweighted signal above), and how reliable that
+metric is when probed by meta-evaluation. The derivation proceeds in three
+steps.
 
-\paragraph{Step 1 --- Raw agreement weight.}
-For each retained metric $k \in M^{*}$, let $\mathrm{ES}_k$ be the
-\emph{ensemble agreement} of metric $k$, defined as the mean absolute
-rank correlation between the per-method ranking induced by metric $k$ alone
-and the consensus ranking induced by the (uniform) aggregate of all metrics
-in $M^{*}$:
-\begin{equation}
-    \mathrm{ES}_k = \frac{1}{|M^{*}| - 1}
-        \sum_{j \in M^{*},\, j \neq k}
-        \bigl| \rho\bigl(\mathbf{r}_k,\, \mathbf{r}_j\bigr) \bigr|,
-\end{equation}
-where $\mathbf{r}_k$ is the vector of method ranks under metric $k$ and
-$\rho$ is the Spearman rank correlation. A metric whose ranking aligns with
-the rest of the panel receives a high $\mathrm{ES}_k$; an idiosyncratic
-metric receives a low one.
+\paragraph{Step 1 --- Autoweighted agreement weight.}
+For each retained metric $k \in M^{*}$, the Autoweighted coefficient
+$w_k^{\mathrm{AW}}$ is computed per Equation~\eqref{eq:autoweighted}.
 
 \paragraph{Step 2 --- Reliability discount.}
-Each metric is assigned a reliability coefficient $r_k \in [0, 1]$ obtained
-from the meta-evaluation stage (Section~\ref{subsec:meta-evaluation} of
-Chapter~\ref{ch:sota}). MetaQuantus produces two scores per metric: a Noise
-Resilience score $\mathrm{NR}_k$ and an Adversarial Reactivity score
-$\mathrm{AR}_k$. Their combination
-\begin{equation}
-    r_k = \tfrac{1}{2}\bigl(\mathrm{NR}_k + \mathrm{AR}_k\bigr)
-\end{equation}
-is the per-metric \texttt{combined\_reliability} reported in
+Each metric is assigned a reliability coefficient $\lambda_k \in [0, 1]$
+obtained from the meta-evaluation stage
+(Section~\ref{subsec:meta-evaluation} of Chapter~\ref{ch:sota}). MetaQuantus
+produces two scores per metric: a Noise Resilience score $\mathrm{NR}_k$ and
+an Adversarial Reactivity score $\mathrm{AR}_k$. Their combination is the
+per-metric \texttt{combined\_reliability} reported in
 \texttt{results/meta\_evaluation\_reliability.csv}, averaged over the
-(model, FAE) cells in which the metric is defined. Where only one of the two
-sub-scores is available, $r_k$ falls back to that sub-score.
+(model, FAE) cells in which the metric is defined. Where
+\texttt{combined\_reliability} is undefined, $\lambda_k$ is resolved by an
+explicit fallback hierarchy: (i)~the Noise-Resilience-only score, for metrics
+that internally re-compute attributions (the sensitivity metrics, MPRT, and
+RandomLogit) for which the Adversarial-Reactivity test is methodologically
+inapplicable; (ii)~the mean reliability of the other valid metrics in the same
+Quantus category; (iii)~the global mean reliability across the group; and, as
+a last resort, (iv)~no discount ($\lambda_k = 1$). This fallback never zeroes a
+metric out, which would silently drop it from the ensemble.
 
 \paragraph{Step 3 --- Discounted normalisation.}
-The agreement weight is attenuated by the reliability coefficient and
+The Autoweighted coefficient is attenuated by the reliability factor and
 renormalised to a convex combination:
 \begin{equation}
-    w_k = \frac{r_k \, \mathrm{ES}_k}{\sum_{j \in M^{*}} r_j \, \mathrm{ES}_j},
+    w_k = \frac{w_k^{\mathrm{AW}} \, \lambda_k}
+               {\sum_{j \in M^{*}} w_j^{\mathrm{AW}} \, \lambda_j},
     \qquad w_k \geq 0, \quad \sum_{k \in M^{*}} w_k = 1.
     \label{eq:mq-discount}
 \end{equation}
 Equation~\eqref{eq:mq-discount} is the MetaQuantus-discounted Autoweighted
-operator. It reduces to uniform weighting when all $r_k \mathrm{ES}_k$ are
-equal, to the plain Autoweighted scheme of
-\citet{hryniewska2024normensemblexai} when every metric is perfectly
-reliable ($r_k \equiv 1$), and it drives $w_k \to 0$ for any metric that
-either disagrees with the consensus or fails meta-evaluation. The three
-weighting schemes---uniform, Autoweighted, and MQ-discounted---are reported
-side by side in Chapter~\ref{ch:experiments} so that their effect on the
-final method ranking can be assessed directly.
+operator. It reduces to the plain Autoweighted scheme of
+\citet{hryniewska2024normensemblexai} when every metric is perfectly reliable
+($\lambda_k \equiv 1$), and it drives $w_k \to 0$ for any metric that either is
+internally noisy (small $w_k^{\mathrm{AW}}$) or fails meta-evaluation (small
+$\lambda_k$). The three weighting schemes---uniform, Autoweighted, and
+MQ-discounted---are reported side by side in Chapter~\ref{ch:experiments} so
+that their effect on the final method ranking can be assessed directly.
 
 %% ========================================================================
 \section{The Evaluation Pipeline}
@@ -483,13 +538,16 @@ which the statistical-comparison stage (Contributions~3--4) consumes.
 \subsection{Implementation}
 
 The pipeline entry point is \texttt{experiments/vertical\_slice.py}. The
-output is a CSV file with columns: \texttt{model}, \texttt{image\_id},
-\texttt{fae\_method}, \texttt{metric}, \texttt{score}. For the 12-image
-vertical slice, the expected output is $2 \times 7 \times 12 \times 12 =
-2{,}016$ rows (2 models $\times$ 7~FAE methods $\times$ 12~images $\times$
-12~metrics).
-
-\studentinline{TODO: Update row count and CSV column description after full experiment run.}
+output is a long-format CSV file with columns \texttt{model},
+\texttt{image\_id}, \texttt{fae\_method}, \texttt{metric}, and \texttt{score}.
+The schema retains one row per (model, image, FAE method, metric~slot),
+including the slots recorded as NaN (the excluded metrics and Completeness on
+non-completeness methods), so that the table shape is independent of which
+metrics happen to be defined for a given triple. For the 12-image vertical
+slice this is $2 \times 7 \times 12 \times 12 = 2{,}016$ rows (2~models
+$\times$ 7~FAE methods $\times$ 12~images $\times$ 12~metric slots); scaling
+the identical schema to all 600 test images yields
+$2 \times 7 \times 600 \times 12 = 100{,}800$ rows.
 
 The software architecture follows the modular layout described in
 Section~\ref{sec:celePracy}:

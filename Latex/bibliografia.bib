@@ -118,17 +118,19 @@
                A Practitioner's Perspective},
     journal = {Transactions on Machine Learning Research},
     year    = {2024},
-    url     = {https://openreview.net/forum?id=jESY2WTZCe}  % VERIFY
+    url     = {https://openreview.net/forum?id=jESY2WTZCe}  % verified
 }
 
 @article{hedstrom2024metaquantus,
-    author  = {Hedstr{\"o}m, Anna and H{\"o}hne, Marina M.-C. and
-               Lapuschkin, Sebastian},
-    title   = {{MetaQuantus}: A Meta-Evaluation Framework for Assessing
-               the Reliability of Explainable {AI} Metrics},
+    author  = {Hedstr{\"o}m, Anna and Bommer, Philine and
+               Wickstr{\o}m, Kristoffer K. and Samek, Wojciech and
+               Lapuschkin, Sebastian and H{\"o}hne, Marina M.-C.},
+    title   = {The Meta-Evaluation Problem in Explainable {AI}:
+               Identifying Reliable Estimators with {MetaQuantus}},
     journal = {Transactions on Machine Learning Research},
-    year    = {2024}
-    % VERIFY: exact author list and title phrasing against TMLR page
+    year    = {2023}
+    % verified: title, authors, and TMLR/year (2023) confirmed against
+    % arXiv:2302.07265 and TMLR. Citation key retained for cross-refs.
 }
 
 @article{bommer2024finding,
@@ -139,27 +141,44 @@
                Evaluation and Ranking of Explainable {AI} Methods in
                Climate Science},
     journal = {Artificial Intelligence for the Earth Systems},
+    volume  = {3},
+    number  = {3},
     year    = {2024},
-    doi     = {10.1175/AIES-D-23-0074.1}  % VERIFY
+    doi     = {10.1175/AIES-D-23-0074.1}  % verified
 }
 
 @inproceedings{schwalbe2024systematic,
-    author    = {Schwalbe, Gesina and others},  % VERIFY full author list
-    title     = {A Systematic Approach to Evaluating Methods and Metrics
-                 for Explainable {AI}},
+    author    = {Klein, Lukas and L{\"u}th, Carsten T. and
+                 Schlegel, Udo and Bungert, Till J. and
+                 El-Assady, Mennatallah and J{\"a}ger, Paul F.},
+    title     = {Navigating the Maze of Explainable {AI}: A Systematic
+                 Approach to Evaluating Methods and Metrics},
     booktitle = {Advances in Neural Information Processing Systems
                  (NeurIPS), Datasets and Benchmarks Track},
-    year      = {2024}
-    % VERIFY: exact title and authors at NeurIPS 2024 D&B proceedings
+    year      = {2024},
+    eprint    = {2409.16756},
+    archivePrefix = {arXiv},
+    primaryClass  = {cs.LG}
+    % verified: the NeurIPS 2024 D&B paper cited here is "Navigating the
+    % Maze of Explainable AI" by Klein et al. (arXiv:2409.16756). The
+    % original best-effort author (Schwalbe) was incorrect; key retained.
 }
 
 @article{kadir2024evaluating,
-    author  = {Kadir, Md Abdul and Mosavi, Amir and Sonntag, Daniel},
+    author  = {Pawlicki, Marek and Pawlicka, Aleksandra and
+               Uccello, Federica and Szelest, Sebastian and
+               D'Antonio, Salvatore and Kozik, Rafa{\l} and
+               Chora{\'s}, Micha{\l}},
     title   = {Evaluating the Necessity of the Multiple Metrics for
                Assessing Explainable {AI}: A Critical Examination},
     journal = {Neurocomputing},
+    volume  = {602},
+    pages   = {128282},
     year    = {2024},
-    doi     = {10.1016/j.neucom.2024.128282}  % VERIFY
+    doi     = {10.1016/j.neucom.2024.128282}  % verified
+    % verified: title/journal/volume/article-no/DOI confirmed via
+    % ScienceDirect. Real authors are Pawlicki et al. (the best-effort
+    % Kadir/Mosavi/Sonntag attribution was wrong); key retained.
 }
 
 @article{tomsett2020sanity,
@@ -176,20 +195,23 @@
 }
 
 @misc{hedstrom2025bridging,
-    author       = {Hedstr{\"o}m, Anna and others},  % VERIFY
-    title        = {Bridging the Gap in {XAI}---The Need for Reliable
-                    Metrics in Explainability and Compliance},
+    author       = {Seth, Pratinav and Sankarapu, Vinay Kumar},
+    title        = {Bridging the Gap in {XAI}---Why Reliable Metrics
+                    Matter for Explainability and Compliance},
     year         = {2025},
     eprint       = {2502.04695},
     archivePrefix= {arXiv},
     primaryClass = {cs.LG}
+    % verified: arXiv:2502.04695. Real authors are Seth and Sankarapu
+    % (the best-effort "Hedstrom et al." attribution was wrong); key
+    % retained. Title corrected to the arXiv listing.
 }
 % ============================================================
 % Method-source references (resolve MISSING- keys in Ch.2/Ch.3).
-% Well-known XAI/CV papers; fields are best-effort. % VERIFY each.
+% Well-known XAI/CV papers; fields verified against canonical sources.
 % ============================================================
 
-@inproceedings{he2016resnet, % VERIFY
+@inproceedings{he2016resnet, % verified
     author    = {He, Kaiming and Zhang, Xiangyu and Ren, Shaoqing and Sun, Jian},
     title     = {Deep Residual Learning for Image Recognition},
     booktitle = {Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
@@ -198,7 +220,7 @@
     doi       = {10.1109/CVPR.2016.90}
 }
 
-@misc{iandola2016squeeze, % VERIFY
+@misc{iandola2016squeeze, % verified
     author       = {Iandola, Forrest N. and Han, Song and Moskewicz, Matthew W.
                     and Ashraf, Khalid and Dally, William J. and Keutzer, Kurt},
     title        = {{SqueezeNet}: {AlexNet}-Level Accuracy with 50x Fewer
@@ -209,7 +231,7 @@
     primaryClass = {cs.CV}
 }
 
-@inproceedings{springenberg2015, % VERIFY
+@inproceedings{springenberg2015, % verified
     author    = {Springenberg, Jost Tobias and Dosovitskiy, Alexey and
                  Brox, Thomas and Riedmiller, Martin},
     title     = {Striving for Simplicity: The All Convolutional Net},
@@ -220,7 +242,7 @@
     primaryClass  = {cs.LG}
 }
 
-@inproceedings{shrikumar2017deeplift, % VERIFY
+@inproceedings{shrikumar2017deeplift, % verified
     author    = {Shrikumar, Avanti and Greenside, Peyton and Kundaje, Anshul},
     title     = {Learning Important Features Through Propagating Activation Differences},
     booktitle = {Proceedings of the 34th International Conference on Machine Learning (ICML)},
@@ -228,7 +250,7 @@
     year      = {2017}
 }
 
-@article{bach2015lrp, % VERIFY
+@article{bach2015lrp, % verified
     author  = {Bach, Sebastian and Binder, Alexander and Montavon, Gr{\'e}goire
                and Klauschen, Frederick and M{\"u}ller, Klaus-Robert and Samek, Wojciech},
     title   = {On Pixel-Wise Explanations for Non-Linear Classifier Decisions
@@ -241,7 +263,7 @@
     doi     = {10.1371/journal.pone.0130140}
 }
 
-@inproceedings{zeiler2014, % VERIFY
+@inproceedings{zeiler2014, % verified
     author    = {Zeiler, Matthew D. and Fergus, Rob},
     title     = {Visualizing and Understanding Convolutional Networks},
     booktitle = {European Conference on Computer Vision (ECCV)},
@@ -250,7 +272,7 @@
     doi       = {10.1007/978-3-319-10590-1_53}
 }
 
-@inproceedings{yeh2019, % VERIFY
+@inproceedings{yeh2019, % verified
     author    = {Yeh, Chih-Kuan and Hsieh, Cheng-Yu and Suggala, Arun Sai and
                  Inouye, David I. and Ravikumar, Pradeep},
     title     = {On the (In)fidelity and Sensitivity of Explanations},
@@ -259,7 +281,7 @@
     year      = {2019}
 }
 
-@article{pixelflip, % VERIFY (Samek et al. 2017, Pixel Flipping / Bach et al. origin)
+@article{pixelflip, % verified (Samek et al. 2017, "Evaluating the Visualization of What a DNN Has Learned", TNNLS)
     author  = {Samek, Wojciech and Binder, Alexander and Montavon, Gr{\'e}goire
                and Lapuschkin, Sebastian and M{\"u}ller, Klaus-Robert},
     title   = {Evaluating the Visualization of What a Deep Neural Network Has Learned},
@@ -271,7 +293,7 @@
     doi     = {10.1109/TNNLS.2016.2599820}
 }
 
-@inproceedings{pg, % VERIFY (Pointing Game; Zhang et al. 2018 / CAM Zhou et al. 2016)
+@inproceedings{pg, % verified (Pointing Game origin; Zhang et al. 2018, Excitation Backprop, IJCV 126)
     author    = {Zhang, Jianming and Bargal, Sarah Adel and Lin, Zhe and
                  Brandt, Jonathan and Shen, Xiaohui and Sclaroff, Stan},
     title     = {Top-Down Neural Attention by Excitation Backprop},
