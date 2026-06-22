@@ -21,7 +21,7 @@ import os
 import shutil
 import zipfile
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Sequence
 
 import requests
 from tqdm import tqdm
@@ -189,8 +189,9 @@ def _extract_and_organise(
 def download_isic2017(
     dest_dir: str = "data/isic2017",
     skip_existing: bool = True,
+    splits: Optional[Sequence[str]] = None,
 ) -> None:
-    """Download and organise the full ISIC 2017 dataset.
+    """Download and organise the ISIC 2017 dataset.
 
     Parameters
     ----------
@@ -199,12 +200,27 @@ def download_isic2017(
         sub-trees organised by split and class.
     skip_existing : bool
         If True, skip downloads and extractions that have already completed.
+    splits : sequence of str or None
+        Which splits to fetch, from ``{"train", "validation", "test"}``.
+        ``None`` (default) downloads all three. Pass ``["test"]`` to fetch
+        only the 600-image test split (the evaluation set), avoiding the
+        ~5 GB Training download.
     """
     dest = Path(dest_dir)
     zip_dir = dest / "_downloads"
     zip_dir.mkdir(parents=True, exist_ok=True)
 
-    for split_name, images_url, masks_url, csv_url in _SPLIT_CONFIG:
+    if splits is not None:
+        wanted = set(splits)
+        unknown = wanted - {s[0] for s in _SPLIT_CONFIG}
+        if unknown:
+            raise ValueError(f"Unknown split(s): {sorted(unknown)}; "
+                             f"valid: {sorted(s[0] for s in _SPLIT_CONFIG)}")
+        config = [s for s in _SPLIT_CONFIG if s[0] in wanted]
+    else:
+        config = _SPLIT_CONFIG
+
+    for split_name, images_url, masks_url, csv_url in config:
         logger.info("=== Processing split: %s ===", split_name)
 
         # 1. Parse diagnosis labels
