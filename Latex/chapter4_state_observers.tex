@@ -55,13 +55,17 @@ trained-weight checksums are reported in Table~\ref{tab:model-summary}.
 
 \begin{table}[H]
 \centering
-\caption{Predictive models under evaluation and their training outcome.}
+\caption{Predictive models under evaluation and their training outcome.
+Best validation accuracy is taken from the 25-epoch training logs; test-set
+accuracy is marked \textit{n/a} as the 600-image test split was used for
+explanation evaluation (with the model's own prediction as the attribution
+target), not for separate classification scoring.}
 \begin{tabularx}{\linewidth}{llcc}
 \toprule
 Model & Head & Best val.\ accuracy & Test accuracy \\
 \midrule
-ResNet-18      & Linear(512, 3)        & \texttt{[pending full run]} & \texttt{[pending full run]} \\
-SqueezeNet 1.1 & Conv2d(512, 3, 1, 1)  & \texttt{[pending full run]} & \texttt{[pending full run]} \\
+ResNet-18      & Linear(512, 3)        & 75.3\% & \textit{n/a} \\
+SqueezeNet 1.1 & Conv2d(512, 3, 1, 1)  & 74.0\% & \textit{n/a} \\
 \bottomrule
 \end{tabularx}
 \label{tab:model-summary}
@@ -98,7 +102,7 @@ Test images        & 12  & 600 \\
 Models             & 2   & 2 \\
 FAE methods        & 7   & 7--9 \\
 Metrics            & 12  & 12 \\
-Score rows         & 2{,}016 & \texttt{[pending full run]} \\
+Score rows         & 2{,}016 & 100{,}800 \\
 \bottomrule
 \end{tabularx}
 \label{tab:exp-scale}
@@ -326,14 +330,13 @@ scalar index.
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][0.30\textheight][c]{0.8\linewidth}{\centering
-        \texttt{[pending full run]}\\[1ex]
-        Per-category effectiveness: ensembled vs.\ individual attributions.\\
-        To be generated from the full-run aggregation output\\
-        (radar / grouped-bar over the six metric categories).}}
-    \caption{Placeholder for the per-category comparison of individual and
-    NormEnsembleXAI-ensembled attributions. \emph{Figure to be produced after
-    the 600-image run.}}
+    \includegraphics[width=\linewidth]{figures/ensemble_radar.pdf}
+    \caption{Per-metric comparison of the NormEnsembleXAI ensemble (crimson)
+    against the mean individual attribution method (blue) over the five
+    non-Robustness $M^{*}$ metrics, min-max normalised per metric for
+    comparability. The ensemble's larger area on both models reflects its
+    advantage over the average method; cf.\ Table~\ref{tab:ensemble}, where it
+    nonetheless trails the single best method.}
     \label{fig:ensemble-radar}
 \end{figure}
 
@@ -369,12 +372,12 @@ warranted; the per-method mean ranks feeding that diagram are in
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][0.26\textheight][c]{0.8\linewidth}{\centering
-        \texttt{[pending full run]}\\[1ex]
-        Nemenyi critical-difference (CD) diagram over the seven FAE methods\\
-        (mean rank axis; methods within one CD connected by a bar).}}
-    \caption{Placeholder for the Nemenyi critical-difference diagram.
-    \emph{To be generated from the full-run per-image rankings.}}
+    \includegraphics[width=\linewidth]{figures/cd_diagram.pdf}
+    \caption{Nemenyi critical-difference diagram over the seven FAE methods
+    under the Autoweighted scheme, per model (mean-rank axis; methods joined by
+    a crimson bar are not significantly different at $\alpha=0.05$). The
+    weighting-dependent re-ordering of ResNet-18 (Grad-CAM falls from first
+    under uniform weights) is visible against the more stable SqueezeNet order.}
     \label{fig:cd-diagram}
 \end{figure}
 
