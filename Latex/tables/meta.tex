@@ -3,18 +3,20 @@
 \begin{table}[H]
 \centering
 \caption{Metric reliability from MetaQuantus (NR, AR, combined), averaged over
-(model, FAE) cells.}
+(model, FAE) cells. Cells marked \textit{n/a} are metrics whose Adversarial
+Reactivity could not be scored in this run (the \texttt{explain\_func}-based
+perturbation failed), so no combined reliability is available.}
 \begin{tabularx}{\linewidth}{lcccc}
 \toprule
 Metric & NR & AR & Combined $r_k$ & Mean runtime (s) \\
 \midrule
-faithfulness\_correlation & 0.511 & 0.631 & 0.571 & 86.9 \\
-max\_sensitivity & 1.000 & \texttt{[pending]} & \texttt{[pending]} & 80.7 \\
-model\_parameter\_randomisation & 1.000 & \texttt{[pending]} & \texttt{[pending]} & 90.2 \\
-pixel\_flipping & 0.983 & 0.877 & 0.930 & 164.1 \\
-pointing\_game & 0.917 & 0.428 & 0.672 & 25.2 \\
-random\_logit & 1.000 & \texttt{[pending]} & \texttt{[pending]} & 79.2 \\
-relevance\_mass\_accuracy & 0.559 & 0.554 & 0.556 & 25.0 \\
+faithfulness\_correlation & 0.510 & 0.569 & 0.540 & 555.0 \\
+max\_sensitivity & 1.000 & \textit{n/a} & \textit{n/a} & 173.3 \\
+pixel\_flipping & 0.996 & 0.769 & 0.883 & 732.3 \\
+pointing\_game & 0.973 & 0.636 & 0.805 & 83.5 \\
+random\_logit & 1.000 & \textit{n/a} & \textit{n/a} & 173.4 \\
+relevance\_mass\_accuracy & 0.547 & 0.492 & 0.520 & 83.8 \\
+sparseness & 0.981 & 0.969 & 0.975 & 83.8 \\
 \bottomrule
 \end{tabularx}
 \label{tab:meta}

@@ -65,11 +65,11 @@ _PENDING = r"\texttt{[pending]}"
 _M_STAR = [
     "faithfulness_correlation",
     "max_sensitivity",
-    "model_parameter_randomisation",
     "pixel_flipping",
     "pointing_game",
     "random_logit",
     "relevance_mass_accuracy",
+    "sparseness",
 ]
 
 _FAE_ORDER = [
@@ -132,9 +132,13 @@ def _redundancy_fragment(matrix: pd.DataFrame | None, model_label: str,
         summary = category_redundancy_summary(matrix, METRIC_CATEGORIES)
         summary = summary.sort_values("mean_abs_rho", ascending=False)
         for cat, row in summary.iterrows():
-            rows_tex.append(
-                f"{cat} & {int(row['n_metrics'])} & {_fmt(row['mean_abs_rho'])} \\\\"
-            )
+            n_m = int(row["n_metrics"])
+            rho = row["mean_abs_rho"]
+            # A single-metric category has no within-category pair, so the
+            # mean |rho| is undefined (n/a), not a pending/TODO value.
+            rho_str = (r"\textit{n/a}" if n_m < 2
+                       or not np.isfinite(rho) else _fmt(rho))
+            rows_tex.append(f"{cat} & {n_m} & {rho_str} \\\\")
     if not rows_tex:
         rows_tex = [f"{c} & 2 & {_PENDING} \\\\"
                     for c in ["Complexity", "Robustness", "Randomization",
@@ -159,6 +163,13 @@ Category & $n$ metrics & Mean $|\rho|$ \\
 # Meta-evaluation table (tab:meta)
 # ---------------------------------------------------------------------------
 
+def _meta_na(x, nd: int = 3) -> str:
+    """Like ``_fmt`` but NaN renders as ``n/a`` (a real missing cell, not a TODO)."""
+    if x is None or (isinstance(x, float) and not np.isfinite(x)):
+        return r"\textit{n/a}"
+    return _fmt(x, nd)
+
+
 def _meta_fragment(rel: pd.DataFrame | None) -> str:
     rows_tex: list[str] = []
     agg = None
@@ -174,8 +185,8 @@ def _meta_fragment(rel: pd.DataFrame | None) -> str:
         if agg is not None and metric in agg.index:
             r = agg.loc[metric]
             rows_tex.append(
-                f"{_esc(metric)} & {_fmt(r['nr_score'])} & {_fmt(r['ar_score'])} & "
-                f"{_fmt(r['combined_reliability'])} & {_fmt(r['runtime_seconds'], 1)} \\\\"
+                f"{_esc(metric)} & {_meta_na(r['nr_score'])} & {_meta_na(r['ar_score'])} & "
+                f"{_meta_na(r['combined_reliability'])} & {_fmt(r['runtime_seconds'], 1)} \\\\"
             )
         else:
             rows_tex.append(
@@ -185,7 +196,9 @@ def _meta_fragment(rel: pd.DataFrame | None) -> str:
     return rf"""\begin{{table}}[H]
 \centering
 \caption{{Metric reliability from MetaQuantus (NR, AR, combined), averaged over
-(model, FAE) cells.}}
+(model, FAE) cells. Cells marked \textit{{n/a}} are metrics whose Adversarial
+Reactivity could not be scored in this run (the \texttt{{explain\_func}}-based
+perturbation failed), so no combined reliability is available.}}
 \begin{{tabularx}}{{\linewidth}}{{lcccc}}
 \toprule
 Metric & NR & AR & Combined $r_k$ & Mean runtime (s) \\
@@ -321,20 +334,21 @@ Comparison & Uniform vs.\ AW & Uniform vs.\ MQ & AW vs.\ MQ & Single-FC vs.\ MQ 
 # Ensemble table (tab:ensemble)
 # ---------------------------------------------------------------------------
 
-def _ensemble_fragment(ranking: pd.DataFrame | None,
-                       ensemble: pd.DataFrame | None,
-                       value_col: str = "effectiveness_mqdiscount") -> str:
+def _ensemble_fragment(ensemble: pd.DataFrame | None) -> str:
+    """Aggregate individual_vs_ensemble.csv per model.
+
+    Columns: model, image_id, eff_ensemble, eff_individual_mean,
+    eff_individual_best. Per model we average each effectiveness column over
+    the 64 sampled images and report Delta = ensembled - best individual.
+    """
     def _row(model: str, model_label: str) -> str:
         ens_e = best_e = mean_e = None
-        if (ensemble is not None and not ensemble.empty
-                and ranking is not None and not ranking.empty):
+        if ensemble is not None and not ensemble.empty:
             es = ensemble[ensemble["model"] == model]
-            rs = ranking[ranking["model"] == model]
-            if not es.empty and not rs.empty:
-                ens_e = float(es[value_col].mean())
-                per_fae = rs.groupby("fae_method")[value_col].mean()
-                best_e = float(per_fae.max())
-                mean_e = float(per_fae.mean())
+            if not es.empty:
+                ens_e = float(es["eff_ensemble"].mean())
+                best_e = float(es["eff_individual_best"].mean())
+                mean_e = float(es["eff_individual_mean"].mean())
         delta = (ens_e - best_e) if (ens_e is not None and best_e is not None) else None
         return (f"{model_label}  & {_fmt(ens_e)} & {_fmt(best_e)} & "
                 f"{_fmt(mean_e)} & {_fmt(delta)} \\\\")
@@ -343,8 +357,9 @@ def _ensemble_fragment(ranking: pd.DataFrame | None,
     return rf"""\begin{{table}}[H]
 \centering
 \caption{{Effectiveness index $E(\Phi)$ of the NormEnsembleXAI-ensembled
-attribution against the best and mean individual method, per model
-(MQ-discount scheme).}}
+attribution against the best and mean individual method, per model (mean over a
+64-image sample; six gradient methods, occlusion excluded; the five
+non-Robustness $M^{{*}}$ metrics).}}
 \begin{{tabularx}}{{\linewidth}}{{lcccc}}
 \toprule
 Model & Ensembled $E$ & Best individual $E$ & Mean individual $E$ & $\Delta$ (ens.\ $-$ best) \\
@@ -361,25 +376,29 @@ Model & Ensembled $E$ & Best individual $E$ & Mean individual $E$ & $\Delta$ (en
 # ---------------------------------------------------------------------------
 
 def _friedman_fragment(stats: pd.DataFrame | None) -> str:
+    # statistical_tests.csv schema: model,scheme,friedman_chi2,p_value,
+    # significant,critical_difference,n_blocks,n_methods. We report the
+    # Autoweighted scheme (== MQ-discount in this run; see caption/caveat).
     def _row(model: str, model_label: str) -> str:
         chi = p = sig = None
         if stats is not None and not stats.empty:
-            m = stats[(stats["test"] == "friedman")
-                      & (stats["model"] == model)
-                      & (stats["scheme"] == "mqdiscount")]
+            m = stats[(stats["model"] == model)
+                      & (stats["scheme"] == "autoweighted")]
             if not m.empty:
-                chi = float(m.iloc[0]["statistic"])
+                chi = float(m.iloc[0]["friedman_chi2"])
                 p = float(m.iloc[0]["p_value"])
-                sig = bool(m.iloc[0]["significant_0.05"])
+                sig = bool(m.iloc[0]["significant"])
         sig_str = (_PENDING if sig is None else ("Yes" if sig else "No"))
-        return (f"{model_label}  & MQ-discount & {_fmt(chi, 2)} & "
+        return (f"{model_label}  & Autoweighted & {_fmt(chi, 2)} & "
                 f"{_fmt_p(p)} & {sig_str} \\\\")
 
     body = _row("resnet18", "ResNet-18") + "\n" + _row("squeezenet", "SqueezeNet")
     return rf"""\begin{{table}}[H]
 \centering
-\caption{{Friedman omnibus test over FAE methods, per model (MQ-discount
-weighting; blocks are test images).}}
+\caption{{Friedman omnibus test over the seven FAE methods, per model
+(Autoweighted weighting; blocks are the 600 test images). In this run the
+MQ-discount scheme is identical to Autoweighted, so the same statistic applies
+to both.}}
 \begin{{tabularx}}{{\linewidth}}{{llccc}}
 \toprule
 Model & Weighting & Friedman $\chi^2$ & $p$-value & Significant ($\alpha=0.05$) \\
@@ -395,25 +414,45 @@ Model & Weighting & Friedman $\chi^2$ & $p$-value & Significant ($\alpha=0.05$) 
 # Wilcoxon table (tab:wilcoxon)
 # ---------------------------------------------------------------------------
 
-def _wilcoxon_fragment(stats: pd.DataFrame | None) -> str:
-    def _row(model: str, model_label: str) -> str:
-        w = p = sig = None
-        if stats is not None and not stats.empty:
-            m = stats[(stats["test"] == "wilcoxon")
-                      & (stats["model"] == model)]
-            if not m.empty:
-                w = float(m.iloc[0]["statistic"])
-                p = float(m.iloc[0]["p_value"])
-                sig = bool(m.iloc[0]["significant_0.05"])
-        sig_str = (_PENDING if sig is None else ("Yes" if sig else "No"))
-        return (f"{model_label}  & ensemble vs.\\ best individual & "
-                f"{_fmt(w, 1)} & {_fmt_p(p)} & {sig_str} \\\\")
+def _wilcoxon_fragment(ensemble: pd.DataFrame | None) -> str:
+    """Compute paired Wilcoxon from individual_vs_ensemble.csv per model.
 
-    body = _row("resnet18", "ResNet-18") + "\n" + _row("squeezenet", "SqueezeNet")
+    Two paired comparisons per model: ensembled effectiveness vs. the best
+    individual method, and vs. the mean individual method (paired per image).
+    """
+    from src.comparison.statistical_tests import wilcoxon_paired
+
+    def _rows(model: str, model_label: str) -> list[str]:
+        out: list[str] = []
+        pairs = [
+            ("ensemble vs.\\ best individual", "eff_individual_best"),
+            ("ensemble vs.\\ mean individual", "eff_individual_mean"),
+        ]
+        sub = None
+        if ensemble is not None and not ensemble.empty:
+            sub = ensemble[ensemble["model"] == model]
+        for pair_label, col in pairs:
+            w = p = sig = None
+            if sub is not None and not sub.empty and col in sub.columns:
+                res = wilcoxon_paired(
+                    sub["eff_ensemble"].to_numpy(), sub[col].to_numpy()
+                )
+                w = float(res["statistic"])
+                p = float(res["p_value"])
+                sig = p < 0.05
+            sig_str = (_PENDING if sig is None else ("Yes" if sig else "No"))
+            out.append(f"{model_label} & {pair_label} & "
+                       f"{_fmt(w, 1)} & {_fmt_p(p)} & {sig_str} \\\\")
+        return out
+
+    body = "\n".join(
+        _rows("resnet18", "ResNet-18") + _rows("squeezenet", "SqueezeNet")
+    )
     return rf"""\begin{{table}}[H]
 \centering
-\caption{{Wilcoxon signed-rank test: individual vs.\ ensembled attribution
-effectiveness, paired per image.}}
+\caption{{Wilcoxon signed-rank test (paired per image, $n=64$ per model):
+the NormEnsembleXAI-ensembled attribution against the best and the mean
+individual method.}}
 \begin{{tabularx}}{{\linewidth}}{{llccc}}
 \toprule
 Model & Pair & $W$ statistic & $p$-value & Significant \\
@@ -451,8 +490,8 @@ def _parse_args() -> argparse.Namespace:
                    default=str(_RESULTS / "meta_evaluation_reliability.csv"))
     p.add_argument("--ranking-csv",
                    default=str(_RESULTS / "ranking_comparison.csv"))
-    p.add_argument("--ensemble-ranking-csv",
-                   default=str(_RESULTS / "ensemble_ranking.csv"))
+    p.add_argument("--ensemble-csv",
+                   default=str(_RESULTS / "individual_vs_ensemble.csv"))
     p.add_argument("--stats-csv",
                    default=str(_RESULTS / "statistical_tests.csv"))
     p.add_argument("--n-images-label", default="pilot, 12 images",
@@ -474,7 +513,7 @@ def main() -> None:
         red_sq = red_sq.set_index(red_sq.columns[0])
     rel = _read(Path(args.reliability_csv))
     ranking = _read(Path(args.ranking_csv))
-    ensemble = _read(Path(args.ensemble_ranking_csv))
+    ensemble = _read(Path(args.ensemble_csv))
     stats = _read(Path(args.stats_csv))
 
     print(f"Writing LaTeX fragments to {_TABLES_DIR}")
@@ -490,9 +529,9 @@ def main() -> None:
     _write("ranking_squeeze.tex",
            _ranking_fragment(ranking, "squeezenet", "SqueezeNet", "tab:ranking-squeeze"))
     _write("rank_stability.tex", _rank_stability_fragment(ranking))
-    _write("ensemble.tex", _ensemble_fragment(ranking, ensemble))
+    _write("ensemble.tex", _ensemble_fragment(ensemble))
     _write("friedman.tex", _friedman_fragment(stats))
-    _write("wilcoxon.tex", _wilcoxon_fragment(stats))
+    _write("wilcoxon.tex", _wilcoxon_fragment(ensemble))
     print("Done.")
 
 

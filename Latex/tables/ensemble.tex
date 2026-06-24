@@ -3,14 +3,15 @@
 \begin{table}[H]
 \centering
 \caption{Effectiveness index $E(\Phi)$ of the NormEnsembleXAI-ensembled
-attribution against the best and mean individual method, per model
-(MQ-discount scheme).}
+attribution against the best and mean individual method, per model (mean over a
+64-image sample; six gradient methods, occlusion excluded; the five
+non-Robustness $M^{*}$ metrics).}
 \begin{tabularx}{\linewidth}{lcccc}
 \toprule
 Model & Ensembled $E$ & Best individual $E$ & Mean individual $E$ & $\Delta$ (ens.\ $-$ best) \\
 \midrule
-ResNet-18  & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
-SqueezeNet  & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} & \texttt{[pending]} \\
+ResNet-18  & 0.700 & 0.898 & 0.554 & -0.197 \\
+SqueezeNet  & 0.812 & 0.888 & 0.604 & -0.076 \\
 \bottomrule
 \end{tabularx}
 \label{tab:ensemble}

@@ -2,14 +2,16 @@
 % Regenerate after each run; \input this file from chapter4_state_observers.tex.
 \begin{table}[H]
 \centering
-\caption{Friedman omnibus test over FAE methods, per model (MQ-discount
-weighting; blocks are test images).}
+\caption{Friedman omnibus test over the seven FAE methods, per model
+(Autoweighted weighting; blocks are the 600 test images). In this run the
+MQ-discount scheme is identical to Autoweighted, so the same statistic applies
+to both.}
 \begin{tabularx}{\linewidth}{llccc}
 \toprule
 Model & Weighting & Friedman $\chi^2$ & $p$-value & Significant ($\alpha=0.05$) \\
 \midrule
-ResNet-18  & MQ-discount & 63.54 & $<10^{-3}$ & Yes \\
-SqueezeNet  & MQ-discount & 58.14 & $<10^{-3}$ & Yes \\
+ResNet-18  & Autoweighted & 437.41 & $<10^{-3}$ & Yes \\
+SqueezeNet  & Autoweighted & 1551.83 & $<10^{-3}$ & Yes \\
 \bottomrule
 \end{tabularx}
 \label{tab:friedman}
