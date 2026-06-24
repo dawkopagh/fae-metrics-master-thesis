@@ -668,6 +668,49 @@ class TestRunMetaEvaluationFull:
         # Covers both models
         assert set(result_df["model"].unique()) == {"model_a", "model_b"}
 
+    def test_nested_per_model_fae_methods(self, tmp_path):
+        """fae_methods nested as {model -> {fae -> fn}} resolves each model's own func."""
+        rng = np.random.default_rng(7)
+        images_t = [
+            torch.tensor(rng.random((3, 8, 8)).astype(np.float32)) for _ in range(2)
+        ]
+        rows = []
+        for model_name in ("model_a", "model_b"):
+            for img_idx in range(2):
+                rows.append({
+                    "model": model_name, "image_id": f"img_{img_idx:03d}",
+                    "fae_method": "fake_fae", "metric": "test_metric",
+                    "score": float(rng.random()),
+                })
+        slice_df = pd.DataFrame(rows)
+
+        calls = {"model_a": 0, "model_b": 0}
+
+        def _make(name):
+            def _f(model, inputs, targets, **kw):
+                calls[name] += 1
+                return _explain_zeros(model, inputs, targets, **kw)
+            return _f
+
+        result_df = run_meta_evaluation_full(
+            vertical_slice_df=slice_df,
+            models={"model_a": _DummyModel(), "model_b": _DummyModel()},
+            metric_fns={"test_metric": _ConstantMetric()},
+            fae_methods={
+                "model_a": {"fake_fae": _make("model_a")},
+                "model_b": {"fake_fae": _make("model_b")},
+            },
+            images=images_t, targets=[0, 1], device="cpu",
+            n_seeds=2, n_levels=2,
+            output_csv=str(tmp_path / "m.csv"),
+            progress_log=str(tmp_path / "p.log"),
+        )
+
+        assert set(result_df["model"].unique()) == {"model_a", "model_b"}
+        assert set(result_df["status"].unique()) == {"completed"}
+        # Each model's OWN explain_func was used (the per-model resolution).
+        assert calls["model_a"] > 0 and calls["model_b"] > 0
+
     def test_skipped_nan_triples_recorded(self, tmp_path):
         """Triples with 0/2 valid scores appear in output with status='skipped_nan'."""
         rows = [

@@ -671,9 +671,13 @@ def run_meta_evaluation_full(
         Mapping from model name to a loaded, eval-mode classifier.
     metric_fns : dict[str, Callable]
         Mapping from metric name to a pre-configured Quantus metric instance.
-    fae_methods : dict[str, Callable]
-        Mapping from FAE method name to an attribution function with Quantus
-        signature ``(model, inputs, targets, **kwargs) -> np.ndarray``.
+    fae_methods : dict[str, Callable] or dict[str, dict[str, Callable]]
+        Either a FLAT mapping ``{fae -> fn}`` (single architecture) or a NESTED
+        mapping ``{model_name -> {fae -> fn}}``. Prefer the nested form when
+        evaluating multiple architectures so each model's explain_func is bound
+        to its own architecture (required for Grad-CAM's target layer). Each
+        function has Quantus signature
+        ``(model, inputs, targets, **kwargs) -> np.ndarray``.
     images : list of array-like or torch.Tensor
         Test images, each of shape ``(C, H, W)``.
     targets : list of int
@@ -741,12 +745,20 @@ def run_meta_evaluation_full(
         if model_name not in models:
             logger.warning("Model '%s' not found in models dict; skipping.", model_name)
             continue
-        if fae_name not in fae_methods:
-            logger.warning("FAE '%s' not found in fae_methods dict; skipping.", fae_name)
+        # fae_methods may be FLAT ``{fae -> fn}`` (single architecture) or NESTED
+        # ``{model_name -> {fae -> fn}}``. The nested form lets each model use an
+        # explain_func bound to ITS architecture, which matters for Grad-CAM:
+        # the target layer is architecture-specific, so a ResNet-18-bound func
+        # raises ``'SqueezeNet' object has no attribute 'layer4'`` on SqueezeNet.
+        _mfae = fae_methods.get(model_name)
+        model_fae = _mfae if isinstance(_mfae, dict) else fae_methods
+        if fae_name not in model_fae:
+            logger.warning("FAE '%s' not found in fae_methods for model '%s'; skipping.",
+                           fae_name, model_name)
             continue
 
         model = models[model_name]
-        explain_fn = fae_methods[fae_name]
+        explain_fn = model_fae[fae_name]
 
         # Compute baseline attributions for this (model, fae) pair once
         try:
