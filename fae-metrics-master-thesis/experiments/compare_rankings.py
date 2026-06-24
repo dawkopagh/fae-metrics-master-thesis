@@ -58,14 +58,18 @@ _DEFAULT_OUT     = str(_RESULTS / "ranking_comparison.csv")
 # ---------------------------------------------------------------------------
 # M* metric set (S8.5 cross-model intersection, 7 metrics)
 # ---------------------------------------------------------------------------
+# M* — the non-redundant metric set from the full-run redundancy analysis
+# (|rho|>0.85 pruning, identical for both models). Excludes the all-NaN
+# model_parameter_randomisation (MPRT disabled on ISIC) and complexity/
+# avg_sensitivity (pruned as redundant with sparseness / max_sensitivity).
 M_STAR: list[str] = [
     "faithfulness_correlation",
     "max_sensitivity",
-    "model_parameter_randomisation",
     "pixel_flipping",
     "pointing_game",
     "random_logit",
     "relevance_mass_accuracy",
+    "sparseness",
 ]
 
 # Quantus categories for mqdiscount category-fallback (step 2)
@@ -187,7 +191,18 @@ def main() -> None:
 
     # 1. Load data
     raw = pd.read_csv(slice_path)
-    meta_eval = pd.read_csv(rel_path)
+    # Reliability is optional: without it (or with all-NaN values),
+    # metaquantus_discounted_weights falls back to the Autoweighted weights,
+    # so the mqdiscount column equals autoweighted (a neutral, honest
+    # placeholder until a clean meta-evaluation run is available).
+    if rel_path.exists():
+        meta_eval = pd.read_csv(rel_path)
+    else:
+        print(f"[compare_rankings] reliability CSV not found ({rel_path}); "
+              "mqdiscount will fall back to autoweighted.")
+        meta_eval = pd.DataFrame(
+            columns=["model", "fae_method", "metric", "combined_reliability"]
+        )
 
     # Filter to M* only
     raw_mstar = raw[raw["metric"].isin(M_STAR)].copy()
