@@ -108,7 +108,18 @@ def _call_metric(
     """
     a_eval = a_batch
     if s_batch is not None:
-        a_eval = a_batch.sum(axis=1, keepdims=True)  # (B, 1, H, W)
+        a_eval = a_batch.sum(axis=1, keepdims=True)  # (B, 1, H, W) for localization
+    elif a_eval.ndim == x_batch.ndim and a_eval.shape[1] != x_batch.shape[1]:
+        # Channel-count mismatch: some explainers (e.g. GradCAM via
+        # _make_explain_func) yield a single-channel map while the input is
+        # multi-channel. Quantus' element-wise faithfulness/perturbation metrics
+        # need matching channels. Replicate a 1-channel map across the input
+        # channels (matching compute_gradcam, which expands GradCAM to 3
+        # channels); otherwise collapse to a single channel.
+        if a_eval.shape[1] == 1:
+            a_eval = np.repeat(a_eval, x_batch.shape[1], axis=1)
+        else:
+            a_eval = a_eval.sum(axis=1, keepdims=True)
 
     call_kwargs: dict = {"channel_first": True, "device": device}
     if s_batch is not None:
