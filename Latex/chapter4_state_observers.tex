@@ -19,10 +19,13 @@ result artifacts under \texttt{results/} by
 \texttt{experiments/render\_results\_tables.py} and \texttt{\textbackslash
 input}-ed here, so the numbers below are the full-run values over the 600
 ISIC~2017 test images. Two limitations are stated up front and revisited at the
-point of use: (i)~in this run the MQ-discount weighting is numerically
-identical to the Autoweighted scheme, because the per-metric meta-evaluation
-reliability was only partially available (see Section~\ref{sec:exp-meta}), so
-no reliability discount was applied; and (ii)~the attribution-ensembling
+point of use: (i)~the MQ-discount weighting was applied with meta-evaluated
+reliability for five of the seven $M^{*}$ metrics; the two whose
+adversarial-reactivity leg did not complete (\emph{max\_sensitivity},
+\emph{random\_logit}) fall back to the mean reliability of the remainder (see
+Section~\ref{sec:exp-meta}). The discount calibrates the effectiveness
+magnitudes (mean $|\Delta|\approx0.03$ relative to Autoweighted) while
+essentially preserving the ranking; and (ii)~the attribution-ensembling
 experiment of Section~\ref{sec:exp-ensemble} was run on a 64-image sample over
 six gradient methods (Occlusion excluded for tractability) and scored on the
 five non-Robustness $M^{*}$ metrics. Cells reading \textit{n/a} denote a value
@@ -230,17 +233,21 @@ configuration: \emph{pixel\_flipping} ($732$\,s) and
 optional exclusion on tighter budgets.
 
 \paragraph{Caveat: partial reliability and the MQ-discount.}
-Two of the seven $M^{*}$ metrics, \emph{max\_sensitivity} and
-\emph{random\_logit}, have no combined reliability (\textit{n/a} in
-Table~\ref{tab:meta}): their Adversarial Reactivity test relies on an
-\texttt{explain\_func} re-invocation that failed during the run, leaving only
-the Noise Resilience leg. Because the discount coefficient $r_k$ could not be
-formed for the full $M^{*}$, the MQ-discounted aggregation of
-Section~\ref{sec:exp-ranking} was \emph{not} applied with a non-trivial
-discount in this run; the \texttt{effectiveness\_mqdiscount} column therefore
-equals the Autoweighted column exactly, and the two are reported as a single
-scheme throughout. Closing this gap (re-running the failed AR leg for all
-$M^{*}$ metrics) is left to future work.
+Five of the seven $M^{*}$ metrics carry a combined reliability from the
+meta-evaluation; the remaining two, \emph{max\_sensitivity} and
+\emph{random\_logit}, do not (\textit{n/a} in Table~\ref{tab:meta}): their
+Adversarial Reactivity test relies on an \texttt{explain\_func} re-invocation
+that did not complete for those two metrics. The MQ-discounted aggregation of
+Section~\ref{sec:exp-ranking} therefore applies the reliability discount to the
+five validated metrics and falls back to the mean reliability of the remainder
+for the other two (the documented NaN-fallback rule, rather than dropping
+them). The resulting \texttt{effectiveness\_mqdiscount} column differs from the
+Autoweighted column by a small margin (mean $|\Delta|\approx0.03$): the discount
+attenuates the effectiveness magnitudes but leaves the ranking essentially
+unchanged (identical order on SqueezeNet; a single adjacent
+Integrated-Gradients\,$\leftrightarrow$\,LRP swap on ResNet-18). Closing the
+remaining gap (re-running the failed AR leg for all $M^{*}$ metrics) is left to
+future work.
 
 %% ========================================================================
 \section{Aggregation and Ranking Comparison (Contributions~2--3)}
@@ -256,9 +263,11 @@ attenuated by reliability). A single-metric baseline (Faithfulness Correlation
 alone, \texttt{effectiveness\_single\_fc}) is included to quantify how far a
 naive one-metric ranking departs from the multi-criteria index. All four columns
 are present in \texttt{results/ranking\_comparison.csv}. As noted in
-Section~\ref{sec:exp-meta}, the MQ-discount column is numerically identical to
-the Autoweighted column in this run (no reliability discount was applied), so
-the two coincide in every table below.
+Section~\ref{sec:exp-meta}, the MQ-discount column applies a genuine but small
+reliability discount (mean $|\Delta|\approx0.03$ relative to Autoweighted): it
+attenuates the magnitudes while leaving the ranking essentially unchanged, so
+the MQ-discount and Autoweighted orders coincide except for one adjacent swap
+on ResNet-18.
 
 \input{tables/ranking_resnet}
 
@@ -364,8 +373,9 @@ effectiveness distributions:
 The Friedman omnibus test rejects the null hypothesis of equal method ranks
 decisively on both models (Table~\ref{tab:friedman}): ResNet-18 yields
 $\chi^2 = 437.4$ and SqueezeNet $\chi^2 = 1551.8$, both with $p < 10^{-3}$ over
-the 600 image blocks under the Autoweighted scheme (identical to MQ-discount
-here). At least one FAE method therefore differs significantly in mean rank, so
+the 600 image blocks under the Autoweighted scheme (the MQ-discount scheme
+gives $\chi^2 = 591.2$ / $1546.5$, likewise $p < 10^{-3}$). At least one FAE
+method therefore differs significantly in mean rank, so
 the Nemenyi post-hoc and CD diagram (Figure~\ref{fig:cd-diagram}) are
 warranted; the per-method mean ranks feeding that diagram are in
 \texttt{results/cd\_summary.csv}.
