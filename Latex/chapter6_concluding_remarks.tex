@@ -13,10 +13,12 @@ aggregates the survivors into an effectiveness index with explicit, auditable
 configuration. This chapter summarises the outcome against each of the four
 contributions and outlines the directions that the work opens.
 
-\promoterinline{This chapter is a scaffold mapping each contribution to a
-conclusion stub. The stubs that depend on the empirical verdict are to be
-completed once the full 600-image run is available; no specific quantitative
-outcome is asserted here.}
+The empirical yield of the full 600-image run is, in candour, more cautionary
+than triumphant: the cleanest contribution is a redundancy result, while the two
+literature-derived enhancements the thesis set out to test deliver a negligible
+or model-dependent benefit. These negative and conditional findings are not a
+shortfall but the substance of the contribution---each warns against an
+assumption that practitioners and the prior literature make too readily.
 
 %% ========================================================================
 \section{Summary of Contributions}
@@ -24,8 +26,7 @@ outcome is asserted here.}
 
 The four contributions map onto what the thesis set out to do as follows. Each
 paragraph states the methodological outcome---what was developed, proposed, or
-validated---and reserves the quantitative verdict for the marked stub, to be
-filled once Chapter~\ref{ch:experiments} is complete.
+tested---and then the quantitative verdict the full run returns.
 
 \paragraph{Contribution~1 --- Non-redundancy analysis of FAE evaluation
 metrics.}
@@ -36,25 +37,49 @@ methodological outcome is a transferable procedure for diagnosing and removing
 metric redundancy before any comparison is made, directly addressing the
 ``many correlated metrics overstate evidence'' problem identified by
 \citet{tomsett2020sanity} and \citet{kadir2024evaluating}.
-% TODO: fill after 600-image run
-\emph{[Conclusion stub: state, after the full run, which categories proved
-redundant and which carried independent signal, and how stable $M^{*}$ was
-across the two models.]} \textbf{[pending full run]}
+\emph{Verdict.} This is the strongest and cleanest result of the thesis. On the
+full 600 images, two metric pairs proved near-perfectly redundant on both
+architectures---Complexity (complexity~$\leftrightarrow$~sparseness,
+$|\rho| = 1.00$ on ResNet-18 / $0.99$ on SqueezeNet) and Robustness
+(avg-~$\leftrightarrow$~max-sensitivity, $|\rho| = 0.93$ / $0.98$)---while the
+Faithfulness and Localization metrics carried independent signal
+($|\rho| < 0.25$). Greedy pruning therefore reduced the twelve metrics to an
+\emph{identical} seven-metric set $M^{*}$ on \emph{both} models
+(faithfulness\_correlation, max\_sensitivity, pixel\_flipping, pointing\_game,
+random\_logit, relevance\_mass\_accuracy, sparseness). That two different
+architectures yield the same $M^{*}$ shows the redundancy is a property of the
+metric battery rather than of the classifier, so an evaluator quoting ``twelve
+metrics'' is in effect quoting roughly seven---and can prune the rest with no
+loss of discriminative signal.
 
-\paragraph{Contribution~2 --- Multi-criteria aggregation framework.}
-The thesis proposes and implements a framework that integrates MetaQuantus
-meta-validation \citep{hedstrom2024metaquantus} with the Autoweighted
-aggregation of NormEnsembleXAI \citep{hryniewska2024normensemblexai}, and
-introduces a novel MetaQuantus-discounted weighting operator
-(Equation~\eqref{eq:mq-discount}) in which each metric's aggregation weight is
-attenuated by its measured reliability. The methodological outcome is a single
-weight-derivation step that fuses redundancy-aware selection with
-reliability-aware weighting---the central technical novelty of the thesis,
-which stands independently of the rankings it produces.
-% TODO: fill after 600-image run
-\emph{[Conclusion stub: state whether the reliability discount measurably
-changed the metric weights and the resulting ranking.]} \textbf{[pending full
-run]}
+\paragraph{Contribution~2 --- Multi-criteria aggregation framework, and a test
+of reliability-discounted weighting.}
+The thesis implements a framework that integrates MetaQuantus meta-validation
+\citep{hedstrom2024metaquantus} with the Autoweighted aggregation of
+NormEnsembleXAI \citep{hryniewska2024normensemblexai}, and uses it to
+\emph{test}---rather than merely assert---whether a MetaQuantus-discounted
+weighting operator (Equation~\eqref{eq:mq-discount}), which attenuates each
+metric's weight by its measured reliability, changes the FAE ranking. Two
+findings result, and honesty requires stating both as they are. First, a
+positive but \emph{conditional} one: whether the ranking changes with the
+weighting scheme is model-dependent. On ResNet-18 the uniform and Autoweighted
+method-rankings diverge sharply (Spearman $\rho = 0.29$; Grad-CAM falls from
+first to roughly fifth and Saliency rises to first), whereas on SqueezeNet they
+agree almost perfectly ($\rho = 0.96$, Grad-CAM first under both). This is
+evidence that aggregation \emph{can} flip an FAE ranking---a warning against
+single-number leaderboards---but not that it always does; the most plausible
+mechanism is that the inverse-variance Autoweighted weights redistribute weight
+differently according to each model's per-metric score-variance structure.
+Second, and decisively, a \emph{null} result: the proposed MQ-discount is
+empirically inconsequential relative to plain Autoweighted. It correlates at
+$\rho = 0.96$ (ResNet-18) and $1.00$ (SqueezeNet) with the Autoweighted
+ordering, moves only $2/7$ and $0/7$ method positions, and shifts effectiveness
+by $|\Delta|\approx0.03$ on average; it changes no conclusion. The discount also
+rests on partial meta-validation---only five of the seven $M^{*}$ metrics carry
+a reliability score---so it could not have been promoted as an improvement even
+had it moved the ranking. The contribution is therefore the measured negative
+finding itself: a reliability-discounted aggregation, tested on real data, does
+not change the verdict that Autoweighted already reaches.
 
 \paragraph{Contribution~3 --- Empirical characterisation of metric ensembling.}
 The thesis uses the framework to characterise where aggregation of metric
@@ -63,11 +88,21 @@ does not, and to compare individual against NormEnsembleXAI-ensembled
 attributions (Sections~\ref{sec:exp-ranking}--\ref{sec:exp-ensemble}). The
 methodological outcome is an experimental protocol for isolating the effect of
 aggregation, and of attribution ensembling, on method ordering.
-% TODO: fill after 600-image run
-\emph{[Conclusion stub: state where aggregation diverged from single-metric
-rankings, which metric families drove the divergence, and whether ensembling
-improved the effectiveness index and on which axes.]} \textbf{[pending full
-run]}
+\emph{Verdict.} Both halves of this analysis return cautionary results. On the
+metric-aggregation side, a single-metric ranking (Faithfulness Correlation
+alone) is not a safe proxy for the multi-criteria index---the two correlate at
+only $\rho = 0.32$ on ResNet-18 and $0.89$ on SqueezeNet---confirming that the
+metric family chosen, and how it is weighted, can change which method wins. On
+the attribution-ensembling side, the result is \emph{model-dependent and partly
+negative}. Over all seven $M^{*}$ metrics and the full 600 images (Wilcoxon
+$n = 600$, $p < 10^{-3}$ throughout), the NormEnsembleXAI ensemble beats the
+\emph{mean} individual method on SqueezeNet ($0.318$ vs.\ $0.169$) but
+\emph{loses} to it on ResNet-18 ($0.228$ vs.\ $0.260$), and it never beats the
+\emph{best} individual method on either model ($\Delta = -0.288$ and $-0.095$).
+Averaging attributions helps a weak, dispersed method set but dilutes a strong
+gradient signal once Robustness is counted; ensembling is thus a reasonable
+default on the weaker architecture, not a general improvement, and never a
+substitute for identifying the per-model best method.
 
 \paragraph{Contribution~4 --- Empirical validation on ISIC~2017.}
 The thesis validates the framework on expert-annotated dermoscopic data, using
@@ -76,15 +111,29 @@ applies Friedman, Nemenyi, and Wilcoxon testing to assess the significance of
 method and ensembling differences (Section~\ref{sec:exp-stats}). The
 methodological outcome is an end-to-end, statistically grounded instantiation of
 the framework on a real, mask-annotated medical task.
-% TODO: fill after 600-image run
-\emph{[Conclusion stub: state whether method differences and ensembling gains
-were statistically significant, and at what effect size.]} \textbf{[pending
-full run]}
+\emph{Verdict.} The differences the framework reports are statistically real,
+not sampling noise. The Friedman omnibus test over the seven methods and 600
+image-blocks rejects equal mean ranks for every scheme and model at
+$p < 10^{-3}$ (ResNet-18 $\chi^2 = 437$ Autoweighted / $591$ MQ-discount;
+SqueezeNet $\chi^2 = 1552$ / $1547$), with a Nemenyi critical difference of
+$\mathrm{CD} = 0.368$. The paired Wilcoxon tests confirm all four ensemble
+comparisons are significant at $p < 10^{-3}$. The statistics therefore
+establish that the model-dependent ensemble result and the weighting-driven
+ranking divergence are genuine effects of the framework's configuration rather
+than artefacts of the particular draw of images---which is precisely what makes
+the cautionary findings above defensible.
 
 Taken together, the four contributions answer the thesis objective not with a
 single ``best'' FAE method---which would be dataset- and configuration-specific
 and of limited durability---but with a principled, reproducible apparatus for
-reaching such a verdict and for stating the conditions under which it holds.
+reaching such a verdict, and with an honest empirical characterisation of where
+that apparatus changes a conclusion (substantial metric redundancy; a
+model-dependent ranking divergence under different weightings) and where it does
+not (the reliability discount, which proved inconsequential, and ensembling,
+which helps only the weaker model and never beats the best method). The yield is
+deliberately cautionary: its main practical lesson is to distrust single-number
+FAE leaderboards and to test, rather than assume, that any aggregation
+refinement earns its place.
 
 %% ========================================================================
 \section{Future Work}
@@ -141,7 +190,8 @@ faithfulness metrics are redundant with their gradient-based counterparts.
 The thesis recommends the weighted arithmetic mean but reports the minimum and
 geometric-mean operators as alternatives encoding worst-dimension and
 catastrophic-failure-averse stances respectively. A focused study could compare
-these operators under the MQ-discount weighting, particularly for
+these operators under the Autoweighted weighting (and the MQ-discount, should
+it prove to matter on other data), particularly for
 safety-critical interpretations where the minimum operator's
 ``acceptable-on-every-axis'' semantics are most defensible, and could explore
 learned or preference-elicited weightings as a successor to the data-adaptive

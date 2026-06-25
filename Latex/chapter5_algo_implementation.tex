@@ -11,78 +11,130 @@ methodological artefact whose value lies in how it structures the comparison,
 and that value does not stand or fall with the specific ordering of FAE methods
 that the full run will report.
 
-\promoterinline{This chapter is a scaffold. The interpretive claims that depend
-on specific rankings or numbers are written as guiding prompts and are to be
-completed once the full 600-image run populates the tables and figures of
-Chapter~\ref{ch:experiments}. No empirical claim should be asserted here until
-the corresponding result cell is filled.}
-
 %% ========================================================================
 \section{Interpretation of the Rankings}
 \label{sec:disc-rankings}
 
-% TODO: fill after 600-image run
 This section interprets what the aggregated rankings of
 Section~\ref{sec:exp-ranking} imply for practitioners selecting an FAE method.
-Each item below names the comparison to be made; the empirical verdict is
-\textbf{[pending full run]} until the corresponding result cell is populated.
+The empirical yield is best read as a set of \emph{cautionary} findings: the
+framework surfaces real instabilities in how FAE methods are ranked, but the
+two literature-derived enhancements it tests deliver, at best, a model-dependent
+or negligible benefit. Each item below states the verdict the full 600-image run
+returns.
 
 \begin{itemize}
     \item \textbf{Does multi-criteria aggregation change the verdict?}
-    Compare the FAE-method ordering under the single-metric baseline against the
-    MetaQuantus-discounted index (Table~\ref{tab:rank-stability}), and discuss
-    the cases in which a method that ``wins'' on Faithfulness alone is demoted
-    once Robustness, Localization, and Randomization enter the aggregate.
-    \textbf{[pending full run]}
-    \item \textbf{Effect of the weighting scheme.} Contrast uniform,
-    Autoweighted, and MQ-discounted weights. Where the three agree, the
-    conclusion is robust to the aggregation choice; where they disagree,
-    identify which metrics drive the divergence and whether the divergence
-    tracks the reliability discount. \textbf{[pending full run]}
-    \item \textbf{Per-category trade-offs.} Use the ensembling comparison
-    (Section~\ref{sec:exp-ensemble}) to discuss whether NormEnsembleXAI buys
-    Robustness at the expense of Localization or Complexity, and whether the
-    scalar index hides such trade-offs. \textbf{[pending full run]}
-    \item \textbf{Cross-model consistency.} Discuss whether the ResNet-18 and
-    SqueezeNet rankings agree; persistent agreement strengthens the claim that
-    the framework measures a method-intrinsic property rather than a
-    model-specific artefact. \textbf{[pending full run]}
+    Yes---but conditionally. Comparing the single-metric baseline (Faithfulness
+    Correlation alone) against the multi-criteria index
+    (Table~\ref{tab:rank-stability}) shows that a one-metric ranking is not a
+    safe proxy for the aggregate: the Single-FC and Autoweighted orderings
+    correlate only weakly on ResNet-18 ($\rho = 0.32$) and imperfectly on
+    SqueezeNet ($\rho = 0.89$). A method that leads on Faithfulness alone is not
+    guaranteed to survive once Robustness, Localization, and Randomization enter
+    the aggregate. This vindicates the multi-criteria premise of the thesis: the
+    scalar leaderboard one reads off a single faithfulness metric can differ
+    materially from the one a balanced index returns.
+    \item \textbf{Effect of the weighting scheme.} The headline---and the most
+    important cautionary finding---is that \emph{whether the FAE ranking changes
+    with the weighting scheme is itself model-dependent}. On ResNet-18 the
+    uniform and Autoweighted method-rankings diverge sharply (Spearman
+    $\rho = 0.29$): Grad-CAM is the single best method under uniform weights but
+    falls to roughly fifth under Autoweighted, where Saliency takes first. On
+    SqueezeNet the same two schemes agree almost perfectly ($\rho = 0.96$), with
+    Grad-CAM first under both. The weighting choice can therefore flip the
+    verdict on one architecture while leaving it untouched on the other. The
+    most plausible mechanism is the inverse-variance character of the
+    Autoweighted scheme: its weights are driven by each model's per-metric
+    score-variance structure, so two models with different variance profiles
+    redistribute weight across $M^{*}$ differently, and only where that
+    redistribution is large does the ranking move. This is evidence that
+    aggregation \emph{can} flip rankings, not that it reliably does---a warning
+    against trusting any single-number FAE leaderboard, but not a licence to
+    assume the weighting always matters.
+    \item \textbf{Does the MetaQuantus reliability discount change anything?}
+    No. The MQ-discounted scheme proposed as the technical novelty of this
+    thesis is empirically inconsequential relative to plain Autoweighted: the
+    Spearman correlation between the two orderings is $\rho = 0.96$ on ResNet-18
+    and $\rho = 1.00$ on SqueezeNet, it moves only $2$ of $7$ method positions
+    on ResNet-18 and $0$ of $7$ on SqueezeNet, and the mean change in
+    effectiveness is $|\Delta|\approx0.03$. On the present data the discount does
+    not change any conclusion that Autoweighted would already reach. This is a
+    null result, and it is reported as such in Section~\ref{sec:disc-redundancy}.
+    \item \textbf{Per-category trade-offs.} The ensembling comparison
+    (Section~\ref{sec:exp-ensemble}) shows that NormEnsembleXAI does not buy a
+    uniform improvement: on both models the ensemble trades gains on some metric
+    categories for losses on others rather than dominating, and the scalar index
+    can hide this. The effect is model-dependent (below), which is exactly why
+    the per-category profiles are reported alongside the scalar.
+    \item \textbf{Cross-model consistency.} The two architectures agree on the
+    one result that matters most for Contribution~1---the reduced metric set
+    $M^{*}$ is \emph{identical} across ResNet-18 and SqueezeNet---but disagree on
+    almost everything downstream: the ranking divergence is large on ResNet-18
+    and negligible on SqueezeNet, and the ensemble loses on ResNet-18 but wins
+    on SqueezeNet. Persistent agreement on $M^{*}$ strengthens the claim that the
+    redundancy structure is a metric-battery property; persistent disagreement
+    elsewhere is itself the finding, and a caution against treating any single
+    model's ranking as the framework's verdict.
 \end{itemize}
 
 %% ========================================================================
 \section{Implications of the Redundancy and Reliability Findings}
 \label{sec:disc-redundancy}
 
-% TODO: fill after 600-image run
-The detailed numerical conclusions of this section depend on the full
-correlation and reliability tables of Chapter~\ref{ch:experiments} and are
-therefore marked \textbf{[pending full run]}. The structural implications,
-however, can already be stated: the redundancy and reliability analyses are
-complementary filters acting on the same metric set, and their interaction is
-the point of methodological interest regardless of which metrics survive.
+The redundancy and reliability analyses are complementary filters acting on the
+same metric set, and their interaction is the point of methodological interest.
+On the full 600-image run the two filters give very different yields: the
+redundancy filter is the strongest and cleanest result of the thesis, while the
+reliability filter---once turned into the MQ-discount---turns out to change
+nothing.
 
 \begin{itemize}
-    \item \textbf{Redundant categories.} Once the correlation matrix is
-    estimated on the full test set, report which categories collapse to a
-    single effective dimension and which carry independent signal. The
-    implication is qualitative and independent of the exact coefficients:
-    reporting both members of a redundant pair overstates evidence, because two
-    near-collinear metrics constitute one vote, while the orthogonal categories
-    carry the discriminative signal that justifies a multi-criteria index in the
-    first place. \textbf{[pending full run]}
+    \item \textbf{Redundant categories.} The full-run correlation matrix shows
+    two metric pairs collapsing to a single effective dimension on \emph{both}
+    architectures: Complexity (complexity~$\leftrightarrow$~sparseness,
+    $|\rho| = 1.00$ on ResNet-18 and $0.99$ on SqueezeNet) and Robustness
+    (avg-sensitivity~$\leftrightarrow$~max-sensitivity, $|\rho| = 0.93$ and
+    $0.98$ respectively), whereas the Faithfulness and Localization pairs remain
+    nearly orthogonal ($|\rho| < 0.25$). The practical implication is concrete:
+    reporting both members of a near-collinear pair overstates the evidence,
+    because the two metrics constitute one vote, not two---an evaluator who
+    quotes ``twelve metrics'' is in effect quoting roughly seven independent
+    ones. That the greedy pruning yields an \emph{identical} seven-metric
+    $M^{*}$ on two different architectures is the strongest single finding here:
+    the redundancy is a property of the metric battery, not of the classifier,
+    and it transfers. A practitioner can therefore halve the most expensive part
+    of the evaluation (one of the two costly Faithfulness metrics aside, the
+    pruned metrics are Complexity and avg-sensitivity) with no loss of
+    discriminative signal.
     \item \textbf{Greedy cross-category pruning.} The current pruning is greedy
-    and can drop a metric because it correlates with a metric in a
-    \emph{different} category (Outstanding Issue~2 in the redundancy report).
-    Discuss whether a strictly within-category pruning policy (Decision~D4 as
-    originally stated) would yield a more defensible $M^{*}$ and how the choice
-    propagates to the downstream ranking. \textbf{[pending full run]}
-    \item \textbf{Reliability vs.\ agreement.} The MetaQuantus reliability
-    ordering and the ensemble-agreement ordering are conceptually distinct: a
-    metric can agree strongly with the ensemble consensus yet be unreliable
-    under noise or adversarial degradation, in which case the MQ-discount lowers
-    its weight relative to a naive Autoweighted scheme. Report how often the two
-    orderings diverge and how much the discount moves the weights.
-    \textbf{[pending full run]}
+    and can in principle drop a metric because it correlates with a metric in a
+    \emph{different} category. On this data the consequence is benign---both
+    pruned pairs are \emph{within} a single category (Complexity; Robustness),
+    so the greedy and a strictly within-category policy (Decision~D4) coincide
+    and yield the same $M^{*}$. The robustness of the result to that policy
+    choice is reassuring, but it is a property of this dataset's correlation
+    structure and not a guarantee; a strictly within-category policy remains the
+    more defensible default and is recommended for transfer to other domains.
+    \item \textbf{Reliability vs.\ agreement, and the null MQ-discount.} The
+    MetaQuantus reliability ordering and the ensemble-agreement ordering are
+    conceptually distinct, and the thesis proposed the MQ-discount precisely to
+    let the former attenuate the latter. Empirically, the discount does not earn
+    its keep. It moves the per-method effectiveness by only $|\Delta|\approx0.03$
+    on average and leaves the ranking essentially intact (Spearman
+    $\rho(\text{Autoweighted},\text{MQ-discount}) = 0.96$ on ResNet-18, $1.00$
+    on SqueezeNet; $2/7$ and $0/7$ method positions moved). Reframed honestly,
+    the contribution here is not ``a better aggregation'' but a \emph{test} of
+    whether a reliability-discounted aggregation changes the FAE ranking---and on
+    this data the answer is that it does not, relative to Autoweighted. The
+    result also rests on a partial foundation: only five of the seven $M^{*}$
+    metrics carry a meta-validated reliability score (max-sensitivity and
+    random-logit have none---their Adversarial Reactivity leg did not complete,
+    and $84/168$ reliability rows are valid overall), so the two unvalidated
+    metrics fall back to the mean reliability of the remainder. A discount that
+    is both empirically inconsequential and partially unvalidated cannot be
+    promoted as an improvement; it is reported as a null result whose value is in
+    having been measured rather than assumed.
 \end{itemize}
 
 %% ========================================================================
@@ -114,11 +166,16 @@ metrics are correlated. The redundancy stage answers this by collapsing
 correlated metrics to representatives; the meta-validation stage answers the
 companion concern---that some metrics are simply unreliable
 \citep{hedstrom2024metaquantus}---by discounting metrics that fail Noise
-Resilience or Adversarial Reactivity. The novel MQ-discounted Autoweighted
-operator fuses both filters into a single, data-adaptive weight derivation. The
-methodological claim---that aggregation should be preceded by redundancy
-pruning and weighted by reliability---is testable and transferable even if a
-different dataset or method panel changes the leaderboard.
+Resilience or Adversarial Reactivity. The MQ-discounted Autoweighted operator
+fuses both filters into a single, data-adaptive weight derivation; whether that
+fusion measurably changes the ranking is an empirical question, and on this data
+the answer was negative (Section~\ref{sec:disc-redundancy}). The value of the
+framework here is not that the discount helped---it did not---but that the
+framework let the question be \emph{asked and answered} rather than assumed. The
+methodological claim---that aggregation should be preceded by redundancy pruning
+and that reliability weighting is worth testing---is itself testable and
+transferable even when, as here, a particular weighting refinement turns out to
+leave the leaderboard unchanged.
 
 Third, the framework yields a \emph{stable apparatus for asking conditional
 questions} rather than a single verdict. By reporting three aggregation
@@ -163,23 +220,44 @@ for the axiomatic methods (Integrated Gradients, DeepLift, LRP) and returns
 rather than imputation, so that no method is credited or penalised on an
 inapplicable axis.
 
-A second internal threat is the \textbf{target-class convention}. Attributions
+A second internal threat is the \textbf{quality of the predictors being
+explained}. The two classifiers are only modestly accurate: ResNet-18 reaches
+$75.3\%$ best validation accuracy and SqueezeNet $74.0\%$, while ISIC~2017 is
+dominated by the nevus class, so the majority-class baseline is already around
+$65\%$---the predictors clear it by only a narrow margin. ResNet-18 moreover
+shows clear overfitting ($98\%$ train accuracy against $75.3\%$ validation;
+SqueezeNet is better balanced at $78.5\%$ train / $74.0\%$ validation). The
+attributions therefore explain imperfect, partly over-fitted classifiers. This
+is a genuine validity consideration---an explanation of a flawed model inherits
+that model's flaws---but it is not fatal to the thesis, because the predictive
+models are explicitly \emph{not} the contribution: the unit of novelty is the
+evaluation pipeline, which is exercised identically whatever the classifier's
+accuracy. The finding to carry forward is simply that the rankings reported here
+characterise these two specific, imperfect models, not an idealised classifier.
+
+A third internal threat is the \textbf{target-class convention}. Attributions
 are computed for the model's predicted class rather than the ground-truth label.
 This is the correct choice for a faithfulness study---the explanation should
 describe the decision the model actually made---but it interacts with
 misclassified images, where the explained logit corresponds to a wrong class and
 the Localization metrics are scored against a mask that need not align with what
-the model attended to. The proportion of misclassified test images therefore
-bounds the interpretability of the Localization results, and this proportion
-must be reported alongside them.
+the model attended to. Given the modest accuracy above, a non-trivial fraction
+of test images are misclassified, which bounds the interpretability of the
+Localization results accordingly.
 
-A third internal threat is \textbf{sample size}. The redundancy and reliability
-structure observed in the pilot rests on a very small number of images;
-correlation estimates and the pruning decisions that follow from them are
-unstable at that scale, and the membership of $M^{*}$ may change on the full
-run. This is the single largest reason the pilot values are not promoted to
-findings, and it motivates the repeated-subsample stability check listed in the
-future-work section.
+A fourth internal threat is \textbf{partial meta-validation}, and it bears
+directly on the foundation of the MQ-discount. Only five of the seven $M^{*}$
+metrics carry a meta-evaluated reliability score; max-sensitivity and
+random-logit do not, because their Adversarial Reactivity leg did not
+complete---$84$ of $168$ reliability rows are valid overall---and the two
+unscored metrics fall back to the mean reliability of the remainder. The
+MQ-discounted weighting is thus built on a partially imputed reliability vector.
+This weakens any positive claim that could have been made for the discount; it
+happens not to weaken the \emph{negative} conclusion drawn here---that the
+discount changes essentially nothing relative to Autoweighted---but it does mean
+that even a hypothetical future positive result would need the missing
+reliability legs re-run before it could be trusted. Closing this gap is listed
+as future work.
 
 \subsection{Construct Validity}
 
@@ -206,11 +284,20 @@ Scaling was adopted from NormEnsembleXAI \citep{hryniewska2024normensemblexai}
 because it aligns heterogeneous attribution scales without the outlier
 sensitivity of min--max scaling, but the choice is a modelling assumption about
 what makes two metric scores ``comparable.'' The ranking could in principle
-shift under $z$-score or min--max normalisation; the ablation that varies the
-normaliser (reported in Chapter~\ref{ch:experiments}) is the safeguard, and any
-conclusion that is not stable across normalisers must be stated as
-normaliser-conditional. \textbf{[pending full run: report normaliser
-sensitivity.]}
+shift under $z$-score or min--max normalisation; any conclusion that is not
+stable across normalisers must be stated as normaliser-conditional. This caveat
+is sharpened by the nature of the effectiveness index itself.
+
+The third construct risk is that \textbf{the effectiveness index is a relative,
+normaliser-conditional, unbounded quantity, not an absolute quality score}.
+Under the Autoweighted scheme it ranges roughly $-0.21$ to $0.93$ across methods,
+and under the single-metric baseline it spans $-2.65$ to $4.02$; the sign and
+magnitude depend on the chosen normaliser and on the set of methods being
+compared. The index is therefore a \emph{ranking device}---it orders methods
+within a fixed configuration---and must not be read as an absolute measure of
+explanation quality, nor compared across configurations as though it lived on a
+common scale. Every numerical effectiveness value reported in this thesis should
+be interpreted in that relative sense.
 
 \subsection{External Validity}
 
@@ -232,17 +319,27 @@ The study uses \textbf{only two architectures}, ResNet-18 and SqueezeNet~1.1,
 both convolutional. Transformer-based classifiers route gradients differently
 and may interact differently with gradient-based attributions and with the
 layer-wise randomisation that MPRT performs; nothing in this study speaks to
-that regime. The two-model design does, however, allow a minimal
-cross-architecture consistency check, which is the strongest external-validity
-signal available within scope.
+that regime. The two-model design does allow a minimal cross-architecture
+consistency check, and it earns its keep: the identical $M^{*}$ across the two
+models is the thesis's strongest transfer claim. But the same two-model design
+sharply limits the reach of the \emph{divergence} findings. The headline result
+that aggregation can flip the FAE ranking rests substantially on a single
+model---ResNet-18, where the uniform/Autoweighted correlation is $\rho = 0.29$,
+against $\rho = 0.96$ on SqueezeNet---and the ensemble's behaviour likewise
+inverts between the two (it loses to the mean on ResNet-18, wins on SqueezeNet).
+A finding that is large on one of two architectures and negligible on the other
+cannot be generalised; it is a demonstration that the phenomenon \emph{can}
+occur, not a measurement of how often it does. A wider panel of architectures is
+needed before the divergence is treated as anything more than possible.
 
-Finally, the \textbf{sample-size limits of the redundancy and reliability
-estimates} are an external as well as an internal concern: the test set, though
-larger than the pilot, is a single finite sample from one challenge
-distribution. Confidence intervals on the correlation and reliability estimates,
-and the repeated-subsample stability analysis, are necessary before the metric
+Finally, the redundancy and reliability structure is estimated from a
+\textbf{single finite sample from one challenge distribution}. Even at the full
+$600$ images, confidence intervals on the correlation and reliability estimates
+and a repeated-subsample stability analysis would be needed before the metric
 structure reported here is treated as a property of the domain rather than of
-this particular draw of images. \textbf{[pending full run.]}
+this particular draw of images---and the partial meta-validation
+($84/168$ valid reliability rows) means the reliability estimates in particular
+should be read as provisional.
 
 %% ========================================================================
 \section{Limitations}

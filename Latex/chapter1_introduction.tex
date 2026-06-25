@@ -127,15 +127,16 @@ background outlined above, the contributions of this work are as follows.
     measures distinct quality dimensions rather than re-measuring the same
     property \cite{hedstrom2023quantus, bommer2024finding}.
 
-    \item \textbf{A multi-criteria evaluation framework with a
-    MetaQuantus-discounted aggregation.} A methodological framework that
+    \item \textbf{A multi-criteria evaluation framework, and a test of
+    reliability-discounted aggregation.} A methodological framework that
     integrates MetaQuantus-style meta-validation---quantifying each metric's
     Noise Resilience and Adversarial Reactivity---with an Autoweighted
-    aggregation scheme inspired by NormEnsembleXAI, and that proposes, as its
-    central novel component, a MetaQuantus-discounted extension of Autoweighted
+    aggregation scheme inspired by NormEnsembleXAI, and that formulates and
+    empirically tests a MetaQuantus-discounted extension of Autoweighted
     aggregation in which the influence of a metric is attenuated in proportion
-    to its measured unreliability \cite{hedstrom2024metaquantus,
-    hryniewska2024normensemblexai}.
+    to its measured unreliability, in order to determine \emph{whether} such a
+    reliability discount changes the resulting FAE ranking
+    \cite{hedstrom2024metaquantus, hryniewska2024normensemblexai}.
 
     \item \textbf{Empirical characterization of metric ensembling.} An analysis
     of when aggregation of metric scores produces FAE rankings that diverge from
@@ -179,7 +180,8 @@ The remainder of this thesis is structured as follows.
     aggregation functions \cite{hryniewska2024normensemblexai}; it specifies the
     metric set across the six Quantus categories and the redundancy analysis used
     to prune it; and it details the Autoweighted aggregation together with the
-    novel MetaQuantus-discounted weighting that down-weights unreliable metrics
+    MetaQuantus-discounted weighting that down-weights unreliable metrics, whose
+    effect on the ranking is then tested empirically
     \cite{hedstrom2024metaquantus, hryniewska2024normensemblexai}.
 
     \item \textbf{Chapter~\ref{ch:experiments}: Experiments and Results}
