@@ -30,12 +30,13 @@ RES = "results"
 FIG = "Latex/figures"
 LOGS = "fae-metrics-master-thesis/results"
 COMMON = [
-    "faithfulness_correlation", "pixel_flipping", "pointing_game",
-    "relevance_mass_accuracy", "sparseness",
+    "faithfulness_correlation", "max_sensitivity", "pixel_flipping",
+    "pointing_game", "random_logit", "relevance_mass_accuracy", "sparseness",
 ]
 _SHORT = {
-    "faithfulness_correlation": "Faith.", "pixel_flipping": "PixFlip",
-    "pointing_game": "PG", "relevance_mass_accuracy": "RMA",
+    "faithfulness_correlation": "Faith.", "max_sensitivity": "MaxSens",
+    "pixel_flipping": "PixFlip", "pointing_game": "PG",
+    "random_logit": "RandLog", "relevance_mass_accuracy": "RMA",
     "sparseness": "Sparse",
 }
 

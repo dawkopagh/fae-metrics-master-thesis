@@ -26,9 +26,10 @@ adversarial-reactivity leg did not complete (\emph{max\_sensitivity},
 Section~\ref{sec:exp-meta}). The discount calibrates the effectiveness
 magnitudes (mean $|\Delta|\approx0.03$ relative to Autoweighted) while
 essentially preserving the ranking; and (ii)~the attribution-ensembling
-experiment of Section~\ref{sec:exp-ensemble} was run on a 64-image sample over
-six gradient methods (Occlusion excluded for tractability) and scored on the
-five non-Robustness $M^{*}$ metrics. Cells reading \textit{n/a} denote a value
+experiment of Section~\ref{sec:exp-ensemble} ensembles the six gradient-based
+methods only (Occlusion excluded as an ensemble member for tractability),
+though it otherwise uses the full 600 images and all seven $M^{*}$ metrics.
+Cells reading \textit{n/a} denote a value
 that is genuinely undefined (e.g.\ a single-metric category, or a metric whose
 Adversarial Reactivity could not be scored), not a missing computation.
 
@@ -309,27 +310,31 @@ single methods are known to be unstable.
 
 \input{tables/ensemble}
 
-\paragraph{The ensemble beats the average method but not the best one.}
-Table~\ref{tab:ensemble} shows a consistent two-sided result on both models.
-The ensembled attribution comfortably exceeds the \emph{mean} individual
-method---$E = 0.700$ vs.\ $0.554$ on ResNet-18 and $0.812$ vs.\ $0.604$ on
-SqueezeNet---so ensembling is a robust improvement over picking a method at
-random. It does not, however, beat the \emph{best} individual method on either
-model ($\Delta = -0.197$ on ResNet-18, $-0.076$ on SqueezeNet): an oracle that
-already knew which single method was strongest would still win. The Wilcoxon
-tests of Section~\ref{sec:exp-stats} (Table~\ref{tab:wilcoxon}) confirm that
-both gaps are statistically significant. The practical reading is that
-ensembling is a sound default when one cannot identify the best method in
-advance, rather than a strict improvement over the per-model optimum.
+\paragraph{The ensemble never beats the best method, and beats the average only
+on SqueezeNet.} Over all seven $M^{*}$ metrics (Robustness included) and the
+full 600 images, Table~\ref{tab:ensemble} gives a \emph{model-dependent} result.
+The ensembled attribution clearly exceeds the \emph{mean} individual method on
+SqueezeNet ($E = 0.318$ vs.\ $0.169$) but falls slightly \emph{below} it on
+ResNet-18 ($0.228$ vs.\ $0.260$): averaging attributions helps when the
+individual methods are weak and dispersed (SqueezeNet) but can dilute an
+already-strong gradient signal (ResNet-18), especially once the Robustness axis
+is counted---the averaged map is not necessarily more stable than its sharpest
+constituent. On \emph{neither} model does the ensemble beat the \emph{best}
+individual method ($\Delta = -0.288$ on ResNet-18, $-0.095$ on SqueezeNet): an
+oracle that already knew the strongest single method would win. The Wilcoxon
+tests of Section~\ref{sec:exp-stats} (Table~\ref{tab:wilcoxon}) confirm all four
+gaps are statistically significant ($p < 10^{-3}$ over the 600 paired images).
+The practical reading is that NormEnsembleXAI is a reasonable default on the
+weaker architecture but not a universal improvement, and never a substitute for
+identifying the per-model best method.
 
-\paragraph{Caveat: ensemble evaluation scope.}
-This comparison was run on a 64-image sample (rather than the full 600) over the
-six gradient-based methods only; Occlusion was excluded because perturbation
-attributions are too costly to ensemble at scale. Consequently the ensemble
-Robustness metrics were not computed, and the effectiveness index above is
-formed over the five non-Robustness $M^{*}$ metrics. The result should be read
-as indicative of the ensembling trade-off rather than as a full-scale,
-all-metric verdict.
+\paragraph{Caveat: ensemble scope.}
+The ensemble is formed over the six gradient-based methods only; Occlusion was
+excluded as an ensemble member because ensembling a perturbation method inside
+the Robustness metrics---which re-attribute the ensemble many times per
+image---is prohibitively costly. The comparison otherwise uses the full 600 test
+images and all seven $M^{*}$ metrics, so it is a full-scale verdict modulo that
+single excluded member.
 
 Per-axis effectiveness (one effectiveness value per metric category for the
 ensembled vs.\ individual attributions) is reported in
@@ -341,11 +346,11 @@ scalar index.
     \centering
     \includegraphics[width=\linewidth]{figures/ensemble_radar.pdf}
     \caption{Per-metric comparison of the NormEnsembleXAI ensemble (crimson)
-    against the mean individual attribution method (blue) over the five
-    non-Robustness $M^{*}$ metrics, min-max normalised per metric for
-    comparability. The ensemble's larger area on both models reflects its
-    advantage over the average method; cf.\ Table~\ref{tab:ensemble}, where it
-    nonetheless trails the single best method.}
+    against the mean individual attribution method (blue) over the seven
+    $M^{*}$ metrics on the full 600 images, normalised per metric against the
+    method range. The ensemble's profile exceeds the mean on SqueezeNet but not
+    on ResNet-18 (cf.\ Table~\ref{tab:ensemble}); on both it trades gains on
+    some metrics for losses on others rather than dominating uniformly.}
     \label{fig:ensemble-radar}
 \end{figure}
 
@@ -393,15 +398,17 @@ warranted; the per-method mean ranks feeding that diagram are in
 
 \input{tables/wilcoxon}
 
-The paired Wilcoxon tests (Table~\ref{tab:wilcoxon}, $n = 64$ per model)
-quantify both sides of the ensemble result of Section~\ref{sec:exp-ensemble}.
-The ensemble significantly outperforms the \emph{mean} individual method on both
-models (ResNet-18 $W = 384$, $p < 10^{-3}$; SqueezeNet $W = 111$,
-$p < 10^{-3}$), and is significantly \emph{outperformed} by the \emph{best}
-individual method (ResNet-18 $W = 347$, $p < 10^{-3}$; SqueezeNet $W = 682$,
-$p = 0.017$). All four comparisons are significant at $\alpha = 0.05$, so the
-two-sided conclusion---ensembling beats the average but not the oracle-best
-method---is statistically robust rather than a sampling artefact.
+The paired Wilcoxon tests (Table~\ref{tab:wilcoxon}, $n = 600$ per model)
+quantify the ensemble result of Section~\ref{sec:exp-ensemble}. Against the
+\emph{mean} individual method the outcome is model-dependent: the ensemble is
+significantly \emph{worse} on ResNet-18 ($W = 68493$, $p < 10^{-3}$) but
+significantly \emph{better} on SqueezeNet ($W = 6967$, $p < 10^{-3}$). Against
+the \emph{best} individual method the ensemble is significantly outperformed on
+both models (ResNet-18 $W = 3528$; SqueezeNet $W = 35380$; each $p < 10^{-3}$).
+All four comparisons are significant at $\alpha = 0.05$ over the 600 paired
+images, so the conclusion---ensembling never beats the oracle-best method, and
+beats the average only on the weaker architecture---is statistically robust
+rather than a sampling artefact.
 
 The broader interpretation of these tests is carried into the discussion of
 Chapter~\ref{ch:discussion}.
