@@ -44,9 +44,11 @@ Section~\ref{sec:dataset}: 2{,}000 training, 150 validation, and 600 test
 dermoscopic images across three diagnostic classes (melanoma, nevus,
 seborrheic keratosis), each paired with an expert-annotated binary lesion
 mask. The redundancy, meta-evaluation, aggregation, and statistical analyses
-are all computed on the test split. The 12-image pilot reported below is a
-fixed, reproducible subset of the test split used to validate the pipeline
-plumbing prior to the full run.
+are all computed on the full 600-image test split. A fixed, reproducible
+12-image pilot subset of the test split was used to validate the pipeline
+plumbing prior to the full run; Table~\ref{tab:exp-scale} contrasts the two
+scales, and the axiom-verification check (Table~\ref{tab:axiom}) is the only
+result below still reported at pilot scale.
 
 \subsection{Models}
 
@@ -73,18 +75,17 @@ SqueezeNet 1.1 & Conv2d(512, 3, 1, 1)  & 74.0\% & \textit{n/a} \\
 \bottomrule
 \end{tabularx}
 \label{tab:model-summary}
-% TODO: populate val/test accuracy after retraining on full ISIC 2017 (Step 4).
-% Pilot draft weights reported ResNet-18 75.3% / SqueezeNet 74.0% val acc;
-% these are preliminary and must be regenerated with the final stratified split.
+% Source: results/training_log_{resnet18,squeezenet}.csv (full ISIC 2017,
+% 25 epochs, 2026-04-22) and weights/README.md — final weights, not pilot.
 \end{table}
 
 \subsection{Attribution Methods}
 
 Seven FAE methods are evaluated (Section~\ref{sec:fae-methods}): Saliency,
 Integrated Gradients, Grad-CAM, Guided Backpropagation, DeepLift, LRP
-(gradient-based), and Occlusion (perturbation-based). LIME and KernelSHAP are
-in scope for the full run but excluded from the pilot for runtime reasons; if
-included, the tables in this chapter extend by two rows per model.
+(gradient-based), and Occlusion (perturbation-based). LIME and KernelSHAP were
+excluded from the experiment for runtime reasons, as discussed in
+Section~\ref{subsec:excluded-fae}.
 
 \subsection{Metrics, Hardware, and Reproducibility}
 
@@ -93,7 +94,8 @@ hyperparameters listed there. Each experiment is driven by a YAML configuration
 under \texttt{configs/} with fixed random seeds, so that the redundancy matrix,
 the meta-evaluation scores, and the aggregated rankings are reproducible from
 the raw per-(model, image, FAE, metric) score table
-(\texttt{results/vertical\_slice\_7fae\_12metrics.csv}).
+(\texttt{results/full\_run\_7fae\_12metrics\_600.csv}; the pilot counterpart is
+\texttt{results/vertical\_slice\_7fae\_12metrics.csv}).
 
 \begin{table}[H]
 \centering
@@ -104,13 +106,14 @@ Quantity & Pilot & Full run \\
 \midrule
 Test images        & 12  & 600 \\
 Models             & 2   & 2 \\
-FAE methods        & 7   & 7--9 \\
+FAE methods        & 7   & 7 \\
 Metrics            & 12  & 12 \\
 Score rows         & 2{,}016 & 100{,}800 \\
 \bottomrule
 \end{tabularx}
 \label{tab:exp-scale}
-% TODO: full-run row count = 2 models x (7..9) FAE x 600 images x 12 metrics.
+% Full-run row count verified: 2 models x 7 FAE x 600 images x 12 metrics
+% = 100,800 rows in results/full_run_7fae_12metrics_600.csv.
 \end{table}
 
 %% ========================================================================
@@ -223,15 +226,16 @@ most expensive metrics from default runs.
 The reliability table is read as follows: a metric with high NR but low AR is
 stable but insensitive (it does not react when the explanation degrades); a
 metric with low NR is noisy. Among the $M^{*}$ metrics, \emph{sparseness}
-($r_k = 0.975$), \emph{pixel\_flipping} ($0.883$), and \emph{pointing\_game}
-($0.805$) are the most reliable, combining high noise resilience with strong
-adversarial reactivity. \emph{Faithfulness\_correlation} ($0.540$) and
-\emph{relevance\_mass\_accuracy} ($0.520$) are the least reliable: both are
-noise-resilient only moderately (NR $\approx 0.51$--$0.55$) and react weakly to
-deliberate degradation. The runtime column also explains the default
-configuration: \emph{pixel\_flipping} ($732$\,s) and
-\emph{faithfulness\_correlation} ($555$\,s) dominate the cost, motivating their
-optional exclusion on tighter budgets.
+($r_k = 0.969$), \emph{pixel\_flipping} ($0.883$), and \emph{pointing\_game}
+($0.811$) are the most reliable, combining high noise resilience with strong
+adversarial reactivity. \emph{Faithfulness\_correlation} ($0.582$) and
+\emph{relevance\_mass\_accuracy} ($0.552$) are the least reliable: both are
+noise-resilient only moderately (NR $\approx 0.56$--$0.59$) and react
+comparatively weakly to deliberate degradation (AR $\approx 0.51$--$0.60$).
+The runtime column also explains the default configuration:
+\emph{pixel\_flipping} ($186.7$\,s per (model, FAE) cell) and
+\emph{faithfulness\_correlation} ($151.5$\,s) dominate the cost, motivating
+their optional exclusion on tighter budgets.
 
 \paragraph{Caveat: partial reliability and the MQ-discount.}
 Five of the seven $M^{*}$ metrics carry a combined reliability from the
@@ -284,14 +288,17 @@ uniform scheme ($E = 0.370$, ahead of occlusion at $0.348$ and saliency at
 $0.309$), but under the Autoweighted scheme it falls to fifth ($0.303$) while
 saliency rises to first ($0.350$). The induced rankings are correspondingly
 weakly correlated: the Spearman rank correlation between the uniform and
-Autoweighted per-method orderings is only $\rho = 0.286$ for ResNet-18, with
-ten discordant method-pairs (Table~\ref{tab:rank-stability}). SqueezeNet is far
-more stable---Grad-CAM is first under both schemes ($E = 0.360$ uniform,
-$0.250$ Autoweighted) and the uniform/Autoweighted orderings agree closely
-($\rho = 0.964$). The single-metric baseline (Faithfulness Correlation alone)
-diverges most sharply of all, reordering the methods almost entirely
-(Single-FC vs.\ Autoweighted $\rho = 0.321$ on ResNet-18, $0.893$ on
-SqueezeNet), which confirms that a one-metric ranking is not a safe proxy for
+Autoweighted per-method orderings is only $\rho = 0.286$ for ResNet-18, which
+contributes nine of the ten discordant method-pairs that
+Table~\ref{tab:rank-stability} reports summed over both models. SqueezeNet is
+far more stable (Table~\ref{tab:ranking-squeeze})---Grad-CAM is first under
+both schemes ($E = 0.360$ uniform, $0.250$ Autoweighted) and the
+uniform/Autoweighted orderings agree closely ($\rho = 0.964$). The
+single-metric baseline (Faithfulness Correlation alone) diverges most sharply
+of all on ResNet-18, reordering the methods almost entirely
+(Single-FC vs.\ MQ-discount $\rho = 0.286$ on ResNet-18, $0.893$ on
+SqueezeNet, with eleven discordant pairs summed over both models), which
+confirms that a one-metric ranking is not a safe proxy for
 the multi-criteria index. This sensitivity to the weighting choice---present on
 one architecture and largely absent on the other---is precisely the phenomenon
 the framework is designed to surface; its interpretation is carried into

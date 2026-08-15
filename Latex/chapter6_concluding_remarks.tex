@@ -40,7 +40,7 @@ metric redundancy before any comparison is made, directly addressing the
 \emph{Verdict.} This is the strongest and cleanest result of the thesis. On the
 full 600 images, two metric pairs proved near-perfectly redundant on both
 architectures---Complexity (complexity~$\leftrightarrow$~sparseness,
-$|\rho| = 1.00$ on ResNet-18 / $0.99$ on SqueezeNet) and Robustness
+$|\rho| = 0.999$ on ResNet-18 / $0.993$ on SqueezeNet) and Robustness
 (avg-~$\leftrightarrow$~max-sensitivity, $|\rho| = 0.93$ / $0.98$)---while the
 Faithfulness and Localization metrics carried independent signal
 ($|\rho| < 0.25$). Greedy pruning therefore reduced the twelve metrics to an
@@ -146,13 +146,16 @@ broaden the framework's reach.
 
 \paragraph{Scaling the statistical analysis.}
 The redundancy and reliability estimates rest on a finite sample from a single
-challenge distribution, and the pilot $n$ is too small for firm claims. The
-immediate next step is to re-run the redundancy and meta-validation analyses on
-the full 600-image test set and, ideally, on repeated subsamples, reporting
-confidence intervals on the correlation and reliability estimates and a
-stability analysis of the membership of $M^{*}$ and of the metric weights. This
-would move the metric structure from a property of one draw of images to a
-property of the domain. A related refinement is to resolve the greedy
+challenge distribution. Although both analyses were computed on the full
+600-image test set, the immediate next step is to repeat them on repeated
+subsamples, reporting confidence intervals on the correlation and reliability
+estimates and a stability analysis of the membership of $M^{*}$ and of the
+metric weights. This would move the metric structure from a property of one
+draw of images to a property of the domain. Completing the meta-validation
+itself belongs to the same consolidation: the Adversarial-Reactivity leg did
+not complete for \emph{max\_sensitivity} and \emph{random\_logit}, so their
+reliability is currently imputed by the documented fallback rule rather than
+measured. A related refinement is to resolve the greedy
 cross-category pruning behaviour and report how a strictly within-category
 pruning policy (Decision~D4) changes $M^{*}$ and the downstream ranking.
 
