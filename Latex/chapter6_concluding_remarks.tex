@@ -38,7 +38,7 @@ pruning rule, and derives a reduced, non-redundant metric set $M^{*}$. The
 methodological outcome is a transferable procedure for diagnosing and removing
 metric redundancy before any comparison is made, directly addressing the
 ``many correlated metrics overstate evidence'' problem identified by
-\citet{tomsett2020sanity} and \citet{kadir2024evaluating}.
+\citet{tomsett2020sanity} and \citet{pawlicki2024necessity}.
 \emph{Verdict.} This is the strongest and cleanest result of the thesis. On the
 full 600 images, two metric pairs proved near-perfectly redundant on both
 architectures---Complexity (complexity~$\leftrightarrow$~sparseness,
@@ -101,7 +101,7 @@ aggregation, and of attribution ensembling, on method ordering.
 \emph{Verdict.} Both halves of this analysis return cautionary results. On the
 metric-aggregation side, a single-metric ranking (Faithfulness Correlation
 alone) is not a safe proxy for the multi-criteria index---the two correlate at
-only $\rho = 0.46$ on ResNet-18 and $0.89$ on SqueezeNet---confirming that the
+only $\rho = 0.29$ on ResNet-18 and $0.86$ on SqueezeNet---confirming that the
 metric family chosen, and how it is weighted, can change which method wins. On
 the attribution-ensembling side, the result is \emph{model-dependent and partly
 negative}. Over all seven $M^{*}$ metrics and the full 600 images (Wilcoxon
@@ -220,7 +220,7 @@ Autoweighted scheme.
 \paragraph{Regulatory alignment and auditability.}
 Finally, the reproducible, meta-validated pipeline is well positioned to serve
 as a transparency instrument under emerging regulation. Following
-\citet{hedstrom2025bridging}, a promising direction is to connect the framework
+\citet{seth2025bridging}, a promising direction is to connect the framework
 explicitly to the transparency and documentation requirements of the EU AI Act,
 formalising the pipeline's configuration record as an auditable evaluation
 artefact and assessing what additional evidence---human-grounded validation in
