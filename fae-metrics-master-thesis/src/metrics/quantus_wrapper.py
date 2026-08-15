@@ -518,3 +518,386 @@ def compute_all_metrics(
         return results, timings
 
     return results
+
+
+def compute_all_metrics_batched(
+    model: nn.Module,
+    images: np.ndarray,
+    attributions: np.ndarray,
+    targets,
+    masks: Optional[np.ndarray] = None,
+    device: str = "cpu",
+    explain_func: Optional[Callable] = None,
+    explain_func_kwargs: Optional[dict] = None,
+    fae_method: Optional[str] = None,
+    num_classes: int = 3,
+    include_non_sensitivity: bool = False,
+    include_model_parameter_randomisation: bool = True,
+    return_timings: bool = False,
+) -> list[dict[str, float]] | tuple[list[dict[str, float]], dict[str, float]]:
+    """Compute evaluation metrics for a BATCH of image attributions at once.
+
+    This is the multi-image counterpart to :func:`compute_all_metrics`. It
+    calls each Quantus metric ONCE with a full ``(B, ...)`` batch (rather than
+    B separate ``(1, ...)`` calls) so the GPU is saturated, then distributes
+    the B per-sample scores Quantus returns into B independent result dicts.
+
+    The metric constructor configs are IDENTICAL to the single-image function
+    (nr_runs, subset_size, nr_samples, features_in_step, perturb_baseline,
+    normalise, abs, ...). For deterministic metrics this yields per-sample
+    scores numerically equal to the single-image path; for stochastic metrics
+    (FaithfulnessCorrelation, Max/AvgSensitivity, RandomLogit) the batched run
+    draws a different but equally valid random sample. NOTE: not yet covered
+    by unit tests and not used by the reported full run (which used the
+    single-image path); validate against ``compute_all_metrics`` before
+    relying on it for a future re-run.
+
+    ``fae_method`` is assumed CONSTANT across the batch (the caller batches per
+    ``(model, fae)`` pair), so Completeness applicability, the NonSensitivity
+    skip, and the MPR include-flag are decided ONCE for the whole batch.
+
+    Parameters
+    ----------
+    model : nn.Module
+        Classifier in eval mode.
+    images : np.ndarray
+        Input batch of shape ``(B, 3, H, W)`` (channel-first).
+    attributions : np.ndarray
+        Attribution batch of shape ``(B, 3, H, W)`` (channel-first).
+    targets : sequence of int
+        Length-B target class indices.
+    masks : np.ndarray or None
+        Binary segmentation masks of shape ``(B, 1, H, W)`` or ``None``.
+        Used by RelevanceMassAccuracy and PointingGame.
+    device : str
+        Device for computation.
+    explain_func : callable or None
+        Batched explain_func (Quantus passes perturbed batches). Required by
+        Max/AvgSensitivity, ModelParameterRandomisation, RandomLogit.
+    explain_func_kwargs : dict or None
+        Extra kwargs forwarded to *explain_func*.
+    fae_method : str or None
+        FAE method that produced *attributions* (constant across the batch).
+    num_classes : int
+        Number of output classes (for RandomLogit). Default 3.
+    include_non_sensitivity : bool
+        Include the (slow) NonSensitivity metric. Default False.
+    include_model_parameter_randomisation : bool
+        Include ModelParameterRandomisation. Default True.
+    return_timings : bool
+        If True, also return per-metric wall times for the whole batch.
+
+    Returns
+    -------
+    list[dict[str, float]] or tuple[list[dict[str, float]], dict[str, float]]
+        A list of B dicts, each identical in shape to the dict returned by
+        :func:`compute_all_metrics` (metric snake_case name -> float). If
+        ``return_timings=True``, also returns a dict mapping metric name to
+        elapsed seconds for the whole-batch call.
+    """
+    images = np.asarray(images)
+    attributions = np.asarray(attributions)
+    B = images.shape[0]
+
+    x_batch = images                              # (B, 3, H, W)
+    a_batch = attributions                        # (B, 3, H, W)
+    y_batch = np.asarray([int(t) for t in targets])  # (B,)
+
+    s_batch: Optional[np.ndarray] = None
+    if masks is not None:
+        s_batch = np.asarray(masks)               # (B, 1, H, W)
+
+    # Single-channel attribution for localization metrics
+    a_batch_1ch = a_batch.sum(axis=1, keepdims=True)  # (B, 1, H, W)
+
+    ef = explain_func
+    ef_kwargs = explain_func_kwargs or {}
+
+    # One result dict per sample; one timings dict shared for the batch.
+    results: list[dict[str, float]] = [{} for _ in range(B)]
+    timings: dict[str, float] = {}
+
+    def _set_all(metric_name: str, value: float) -> None:
+        """Assign the same scalar (e.g. NaN) to every sample for a metric."""
+        for i in range(B):
+            results[i][metric_name] = float(value)
+
+    def _distribute(metric_name: str, scores) -> None:
+        """Distribute Quantus's length-B score vector across the B dicts."""
+        arr = np.asarray(scores, dtype=float).reshape(-1)
+        if arr.shape[0] != B:
+            # Defensive: Quantus must return exactly B scores. If not, fail the
+            # whole metric (NaN for all) rather than silently mis-aligning.
+            raise ValueError(
+                f"{metric_name}: expected {B} scores, got {arr.shape[0]}"
+            )
+        for i in range(B):
+            results[i][metric_name] = float(arr[i])
+
+    def _run(metric_name: str, call: Callable[[], object]) -> None:
+        """Run one batched metric call; NaN-fill all samples on failure."""
+        t0 = time.perf_counter()
+        try:
+            _distribute(metric_name, call())
+        except Exception as exc:  # noqa: BLE001 — mirror single-image behavior
+            logger.warning(
+                "%s (batched) failed: %s: %s", metric_name, type(exc).__name__, exc
+            )
+            _set_all(metric_name, float("nan"))
+        finally:
+            timings[metric_name] = time.perf_counter() - t0
+
+    # =====================================================================
+    # FAITHFULNESS
+    # =====================================================================
+
+    # --- FaithfulnessCorrelation (direction: +1) [STOCHASTIC] ---
+    def _fc():
+        fc = quantus.FaithfulnessCorrelation(
+            nr_runs=100,
+            subset_size=224,
+            perturb_baseline="black",
+            normalise=True,
+            abs=False,
+            return_aggregate=False,
+            disable_warnings=True,
+        )
+        return fc(
+            model=model, x_batch=x_batch, y_batch=y_batch, a_batch=a_batch,
+            channel_first=True, device=device,
+        )
+    _run("faithfulness_correlation", _fc)
+
+    # --- PixelFlipping (direction: +1, AUC) [DETERMINISTIC] ---
+    def _pf():
+        pf = quantus.PixelFlipping(
+            features_in_step=224,
+            perturb_baseline="black",
+            normalise=True,
+            abs=False,
+            return_aggregate=False,
+            return_auc_per_sample=True,
+            disable_warnings=True,
+        )
+        return pf(
+            model=model, x_batch=x_batch, y_batch=y_batch, a_batch=a_batch,
+            channel_first=True, device=device,
+        )
+    _run("pixel_flipping", _pf)
+
+    # =====================================================================
+    # ROBUSTNESS
+    # =====================================================================
+
+    # --- MaxSensitivity (direction: -1) [STOCHASTIC] ---
+    def _ms():
+        ms = quantus.MaxSensitivity(
+            nr_samples=10,
+            lower_bound=0.2,
+            normalise=False,
+            abs=False,
+            return_aggregate=False,
+            disable_warnings=True,
+        )
+        return ms(
+            model=model, x_batch=x_batch, y_batch=y_batch, a_batch=a_batch,
+            channel_first=True, explain_func=ef, explain_func_kwargs=ef_kwargs,
+            device=device,
+        )
+    _run("max_sensitivity", _ms)
+
+    # --- AvgSensitivity (direction: -1) [STOCHASTIC] ---
+    def _avgs():
+        avgs = quantus.AvgSensitivity(
+            nr_samples=10,
+            lower_bound=0.2,
+            normalise=False,
+            abs=False,
+            return_aggregate=False,
+            disable_warnings=True,
+        )
+        return avgs(
+            model=model, x_batch=x_batch, y_batch=y_batch, a_batch=a_batch,
+            channel_first=True, explain_func=ef, explain_func_kwargs=ef_kwargs,
+            device=device,
+        )
+    _run("avg_sensitivity", _avgs)
+
+    # =====================================================================
+    # LOCALIZATION
+    # =====================================================================
+
+    # --- RelevanceMassAccuracy (direction: +1) [DETERMINISTIC] ---
+    def _rma():
+        rma = quantus.RelevanceMassAccuracy(
+            normalise=True,
+            abs=False,
+            return_aggregate=False,
+            disable_warnings=True,
+        )
+        return rma(
+            model=model, x_batch=x_batch, y_batch=y_batch, a_batch=a_batch_1ch,
+            s_batch=s_batch, channel_first=True, device=device,
+        )
+    _run("relevance_mass_accuracy", _rma)
+
+    # --- PointingGame (direction: +1) [DETERMINISTIC] ---
+    def _pg():
+        pg = quantus.PointingGame(
+            normalise=True,
+            abs=True,
+            return_aggregate=False,
+            disable_warnings=True,
+        )
+        return pg(
+            model=model, x_batch=x_batch, y_batch=y_batch, a_batch=a_batch_1ch,
+            s_batch=s_batch, channel_first=True, device=device,
+        )
+    _run("pointing_game", _pg)
+
+    # =====================================================================
+    # COMPLEXITY
+    # =====================================================================
+
+    # --- Sparseness (direction: +1, Gini-like) [DETERMINISTIC] ---
+    def _sp():
+        sp = quantus.Sparseness(
+            abs=True,
+            normalise=True,
+            return_aggregate=False,
+            disable_warnings=True,
+        )
+        return sp(
+            model=model, x_batch=x_batch, y_batch=y_batch, a_batch=a_batch,
+            channel_first=True, device=device,
+        )
+    _run("sparseness", _sp)
+
+    # --- Complexity (direction: -1, entropy) [DETERMINISTIC] ---
+    def _cx():
+        cx = quantus.Complexity(
+            abs=True,
+            normalise=True,
+            return_aggregate=False,
+            disable_warnings=True,
+        )
+        return cx(
+            model=model, x_batch=x_batch, y_batch=y_batch, a_batch=a_batch,
+            channel_first=True, device=device,
+        )
+    _run("complexity", _cx)
+
+    # =====================================================================
+    # RANDOMIZATION
+    # =====================================================================
+
+    # --- ModelParameterRandomisation (direction: -1) ---
+    # Skipped (NaN for all samples) unless explicitly enabled — mirrors the
+    # single-image path and keeps the 12-metric schema stable.
+    if not include_model_parameter_randomisation:
+        t0 = time.perf_counter()
+        _set_all("model_parameter_randomisation", float("nan"))
+        timings["model_parameter_randomisation"] = time.perf_counter() - t0
+    else:
+        def _mprt():
+            mprt = quantus.ModelParameterRandomisation(
+                layer_order="top_down",
+                normalise=True,
+                abs=True,
+                return_average_correlation=True,
+                return_aggregate=False,
+                disable_warnings=True,
+            )
+            return mprt(
+                model=model, x_batch=x_batch, y_batch=y_batch, a_batch=a_batch,
+                channel_first=True, explain_func=ef, explain_func_kwargs=ef_kwargs,
+                device=device,
+            )
+        _run("model_parameter_randomisation", _mprt)
+
+    # --- RandomLogit (direction: -1) [STOCHASTIC — random target class] ---
+    def _rl():
+        rl = quantus.RandomLogit(
+            num_classes=num_classes,
+            abs=True,
+            normalise=True,
+            return_aggregate=False,
+            disable_warnings=True,
+        )
+        return rl(
+            model=model, x_batch=x_batch, y_batch=y_batch, a_batch=a_batch,
+            channel_first=True, explain_func=ef, explain_func_kwargs=ef_kwargs,
+            device=device,
+        )
+    _run("random_logit", _rl)
+
+    # =====================================================================
+    # AXIOMATIC
+    # =====================================================================
+
+    # --- Completeness (direction: -1) [DETERMINISTIC] ---
+    # fae_method is constant across the batch, so applicability is decided once.
+    if fae_method is not None and fae_method not in _COMPLETENESS_METHODS:
+        t0 = time.perf_counter()
+        logger.debug(
+            "Completeness skipped for '%s' (not a completeness-satisfying method).",
+            fae_method,
+        )
+        _set_all("completeness", float("nan"))
+        timings["completeness"] = time.perf_counter() - t0
+    else:
+        def _comp():
+            comp = quantus.Completeness(
+                abs=False,
+                normalise=False,
+                perturb_baseline="black",
+                return_aggregate=False,
+                disable_warnings=True,
+            )
+            return comp(
+                model=model, x_batch=x_batch, y_batch=y_batch, a_batch=a_batch,
+                channel_first=True, device=device,
+            )
+        _run("completeness", _comp)
+
+    # --- NonSensitivity (direction: -1) ---
+    # Skipped (NaN for all samples) by default. When enabled, downsample each
+    # sample to 56x56 (same workaround as the single-image path) and run once
+    # over the batch.
+    if not include_non_sensitivity:
+        t0 = time.perf_counter()
+        _set_all("non_sensitivity", float("nan"))
+        timings["non_sensitivity"] = time.perf_counter() - t0
+        if return_timings:
+            return results, timings
+        return results
+
+    def _ns():
+        from scipy.ndimage import zoom
+
+        scale = 56 / images.shape[-1]
+        x_small = np.stack(
+            [zoom(images[i], (1, scale, scale), order=1) for i in range(B)], axis=0
+        )  # (B, 3, 56, 56)
+        a_small = np.stack(
+            [zoom(attributions[i], (1, scale, scale), order=1) for i in range(B)], axis=0
+        )  # (B, 3, 56, 56)
+        ns = quantus.NonSensitivity(
+            features_in_step=1,
+            abs=True,
+            normalise=True,
+            perturb_baseline="black",
+            return_aggregate=False,
+            disable_warnings=True,
+        )
+        return ns(
+            model=model, x_batch=x_small, y_batch=y_batch, a_batch=a_small,
+            channel_first=True, explain_func=ef, explain_func_kwargs=ef_kwargs,
+            device=device,
+        )
+    _run("non_sensitivity", _ns)
+
+    if return_timings:
+        return results, timings
+
+    return results
