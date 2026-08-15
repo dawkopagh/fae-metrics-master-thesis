@@ -305,6 +305,37 @@ def noise_resilience_test(
 # Adversarial Reactivity (AR)
 # ---------------------------------------------------------------------------
 
+def make_degraded_explain_func(
+    explain_fn: Callable,
+    frac: float,
+    rng: np.random.Generator,
+) -> Callable:
+    """Wrap *explain_fn* so each call zeroes a random *frac* of its output.
+
+    Used by :func:`adversarial_reactivity_test` for metrics that re-compute
+    attributions internally via ``explain_func`` (Max/Avg-Sensitivity, MPRT,
+    RandomLogit): degrading the pre-computed ``a_batch`` has no effect on such
+    metrics, so the degradation must be injected into the explanation function
+    itself. The shared *rng* advances across calls, so successive invocations
+    zero DIFFERENT random index sets — the degraded explainer is stochastic,
+    which is exactly the loss of explanatory signal AR is designed to detect.
+    """
+    def _degraded(model, inputs, targets, **kwargs):
+        a = np.array(explain_fn(model, inputs, targets, **kwargs),
+                     dtype=np.float32, copy=True)
+        if frac <= 0.0:
+            return a
+        flat = a.reshape(a.shape[0], -1)
+        n_total = flat.shape[1]
+        n_zero = max(1, int(round(frac * n_total)))
+        for b in range(flat.shape[0]):
+            idx = rng.choice(n_total, size=n_zero, replace=False)
+            flat[b, idx] = 0.0
+        return flat.reshape(a.shape)
+
+    return _degraded
+
+
 def adversarial_reactivity_test(
     metric_fn: Callable,
     model: nn.Module,
@@ -318,6 +349,7 @@ def adversarial_reactivity_test(
     level_min: float = 0.0,
     level_max: float = 1.0,
     device: str = "cpu",
+    degrade_explain_func: bool = False,
 ) -> dict:
     """Adversarial Reactivity (AR) meta-evaluation test.
 
@@ -325,6 +357,16 @@ def adversarial_reactivity_test(
     progressively degraded (Hedström et al., 2024, §3.2).  A reliable metric
     reacts to the loss of explanatory signal: as more attribution values are
     zeroed out, the score should change in a systematic direction.
+
+    For metrics that IGNORE the provided ``a_batch`` and re-compute
+    attributions internally via ``explain_func`` (Max/Avg-Sensitivity, MPRT,
+    RandomLogit), degrading ``a_batch`` alone leaves the score constant across
+    all levels, so no monotonicity can be measured (this is why the 2026-06
+    full run reported ``ar_score = NaN`` for max_sensitivity and
+    random_logit). Set ``degrade_explain_func=True`` for those metrics: the
+    degradation is then additionally injected into the explanation function
+    via :func:`make_degraded_explain_func`, so the metric's internal
+    re-explanations lose signal at the same rate as the explicit ``a_batch``.
 
     Zero-variance handling: if the base metric scores have standard deviation
     < 1e-8 across the input images, the metric is constant and AR is
@@ -441,10 +483,17 @@ def adversarial_reactivity_test(
                 flat[idx] = 0.0
                 a_degraded[b] = flat.reshape(C, H, W)
 
+        # For explain_func-recomputing metrics, degrade the explanation
+        # function too — otherwise the metric ignores a_degraded entirely
+        # and the level scores are constant (Spearman undefined).
+        level_explain = explain_func
+        if degrade_explain_func and explain_func is not None and frac > 0.0:
+            level_explain = make_degraded_explain_func(explain_func, frac, rng)
+
         score = _call_metric(
             metric_fn, model, x_batch, y_batch, a_degraded, device,
             s_batch=s_batch,
-            explain_func=explain_func,
+            explain_func=level_explain,
             explain_func_kwargs=None,
             extra_kwargs=metric_kwargs,
         )
@@ -544,6 +593,12 @@ def meta_evaluate_metric(
         n_seeds=n_seeds,
         device=device,
     )
+    # Metrics that re-compute attributions internally (explain_func in their
+    # kwarg requirements) need the degradation injected into the explanation
+    # function itself — see adversarial_reactivity_test's docstring.
+    _degrade_explain = "explain_func" in METRIC_KWARG_REQUIREMENTS.get(
+        metric_name, []
+    )
     ar_result = adversarial_reactivity_test(
         metric_fn=metric_fn,
         model=model,
@@ -555,6 +610,7 @@ def meta_evaluate_metric(
         metric_kwargs=metric_kwargs,
         n_levels=n_levels,
         device=device,
+        degrade_explain_func=_degrade_explain,
     )
 
     nr_score = nr_result["nr_score"]

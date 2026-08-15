@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.meta_evaluation.metaquantus_wrapper import (
     adversarial_reactivity_test,
+    make_degraded_explain_func,
     meta_evaluate_metric,
     noise_resilience_test,
     run_meta_evaluation_full,
@@ -333,6 +334,144 @@ class TestARAttributionSumMetric:
             f"Expected negative Spearman ρ (zeroing reduces sum), "
             f"got {result['monotonicity']:.4f}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Degraded-explain_func AR tests (max_sensitivity / random_logit failure mode)
+# ---------------------------------------------------------------------------
+
+def _explain_ones(model, inputs, targets, **kwargs) -> np.ndarray:
+    """explain_fn returning all-ones attributions (deterministic, non-zero)."""
+    return np.ones_like(np.asarray(inputs), dtype=np.float32)
+
+
+class _ExplainFuncSumMetric:
+    """Mock of an explain_func-recomputing metric (MaxSensitivity-like).
+
+    Ignores ``a_batch`` entirely — the score is the mean absolute value of a
+    FRESH call to ``explain_func``, exactly the property that made the
+    a_batch-only AR degradation return constant scores (→ NaN) for
+    max_sensitivity and random_logit in the 2026-06 run. Adds a per-image
+    offset so base scores are not zero-variance across images.
+    """
+
+    def __call__(self, model, x_batch, y_batch, a_batch, channel_first,
+                 device, explain_func=None, explain_func_kwargs=None, **kwargs):
+        a = explain_func(model, x_batch, y_batch)
+        per_image = np.abs(a).reshape(a.shape[0], -1).mean(axis=1)
+        offsets = np.linspace(0.0, 0.01, x_batch.shape[0])
+        return list(per_image + offsets)
+
+
+class TestMakeDegradedExplainFunc:
+    def setup_method(self):
+        self.model = _DummyModel()
+        self.inputs = np.random.default_rng(1).random((2, 3, 8, 8)).astype(np.float32)
+
+    def test_frac_zero_returns_unchanged(self):
+        rng = np.random.default_rng(0)
+        fn = make_degraded_explain_func(_explain_ones, 0.0, rng)
+        out = fn(self.model, self.inputs, [0, 0])
+        assert np.array_equal(out, np.ones_like(self.inputs))
+
+    def test_zeroes_expected_fraction(self):
+        rng = np.random.default_rng(0)
+        fn = make_degraded_explain_func(_explain_ones, 0.5, rng)
+        out = fn(self.model, self.inputs, [0, 0])
+        frac_zeroed = float((out == 0.0).mean())
+        assert abs(frac_zeroed - 0.5) < 0.01
+
+    def test_successive_calls_draw_different_masks(self):
+        rng = np.random.default_rng(0)
+        fn = make_degraded_explain_func(_explain_ones, 0.3, rng)
+        out1 = fn(self.model, self.inputs, [0, 0])
+        out2 = fn(self.model, self.inputs, [0, 0])
+        assert not np.array_equal(out1, out2), (
+            "Degraded explainer must be stochastic across calls (shared rng "
+            "advances) — a fixed mask would make sensitivity metrics blind."
+        )
+
+    def test_original_fn_output_not_mutated(self):
+        base = np.ones((2, 3, 8, 8), dtype=np.float32)
+
+        def _explain_shared(model, inputs, targets, **kwargs):
+            return base
+
+        rng = np.random.default_rng(0)
+        fn = make_degraded_explain_func(_explain_shared, 0.5, rng)
+        fn(self.model, self.inputs, [0, 0])
+        assert np.array_equal(base, np.ones_like(base))
+
+
+class TestARDegradedExplainFunc:
+    """The failure mode of the 2026-06 run, and its fix.
+
+    Without degrade_explain_func, an explain_func-recomputing metric returns
+    identical scores at every degradation level (it ignores a_batch), so no
+    monotonic structure exists. With the flag, the metric's internal
+    re-explanations lose signal as frac grows, so the mean-|attribution|
+    score declines monotonically → high ar_score.
+    """
+
+    def setup_method(self):
+        self.model = _DummyModel()
+        rng = np.random.default_rng(0)
+        n = 3
+        self.images = [rng.random((3, 16, 16)).astype(np.float32) for _ in range(n)]
+        self.attrs = [rng.random((3, 16, 16)).astype(np.float32) for _ in range(n)]
+        self.targets = [0] * n
+
+    def _run(self, degrade: bool) -> dict:
+        return adversarial_reactivity_test(
+            metric_fn=_ExplainFuncSumMetric(),
+            model=self.model,
+            images=self.images,
+            attributions=self.attrs,
+            targets=self.targets,
+            explain_func=_explain_ones,
+            n_levels=6,
+            degrade_explain_func=degrade,
+        )
+
+    def test_without_flag_scores_are_constant(self):
+        result = self._run(degrade=False)
+        assert np.std(result["scores"]) < 1e-12, (
+            "a_batch-only degradation must leave an explain_func-recomputing "
+            f"metric constant; got scores={result['scores']}"
+        )
+
+    def test_with_flag_ar_score_above_threshold(self):
+        result = self._run(degrade=True)
+        assert result["ar_score"] > 0.7, (
+            f"Expected ar_score > 0.7 with degraded explain_func, "
+            f"got {result['ar_score']:.4f} (scores={result['scores']})"
+        )
+
+    def test_with_flag_monotonicity_is_negative(self):
+        result = self._run(degrade=True)
+        assert result["monotonicity"] < 0, (
+            "Zeroing a growing fraction of the explainer output must reduce "
+            f"the mean-|attribution| score; rho={result['monotonicity']:.4f}"
+        )
+
+    def test_meta_evaluate_metric_wires_flag_for_explain_func_metrics(self):
+        """meta_evaluate_metric must enable the degradation for metrics whose
+        METRIC_KWARG_REQUIREMENTS include explain_func (e.g. max_sensitivity)."""
+        result = meta_evaluate_metric(
+            metric_name="max_sensitivity",
+            metric_fn=_ExplainFuncSumMetric(),
+            model=self.model,
+            images=self.images,
+            attributions=self.attrs,
+            targets=self.targets,
+            explain_fn=_explain_ones,
+            n_seeds=2,
+            n_levels=6,
+        )
+        assert not np.isnan(result["ar"]["ar_score"]), (
+            "AR must no longer be NaN for explain_func metrics"
+        )
+        assert result["ar"]["ar_score"] > 0.7
 
 
 # ---------------------------------------------------------------------------
