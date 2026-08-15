@@ -188,9 +188,10 @@ def _meta_fragment(rel: pd.DataFrame | None) -> str:
     return rf"""\begin{{table}}[H]
 \centering
 \caption{{Metric reliability from MetaQuantus (NR, AR, combined), averaged over
-(model, FAE) cells. Cells marked \textit{{n/a}} are metrics whose Adversarial
-Reactivity could not be scored in this run (the \texttt{{explain\_func}}-based
-perturbation failed), so no combined reliability is available.}}
+(model, FAE) cells. AR for \emph{{max\_sensitivity}} and
+\emph{{random\_logit}} is measured under the extended protocol of
+Section~\ref{{sec:exp-meta}} (degradation injected into the explanation
+function, which those metrics re-invoke internally).}}
 \begin{{tabularx}}{{\linewidth}}{{lcccc}}
 \toprule
 Metric & NR & AR & Combined $r_k$ & Mean runtime (s) \\

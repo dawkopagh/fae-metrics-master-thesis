@@ -195,9 +195,11 @@ attribution methods, and the 600-image ISIC~2017 test split, the framework
 yields four findings. Redundancy pruning reduces the twelve candidate metrics
 to the \emph{same} seven-metric non-redundant subset on both architectures,
 indicating that the redundancy structure is a property of the metric battery
-rather than of the classifier. The meta-evaluation identifies Sparseness,
-Pixel-Flipping, and Pointing~Game as the most reliable metrics and
-Faithfulness Correlation among the least. The aggregated rankings prove
+rather than of the classifier. The meta-evaluation identifies
+Max-Sensitivity, Sparseness, and Pixel-Flipping as the most reliable metrics
+and Faithfulness Correlation and Relevance Mass Accuracy as the least; the
+reliability-discounted weighting built on these scores reorders the ranking
+on one architecture and barely moves it on the other. The aggregated rankings prove
 weighting-sensitive in a model-dependent way: on ResNet-18 the mid-field
 reorders substantially between uniform and reliability-aware weighting
 (Spearman $\rho = 0.75$) while Occlusion stays first, whereas the SqueezeNet

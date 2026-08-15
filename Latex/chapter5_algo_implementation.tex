@@ -29,8 +29,8 @@ returns.
     Correlation alone) against the multi-criteria index
     (Table~\ref{tab:rank-stability}) shows that a one-metric ranking is not a
     safe proxy for the aggregate: the Single-FC and MQ-discounted orderings
-    correlate only moderately on ResNet-18 ($\rho = 0.46$) and imperfectly on
-    SqueezeNet ($\rho = 0.89$). A method that leads on Faithfulness alone is not
+    correlate only weakly on ResNet-18 ($\rho = 0.29$) and imperfectly on
+    SqueezeNet ($\rho = 0.86$). A method that leads on Faithfulness alone is not
     guaranteed to survive once Robustness, Localization, and Randomization enter
     the aggregate. This vindicates the multi-criteria premise of the thesis: the
     scalar leaderboard one reads off a single faithfulness metric can differ
@@ -56,14 +56,20 @@ returns.
     against trusting any single-number FAE leaderboard, but not a licence to
     assume the weighting always matters.
     \item \textbf{Does the MetaQuantus reliability discount change anything?}
-    No. The MQ-discounted scheme proposed as the technical novelty of this
-    thesis is empirically inconsequential relative to plain Autoweighted: the
-    Spearman correlation between the two orderings is $\rho = 1.00$ on both
-    models, it moves $0$ of $7$ method positions
-    on either model, and the mean change in
-    effectiveness is $|\Delta|\approx0.02$. On the present data the discount does
-    not change any conclusion that Autoweighted would already reach. This is a
-    null result, and it is reported as such in Section~\ref{sec:disc-redundancy}.
+    Yes---moderately, and model-dependently, once the meta-validation is
+    complete. With all seven $M^{*}$ metrics carrying a measured combined
+    reliability, the MQ-discounted ordering departs from Autoweighted on
+    ResNet-18 ($\rho = 0.79$: LRP rises from fourth to second and Grad-CAM
+    falls to fifth) while SqueezeNet moves by a single adjacent swap
+    ($\rho = 0.96$); the mean effectiveness shift is $|\Delta|\approx0.07$.
+    Mechanically, the discount redistributes weight toward the
+    high-reliability metrics (max-sensitivity $0.971$, sparseness $0.969$,
+    pixel-flipping $0.883$) and away from the low-reliability ones
+    (random-logit $0.725$, faithfulness-correlation $0.582$, relevance-mass
+    accuracy $0.552$). The discount is therefore a consequential modelling
+    choice on one architecture and nearly inert on the other---the same
+    conditional pattern as the uniform-vs-Autoweighted comparison
+    (Section~\ref{sec:disc-redundancy}).
     \item \textbf{Per-category trade-offs.} The ensembling comparison
     (Section~\ref{sec:exp-ensemble}) shows that NormEnsembleXAI does not buy a
     uniform improvement: on both models the ensemble trades gains on some metric
@@ -87,10 +93,10 @@ returns.
 
 The redundancy and reliability analyses are complementary filters acting on the
 same metric set, and their interaction is the point of methodological interest.
-On the full 600-image run the two filters give very different yields: the
-redundancy filter is the strongest and cleanest result of the thesis, while the
-reliability filter---once turned into the MQ-discount---turns out to change
-nothing.
+On the full 600-image run the two filters give different yields: the
+redundancy filter is the strongest and cleanest result of the thesis, while
+the reliability filter---once turned into the MQ-discount---produces a
+moderate, architecture-dependent reweighting of the ranking.
 
 \begin{itemize}
     \item \textbf{Redundant categories.} The full-run correlation matrix shows
@@ -121,27 +127,26 @@ nothing.
     choice is reassuring, but it is a property of this dataset's correlation
     structure and not a guarantee; a strictly within-category policy remains the
     more defensible default and is recommended for transfer to other domains.
-    \item \textbf{Reliability vs.\ agreement, and the null MQ-discount.} The
-    MetaQuantus reliability ordering and the ensemble-agreement ordering are
-    conceptually distinct, and the thesis proposed the MQ-discount precisely to
-    let the former attenuate the latter. Empirically, the discount does not earn
-    its keep. It moves the per-method effectiveness by only $|\Delta|\approx0.02$
-    on average and leaves the ranking fully intact (Spearman
-    $\rho(\text{Autoweighted},\text{MQ-discount}) = 1.00$ on both models;
-    $0/7$ method positions moved on either). Reframed honestly,
-    the contribution here is not ``a better aggregation'' but a \emph{test} of
-    whether a reliability-discounted aggregation changes the FAE ranking---and on
-    this data the answer is that it does not, relative to Autoweighted. The
-    result also rests on a partial foundation: only five of the seven $M^{*}$
-    metrics carry a meta-validated reliability score (max-sensitivity and
-    random-logit have none---their Adversarial Reactivity leg did not complete,
-    and $84/168$ reliability rows are valid overall), so the two unvalidated
-    metrics fall back to their Noise-Resilience-only reliability, which is
-    $1.000$ for both---i.e.\ they enter the discount effectively unattenuated.
-    A discount that
-    is both empirically inconsequential and partially unvalidated cannot be
-    promoted as an improvement; it is reported as a null result whose value is in
-    having been measured rather than assumed.
+    \item \textbf{Reliability vs.\ agreement, and what the MQ-discount does.}
+    The MetaQuantus reliability ordering and the dispersion-based Autoweighted
+    ordering are conceptually distinct, and the thesis proposed the
+    MQ-discount precisely to let the former attenuate the latter. Empirically,
+    the discount is consequential exactly where the two orderings disagree
+    most: on ResNet-18 it shifts the per-method effectiveness by
+    $|\Delta|\approx0.07$ on average and reorders the mid-field
+    ($\rho(\text{Autoweighted},\text{MQ-discount}) = 0.79$; LRP fourth
+    $\to$ second), while on SqueezeNet it is nearly inert ($\rho = 0.96$).
+    Two caveats keep this claim honest. First, the AR leg for the two
+    explanation-recomputing metrics required a protocol extension introduced
+    by this thesis (degrading the explanation function itself,
+    Section~\ref{sec:exp-meta}), so their reliability scores are measured
+    under an extended, not the original, MetaQuantus protocol. Second, no
+    ground truth says the MQ-discounted ranking is \emph{better}---the
+    framework establishes that reliability weighting changes the verdict, not
+    that the changed verdict is correct. The contribution is the measured
+    answer to a question the literature had left assumed: a
+    reliability-discounted aggregation \emph{can} change the FAE ranking, and
+    whether it does is architecture-dependent.
 \end{itemize}
 
 %% ========================================================================
@@ -174,15 +179,16 @@ correlated metrics to representatives; the meta-validation stage answers the
 companion concern---that some metrics are simply unreliable
 \citep{hedstrom2024metaquantus}---by discounting metrics that fail Noise
 Resilience or Adversarial Reactivity. The MQ-discounted Autoweighted operator
-fuses both filters into a single, data-adaptive weight derivation; whether that
-fusion measurably changes the ranking is an empirical question, and on this data
-the answer was negative (Section~\ref{sec:disc-redundancy}). The value of the
-framework here is not that the discount helped---it did not---but that the
-framework let the question be \emph{asked and answered} rather than assumed. The
+fuses both filters into a single, data-adaptive weight derivation; whether
+that fusion measurably changes the ranking is an empirical question, and on
+this data the answer is architecture-dependent---material on ResNet-18,
+marginal on SqueezeNet (Section~\ref{sec:disc-redundancy}). The value of the
+framework here is that it let the question be \emph{asked and answered}
+rather than assumed, and that the answer comes with its conditionality
+attached. The
 methodological claim---that aggregation should be preceded by redundancy pruning
 and that reliability weighting is worth testing---is itself testable and
-transferable even when, as here, a particular weighting refinement turns out to
-leave the leaderboard unchanged.
+transferable whatever the leaderboard outcome on a particular dataset.
 
 Third, the framework yields a \emph{stable apparatus for asking conditional
 questions} rather than a single verdict. By reporting three aggregation
@@ -253,21 +259,23 @@ the model attended to. Given the modest accuracy above, a non-trivial fraction
 of test images are misclassified, which bounds the interpretability of the
 Localization results accordingly.
 
-A fourth internal threat is \textbf{partial meta-validation}, and it bears
-directly on the foundation of the MQ-discount. Only five of the seven $M^{*}$
-metrics carry a meta-evaluated reliability score; max-sensitivity and
-random-logit do not, because their Adversarial Reactivity leg did not
-complete---$84$ of $168$ reliability rows are valid overall---and the two
-unscored metrics fall back to their Noise-Resilience-only reliability of
-$1.000$, entering the discount effectively unattenuated. The
-MQ-discounted weighting is thus built on a partially validated reliability
-vector.
-This weakens any positive claim that could have been made for the discount; it
-happens not to weaken the \emph{negative} conclusion drawn here---that the
-discount changes essentially nothing relative to Autoweighted---but it does mean
-that even a hypothetical future positive result would need the missing
-reliability legs re-run before it could be trusted. Closing this gap is listed
-as future work.
+A fourth internal threat is the \textbf{extended AR protocol}, and it bears
+directly on the foundation of the MQ-discount. The Adversarial Reactivity of
+max-sensitivity and random-logit cannot be measured by degrading the
+attribution array (both metrics re-compute attributions internally and ignore
+it), so this thesis extends the MetaQuantus protocol: for those metrics the
+degradation is injected into the explanation function itself
+(Section~\ref{sec:exp-meta}). With the extension, all seven $M^{*}$ metrics
+carry a measured combined reliability ($126$ of $168$ reliability rows are
+valid; the invalid remainder belongs entirely to the three structurally
+excluded metrics). The residual threat is that the extension is this thesis's
+own construction rather than part of the published MetaQuantus suite: the
+degraded-explainer AR measures reaction to a \emph{stochastically corrupted
+explanation process}, which is analogous to, but not identical with, the
+original array-degradation test. The reliability scores of those two
+metrics---and therefore the ResNet-18 reordering the MQ-discount
+produces---inherit that caveat, and validating the extension against a
+reference implementation is listed as future work.
 
 \subsection{Construct Validity}
 
@@ -348,9 +356,9 @@ Finally, the redundancy and reliability structure is estimated from a
 $600$ images, confidence intervals on the correlation and reliability estimates
 and a repeated-subsample stability analysis would be needed before the metric
 structure reported here is treated as a property of the domain rather than of
-this particular draw of images---and the partial meta-validation
-($84/168$ valid reliability rows) means the reliability estimates in particular
-should be read as provisional.
+this particular draw of images---and the reliability estimates for the two
+explanation-recomputing metrics, obtained under the extended AR protocol,
+should be read with the internal-validity caveat above attached.
 
 %% ========================================================================
 \section{Limitations}

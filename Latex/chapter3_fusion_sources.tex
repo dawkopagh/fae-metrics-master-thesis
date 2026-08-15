@@ -447,13 +447,26 @@ produces two scores per metric: a Noise Resilience score $\mathrm{NR}_k$ and
 an Adversarial Reactivity score $\mathrm{AR}_k$. Their combination is the
 per-metric \texttt{combined\_reliability} reported in
 \texttt{results/meta\_evaluation\_reliability.csv}, averaged over the
-(model, FAE) cells in which the metric is defined. Where
-\texttt{combined\_reliability} is undefined, $\lambda_k$ is resolved by an
-explicit fallback hierarchy: (i)~the Noise-Resilience-only score, for metrics
-whose Adversarial-Reactivity leg is unavailable (in this run,
-\emph{max\_sensitivity} and \emph{random\_logit}, whose AR test---which
-internally re-computes attributions---did not complete; both resolve to
-$\mathrm{NR} = 1.000$ and are therefore effectively undiscounted);
+(model, FAE) cells in which the metric is defined.
+
+The AR test requires one protocol extension. MetaQuantus degrades the
+explanation by zeroing a growing fraction of the attribution array, but the
+metrics that re-compute attributions internally through
+\texttt{explain\_func} (the sensitivity metrics and RandomLogit) ignore that
+array, so the degradation would never reach them and their level scores would
+be constant. For those metrics the degradation is therefore additionally
+injected into the explanation function itself: at degradation fraction $f$,
+each invocation of the wrapped explainer zeroes a fresh, independently drawn
+random fraction $f$ of its output, so the metric's internal re-explanations
+lose signal at the same rate as the explicit attribution. The degradation is
+capped at $f = 0.9$ because a fully zeroed attribution is rejected by the
+metric implementations. With this extension, every computable metric carries
+a measured combined reliability.
+
+Where \texttt{combined\_reliability} is nonetheless undefined (the
+structurally excluded metrics), $\lambda_k$ is resolved by an
+explicit fallback hierarchy: (i)~the Noise-Resilience-only score, where NR
+alone is available;
 (ii)~the mean reliability of the other valid metrics in the same
 Quantus category; (iii)~the global mean reliability across the group; and, as
 a last resort, (iv)~no discount ($\lambda_k = 1$). This fallback never zeroes a
