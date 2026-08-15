@@ -28,37 +28,40 @@ returns.
     Yes---but conditionally. Comparing the single-metric baseline (Faithfulness
     Correlation alone) against the multi-criteria index
     (Table~\ref{tab:rank-stability}) shows that a one-metric ranking is not a
-    safe proxy for the aggregate: the Single-FC and Autoweighted orderings
-    correlate only weakly on ResNet-18 ($\rho = 0.32$) and imperfectly on
+    safe proxy for the aggregate: the Single-FC and MQ-discounted orderings
+    correlate only moderately on ResNet-18 ($\rho = 0.46$) and imperfectly on
     SqueezeNet ($\rho = 0.89$). A method that leads on Faithfulness alone is not
     guaranteed to survive once Robustness, Localization, and Randomization enter
     the aggregate. This vindicates the multi-criteria premise of the thesis: the
     scalar leaderboard one reads off a single faithfulness metric can differ
     materially from the one a balanced index returns.
     \item \textbf{Effect of the weighting scheme.} The headline---and the most
-    important cautionary finding---is that \emph{whether the FAE ranking changes
-    with the weighting scheme is itself model-dependent}. On ResNet-18 the
-    uniform and Autoweighted method-rankings diverge sharply (Spearman
-    $\rho = 0.29$): Grad-CAM is the single best method under uniform weights but
-    falls to roughly fifth under Autoweighted, where Saliency takes first. On
-    SqueezeNet the same two schemes agree almost perfectly ($\rho = 0.96$), with
-    Grad-CAM first under both. The weighting choice can therefore flip the
-    verdict on one architecture while leaving it untouched on the other. The
+    important cautionary finding---is that \emph{how much the FAE ranking
+    changes with the weighting scheme is itself model-dependent}. On ResNet-18
+    the uniform and Autoweighted method-rankings agree only moderately
+    (Spearman $\rho = 0.75$, five discordant method-pairs): Occlusion stays
+    first under both schemes, but Grad-CAM drops from second under uniform
+    weights to fourth under Autoweighted while Saliency and Integrated
+    Gradients move up. On SqueezeNet the same two schemes agree almost
+    perfectly ($\rho = 0.96$), with Grad-CAM first under both. The weighting
+    choice can therefore reorder much of the field on one architecture while
+    leaving the other nearly untouched. The
     most plausible mechanism is the inverse-variance character of the
     Autoweighted scheme: its weights are driven by each model's per-metric
     score-variance structure, so two models with different variance profiles
     redistribute weight across $M^{*}$ differently, and only where that
     redistribution is large does the ranking move. This is evidence that
-    aggregation \emph{can} flip rankings, not that it reliably does---a warning
+    aggregation \emph{can} reorder rankings materially, not that it reliably
+    does---a warning
     against trusting any single-number FAE leaderboard, but not a licence to
     assume the weighting always matters.
     \item \textbf{Does the MetaQuantus reliability discount change anything?}
     No. The MQ-discounted scheme proposed as the technical novelty of this
     thesis is empirically inconsequential relative to plain Autoweighted: the
-    Spearman correlation between the two orderings is $\rho = 0.96$ on ResNet-18
-    and $\rho = 1.00$ on SqueezeNet, it moves only $2$ of $7$ method positions
-    on ResNet-18 and $0$ of $7$ on SqueezeNet, and the mean change in
-    effectiveness is $|\Delta|\approx0.03$. On the present data the discount does
+    Spearman correlation between the two orderings is $\rho = 1.00$ on both
+    models, it moves $0$ of $7$ method positions
+    on either model, and the mean change in
+    effectiveness is $|\Delta|\approx0.02$. On the present data the discount does
     not change any conclusion that Autoweighted would already reach. This is a
     null result, and it is reported as such in Section~\ref{sec:disc-redundancy}.
     \item \textbf{Per-category trade-offs.} The ensembling comparison
@@ -93,7 +96,7 @@ nothing.
     \item \textbf{Redundant categories.} The full-run correlation matrix shows
     two metric pairs collapsing to a single effective dimension on \emph{both}
     architectures: Complexity (complexity~$\leftrightarrow$~sparseness,
-    $|\rho| = 1.00$ on ResNet-18 and $0.99$ on SqueezeNet) and Robustness
+    $|\rho| = 0.999$ on ResNet-18 and $0.993$ on SqueezeNet) and Robustness
     (avg-sensitivity~$\leftrightarrow$~max-sensitivity, $|\rho| = 0.93$ and
     $0.98$ respectively), whereas the Faithfulness and Localization pairs remain
     nearly orthogonal ($|\rho| < 0.25$). The practical implication is concrete:
@@ -103,15 +106,17 @@ nothing.
     ones. That the greedy pruning yields an \emph{identical} seven-metric
     $M^{*}$ on two different architectures is the strongest single finding here:
     the redundancy is a property of the metric battery, not of the classifier,
-    and it transfers. A practitioner can therefore halve the most expensive part
-    of the evaluation (one of the two costly Faithfulness metrics aside, the
-    pruned metrics are Complexity and avg-sensitivity) with no loss of
-    discriminative signal.
+    and it transfers. A practitioner can therefore halve the costly Robustness
+    leg (avg-sensitivity pruned, at ${\sim}128$\,s per (model, FAE) cell) and
+    drop Complexity's duplicate, with no loss of discriminative signal; the two
+    expensive Faithfulness metrics are retained, as both carry independent
+    signal.
     \item \textbf{Greedy cross-category pruning.} The current pruning is greedy
     and can in principle drop a metric because it correlates with a metric in a
     \emph{different} category. On this data the consequence is benign---both
     pruned pairs are \emph{within} a single category (Complexity; Robustness),
-    so the greedy and a strictly within-category policy (Decision~D4) coincide
+    so the greedy policy implemented as Decision~D4 and a strictly
+    within-category alternative coincide
     and yield the same $M^{*}$. The robustness of the result to that policy
     choice is reassuring, but it is a property of this dataset's correlation
     structure and not a guarantee; a strictly within-category policy remains the
@@ -120,10 +125,10 @@ nothing.
     MetaQuantus reliability ordering and the ensemble-agreement ordering are
     conceptually distinct, and the thesis proposed the MQ-discount precisely to
     let the former attenuate the latter. Empirically, the discount does not earn
-    its keep. It moves the per-method effectiveness by only $|\Delta|\approx0.03$
-    on average and leaves the ranking essentially intact (Spearman
-    $\rho(\text{Autoweighted},\text{MQ-discount}) = 0.96$ on ResNet-18, $1.00$
-    on SqueezeNet; $2/7$ and $0/7$ method positions moved). Reframed honestly,
+    its keep. It moves the per-method effectiveness by only $|\Delta|\approx0.02$
+    on average and leaves the ranking fully intact (Spearman
+    $\rho(\text{Autoweighted},\text{MQ-discount}) = 1.00$ on both models;
+    $0/7$ method positions moved on either). Reframed honestly,
     the contribution here is not ``a better aggregation'' but a \emph{test} of
     whether a reliability-discounted aggregation changes the FAE ranking---and on
     this data the answer is that it does not, relative to Autoweighted. The
@@ -131,7 +136,9 @@ nothing.
     metrics carry a meta-validated reliability score (max-sensitivity and
     random-logit have none---their Adversarial Reactivity leg did not complete,
     and $84/168$ reliability rows are valid overall), so the two unvalidated
-    metrics fall back to the mean reliability of the remainder. A discount that
+    metrics fall back to their Noise-Resilience-only reliability, which is
+    $1.000$ for both---i.e.\ they enter the discount effectively unattenuated.
+    A discount that
     is both empirically inconsequential and partially unvalidated cannot be
     promoted as an improvement; it is reported as a null result whose value is in
     having been measured rather than assumed.
@@ -198,19 +205,20 @@ independent of the numerical outcome of any one configuration.
 Several design decisions could bias the conclusions drawn from within the study
 itself, independently of how far they generalise.
 
-The most consequential internal threat concerns \textbf{intermittent metric
-failures and missing-value handling}. Two metrics in particular produced
-unstable observations during the pilot. The Model Parameter Randomisation Test
-(MPRT) yielded large numbers of \texttt{NaN} values---most acutely for
-SqueezeNet, where only a small fraction of observations survived, and for
-Grad-CAM on the randomised ResNet. When a metric is computable on only a biased
+The most consequential internal threat concerns \textbf{metric
+failures and missing-value handling}. The Model Parameter Randomisation Test
+(MPRT) proved incompatible with this dataset under Quantus~0.6.0: during the
+pilot it yielded large numbers of \texttt{NaN} values---most acutely for
+SqueezeNet and for Grad-CAM on the randomised ResNet---and on ISIC~2017 its
+implementation ultimately failed on every (model, image) sample, so it was
+disabled outright for the full run (Section~\ref{sec:metrics}). When a metric
+is computable on only a biased
 subsample of images, any correlation or reliability estimate derived from it is
 suspect: an apparent architectural difference in, say, the
 MPRT--Sparseness relationship between the two models may be a genuine effect or
 merely an artefact of which images happened to produce a finite score. For this
-reason the framework excludes MPRT from the aggregated index wherever its valid
-fraction falls below a documented threshold, and treats any surviving MPRT
-finding as suggestive rather than confirmatory. Similarly, Non-Sensitivity is
+reason the Randomization category is represented in the aggregated index by
+RandomLogit alone. Similarly, Non-Sensitivity is
 excluded from the routine evaluation because its $O(d)$ forward-pass cost forces
 aggressive input downsampling, which changes what the metric measures and makes
 its scores non-comparable with the per-pixel metrics; it is reported, if at
@@ -250,8 +258,10 @@ directly on the foundation of the MQ-discount. Only five of the seven $M^{*}$
 metrics carry a meta-evaluated reliability score; max-sensitivity and
 random-logit do not, because their Adversarial Reactivity leg did not
 complete---$84$ of $168$ reliability rows are valid overall---and the two
-unscored metrics fall back to the mean reliability of the remainder. The
-MQ-discounted weighting is thus built on a partially imputed reliability vector.
+unscored metrics fall back to their Noise-Resilience-only reliability of
+$1.000$, entering the discount effectively unattenuated. The
+MQ-discounted weighting is thus built on a partially validated reliability
+vector.
 This weakens any positive claim that could have been made for the discount; it
 happens not to weaken the \emph{negative} conclusion drawn here---that the
 discount changes essentially nothing relative to Autoweighted---but it does mean
@@ -290,7 +300,8 @@ is sharpened by the nature of the effectiveness index itself.
 
 The third construct risk is that \textbf{the effectiveness index is a relative,
 normaliser-conditional, unbounded quantity, not an absolute quality score}.
-Under the Autoweighted scheme it ranges roughly $-0.21$ to $0.93$ across methods,
+Under the Autoweighted scheme it ranges roughly $-0.49$ to $0.61$ across
+per-image evaluations,
 and under the single-metric baseline it spans $-2.65$ to $4.02$; the sign and
 magnitude depend on the chosen normaliser and on the set of methods being
 compared. The index is therefore a \emph{ranking device}---it orders methods
@@ -323,8 +334,8 @@ that regime. The two-model design does allow a minimal cross-architecture
 consistency check, and it earns its keep: the identical $M^{*}$ across the two
 models is the thesis's strongest transfer claim. But the same two-model design
 sharply limits the reach of the \emph{divergence} findings. The headline result
-that aggregation can flip the FAE ranking rests substantially on a single
-model---ResNet-18, where the uniform/Autoweighted correlation is $\rho = 0.29$,
+that aggregation can reorder the FAE ranking rests substantially on a single
+model---ResNet-18, where the uniform/Autoweighted correlation is $\rho = 0.75$,
 against $\rho = 0.96$ on SqueezeNet---and the ensemble's behaviour likewise
 inverts between the two (it loses to the mean on ResNet-18, wins on SqueezeNet).
 A finding that is large on one of two architectures and negligible on the other
@@ -352,8 +363,9 @@ Chapter~\ref{ch:conclusions} are read in context.
 \begin{itemize}
     \item \textbf{Restricted method panel.} The computational cost of fitting
     per-instance surrogate models (LIME) and sampling Shapley coalitions
-    (KernelSHAP), together with the differentiability requirements of several
-    Robustness metrics, constrained the evaluated panel to the seven methods
+    (KernelSHAP)---a cost the Robustness metrics multiply, since they re-invoke
+    the explanation function for every perturbation
+    sample---constrained the evaluated panel to the seven methods
     retained in Chapter~\ref{ch:methodology} (Integrated Gradients, Saliency,
     Grad-CAM, DeepLift, Guided Backpropagation, LRP, and Occlusion). The two
     perturbation-based surrogate methods are therefore deferred rather than

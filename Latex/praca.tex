@@ -198,10 +198,12 @@ indicating that the redundancy structure is a property of the metric battery
 rather than of the classifier. The meta-evaluation identifies Sparseness,
 Pixel-Flipping, and Pointing~Game as the most reliable metrics and
 Faithfulness Correlation among the least. The aggregated rankings prove
-weighting-dependent: on ResNet-18 the top-ranked method changes with the
-weighting scheme (Grad-CAM under uniform weights, Saliency under
-Autoweighted), while the SqueezeNet ranking is stable---a concrete
-demonstration that single-metric or single-scheme conclusions are unsafe.
+weighting-sensitive in a model-dependent way: on ResNet-18 the mid-field
+reorders substantially between uniform and reliability-aware weighting
+(Spearman $\rho = 0.75$) while Occlusion stays first, whereas the SqueezeNet
+ranking is nearly stable; a single-metric ranking correlates only moderately
+with the multi-criteria index---a concrete demonstration that single-metric
+conclusions are unsafe.
 Finally, NormEnsembleXAI-ensembled attributions outperform the average
 individual method only on SqueezeNet and never beat the best individual
 method; all reported differences are statistically significant (Friedman and

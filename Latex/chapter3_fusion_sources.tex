@@ -124,7 +124,7 @@ gradient computation.
 
 \subsubsection{Saliency (Vanilla Gradient)}
 Computes the absolute gradient of the class score with respect to the input
-image (Section~\ref{ch:sota}). Computationally efficient but prone to noisy,
+image (Chapter~\ref{ch:sota}). Computationally efficient but prone to noisy,
 non-class-discriminative maps due to shattered gradients.
 
 \subsubsection{Integrated Gradients}
@@ -221,7 +221,7 @@ and key hyperparameters.
 Category & Metric & Direction & Key hyperparameters \\
 \midrule
 Faithfulness & FaithfulnessCorrelation & $\uparrow$ & nr\_runs=100, subset\_size=224 \\
-Faithfulness & PixelFlipping           & $\uparrow$ & features\_in\_step=224 (AUC) \\
+Faithfulness & PixelFlipping           & $\downarrow$ & features\_in\_step=224 (AUC of MoRF curve) \\
 Robustness   & MaxSensitivity          & $\downarrow$ & nr\_samples=10, lower\_bound=0.2 \\
 Robustness   & AvgSensitivity          & $\downarrow$ & nr\_samples=10, lower\_bound=0.2 \\
 Localization & RelevanceMassAccuracy   & $\uparrow$ & requires mask \\
@@ -230,7 +230,7 @@ Complexity   & Sparseness              & $\uparrow$ & Gini-like coefficient \\
 Complexity   & Complexity              & $\downarrow$ & Shannon entropy \\
 Randomization & ModelParameterRandomisation & $\downarrow$ & layer\_order=top\_down; excluded on ISIC$^{\dagger}$ \\
 Randomization & RandomLogit            & $\downarrow$ & num\_classes=3 \\
-Axiomatic    & Completeness            & $\downarrow$ & black baseline; IG/DeepLift/LRP only \\
+Axiomatic    & Completeness            & $\uparrow$ & black baseline; IG/DeepLift/LRP only \\
 Axiomatic    & NonSensitivity          & $\downarrow$ & downsampled to 56$\times$56; excluded by default$^{\ddagger}$ \\
 \bottomrule
 \end{tabularx}
@@ -263,7 +263,7 @@ from computation as implementation-driven decisions and recorded as NaN
 \end{itemize}
 
 \noindent
-With these two exclusions, eleven metrics are computed per attribution triple
+With these two exclusions, ten metrics are computed per attribution triple
 in the default ISIC~2017 configuration (FaithfulnessCorrelation, PixelFlipping,
 MaxSensitivity, AvgSensitivity, RelevanceMassAccuracy, PointingGame,
 Sparseness, Complexity, RandomLogit, and Completeness, with Completeness
@@ -314,7 +314,7 @@ Completeness measures the absolute deviation from the completeness axiom
 from aggregation rather than imputed. NonSensitivity measures attribution
 mass on provably non-contributory features. Due to its $O(d)$ forward-pass
 cost, the input is downsampled to $56 \times 56$, and the metric is
-excluded from vertical-slice runs by default \cite{hedstrom2023quantus}.
+excluded from all runs by default \cite{hedstrom2023quantus}.
 
 %% ========================================================================
 \section{Score Normalization}
@@ -384,15 +384,21 @@ aggregation operators are implemented (Decision~D2):
 
     \item \textbf{Geometric mean:}
     \begin{equation}
-        E(\Phi) = \exp\!\left(\sum_{k=1}^{K} w_k \ln\bigl(\tilde{M}_k(\Phi) + \varepsilon\bigr)\right),
+        E(\Phi) = \exp\!\left(\sum_{k=1}^{K} w_k \ln\bigl(\tilde{M}'_k(\Phi) + \varepsilon\bigr)\right),
     \end{equation}
-    where $\varepsilon > 0$ is a small constant to avoid $\ln(0)$. Penalizes
+    where $\varepsilon > 0$ is a small constant to avoid $\ln(0)$ and
+    $\tilde{M}'_k = \tilde{M}_k - \min_j \tilde{M}_j(\cdot)$ shifts the
+    rectified scores to non-negative support first (rectified scores of
+    lower-is-better metrics are routinely negative, so the logarithm is
+    otherwise undefined). Penalizes
     methods with a near-zero score on any single axis.
 \end{enumerate}
 
 The default weight vector uses uniform weights: $w_k = 1/K$ for $K$
-retained metrics after the redundancy and meta-evaluation filtering
-described in Chapter~\ref{ch:sota}.
+retained metrics after the redundancy and meta-evaluation filtering whose
+procedure is specified in Chapter~\ref{ch:experiments} (the underlying
+redundancy and meta-evaluation concepts are reviewed in
+Chapter~\ref{ch:sota}).
 
 \subsection{Autoweighted Extension}
 \label{sec:weighting}
@@ -401,7 +407,7 @@ The Autoweighted mechanism, adopted from \citet{hryniewska2024normensemblexai},
 derives a weight for each metric from the dispersion of its scores across the
 test set: metrics whose scores are internally consistent are trusted more than
 metrics whose scores are noisy. Concretely, for each (model) group and each
-metric $k$, let $\mathrm{cv}_k = \mathrm{std}(s_k) / |\mathrm{mean}(s_k)|$ be
+metric $k$, let $\mathrm{cv}_k = \mathrm{std}(M_k) / |\mathrm{mean}(M_k)|$ be
 the coefficient of variation of metric $k$'s raw scores over the test images.
 The agreement weight is the inverse coefficient of variation, normalised to a
 convex combination:
@@ -444,9 +450,11 @@ per-metric \texttt{combined\_reliability} reported in
 (model, FAE) cells in which the metric is defined. Where
 \texttt{combined\_reliability} is undefined, $\lambda_k$ is resolved by an
 explicit fallback hierarchy: (i)~the Noise-Resilience-only score, for metrics
-that internally re-compute attributions (the sensitivity metrics, MPRT, and
-RandomLogit) for which the Adversarial-Reactivity test is methodologically
-inapplicable; (ii)~the mean reliability of the other valid metrics in the same
+whose Adversarial-Reactivity leg is unavailable (in this run,
+\emph{max\_sensitivity} and \emph{random\_logit}, whose AR test---which
+internally re-computes attributions---did not complete; both resolve to
+$\mathrm{NR} = 1.000$ and are therefore effectively undiscounted);
+(ii)~the mean reliability of the other valid metrics in the same
 Quantus category; (iii)~the global mean reliability across the group; and, as
 a last resort, (iv)~no discount ($\lambda_k = 1$). This fallback never zeroes a
 metric out, which would silently drop it from the ensemble.
@@ -572,3 +580,27 @@ All experiments are configured via YAML files under \texttt{configs/}, with
 one configuration per experiment variant. Random seeds, model paths, metric
 hyperparameters, and normalization choices are specified declaratively to
 ensure full reproducibility.
+
+\paragraph{Design decision register.} For ease of reference, the design
+decisions cited as D1--D6 throughout Chapters~\ref{ch:experiments}
+and~\ref{ch:discussion} are collected here:
+
+\begin{description}
+    \item[D1] Second Moment Scaling as the score normalisation, adopted from
+    NormEnsembleXAI (Section~\ref{sec:normalization}).
+    \item[D2] Three aggregation operators---weighted mean, minimum, and
+    geometric mean---with the weighted mean as the default
+    (Section~\ref{sec:aggregation}).
+    \item[D3] The MetaQuantus-discounted Autoweighted weighting as the novel
+    weighting scheme under test (Section~\ref{subsec:mq-discount}).
+    \item[D4] Greedy redundancy pruning at $|\rho| > 0.85$ over the pooled
+    (cross-category) correlation matrix, with variance pre-screening
+    (Section~\ref{sec:metrics}); a strictly within-category policy is the
+    considered alternative.
+    \item[D5] Friedman $+$ Nemenyi for the omnibus method comparison and
+    Wilcoxon signed-rank for the paired individual-vs-ensemble comparison
+    (Section~\ref{sec:pipeline}).
+    \item[D6] NormEnsembleXAI Mean aggregation with Second Moment
+    normalisation as the attribution-ensembling configuration
+    (Section~\ref{sec:fae-methods}).
+\end{description}

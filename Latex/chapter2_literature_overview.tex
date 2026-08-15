@@ -14,7 +14,7 @@ Current literature broadly categorizes these methods based on their access to th
 Gradient-based methods exploit the differentiable nature of neural networks. They require access to the model's weights and gradients, operating on the intuition that the gradient of the output with respect to the input represents the model's sensitivity to feature changes. The methods below form a progression: from raw gradients, to path-integrated gradients that restore axiomatic guarantees, to feature-space gradients that trade pixel resolution for class-discriminative localization.
 
 \subsubsection{Saliency Maps}
-The foundational approach, proposed by Simonyan et al., computes the gradient of the class score $S_c$ with respect to the input image $I$ \cite{selvaraju2017grad}. The relevance map is defined as:
+The foundational approach, proposed by Simonyan et al., computes the gradient of the class score $S_c$ with respect to the input image $I$ \cite{simonyan2014deep}. The relevance map is defined as:
 \begin{equation}
     E_{Vanilla} = \left| \frac{\partial S_c}{\partial I} \right|
 \end{equation}
@@ -35,7 +35,7 @@ Gradient-weighted Class Activation Mapping (Grad-CAM) moves away from pixel-spac
 where $A^k$ is the $k$-th feature map. The final map is a ReLU-activated linear combination of these maps. Grad-CAM is highly effective for localization but lacks fine-grained pixel detail, often necessitating combination with Guided Backpropagation (Guided Grad-CAM).
 
 \subsection{Perturbation-based Methods (Black-box)}
-Perturbation-based methods operate under a model-agnostic paradigm. They estimate feature importance by systematically modifying (perturbing) the input and observing the resulting changes in the model's output prediction. Because they treat the model as a black box, they apply uniformly across architectures, but their reliance on sampling makes them both computationally expensive and, as noted below, susceptible to estimation noise. The thesis surveys LIME and SHAP here for completeness, but---as Chapter~\ref{ch:methodology} details---the final evaluation panel retains only the gradient-based methods together with Occlusion, since the surrogate-fitting cost and the differentiability requirements of several Robustness metrics make LIME and KernelSHAP impractical at the scale of the full study.
+Perturbation-based methods operate under a model-agnostic paradigm. They estimate feature importance by systematically modifying (perturbing) the input and observing the resulting changes in the model's output prediction. Because they treat the model as a black box, they apply uniformly across architectures, but their reliance on sampling makes them both computationally expensive and, as noted below, susceptible to estimation noise. The thesis surveys LIME and SHAP here for completeness, but---as Chapter~\ref{ch:methodology} details---the final evaluation panel retains only the gradient-based methods together with Occlusion, since the Robustness metrics re-invoke the explanation function for every perturbation sample, multiplying the already-substantial surrogate-fitting cost of LIME and KernelSHAP beyond what the scale of the full study permits.
 
 \subsubsection{LIME (Local Interpretable Model-agnostic Explanations)}
 LIME creates a surrogate model $g$ (e.g., a linear regression) that is locally faithful to the complex model $f$ around the instance $x$ \cite{ribeiro2016why}. It generates a neighborhood of perturbed samples $\mathcal{Z}$ weighted by a proximity kernel $\pi_x$. The explanation is found by minimizing the loss $\mathcal{L}$:
@@ -47,9 +47,9 @@ where $\Omega(g)$ penalizes the complexity of the explanation. While LIME is ver
 \subsubsection{SHAP (SHapley Additive exPlanations)}
 SHAP adapts cooperative game theory to XAI, treating features as players in a coalition. The attribution of a feature is its Shapley value - the average marginal contribution of the feature value across all possible feature coalitions \cite{lundberg2017unified}. The SHAP value $\phi_i$ is defined as:
 \begin{equation}
-    \phi_i(f, x) = \sum_{z' \subseteq x'} \frac{|z'|! (M - |z'| - 1)!}{M!} [f_x(z') - f_x(z' \setminus i)]
+    \phi_i(f, x) = \sum_{z' \subseteq x' \setminus \{i\}} \frac{|z'|! \, (M - |z'| - 1)!}{M!} \bigl[f_x(z' \cup \{i\}) - f_x(z')\bigr]
 \end{equation}
-SHAP is the only method that satisfies the axioms of \textit{Efficiency}, \textit{Symmetry}, \textit{Dummy}, and \textit{Additivity}. However, exact computation is NP-hard, leading to approximation methods like GradientSHAP or KernelSHAP, which reintroduce estimation noise.
+SHAP values are the unique additive attribution satisfying \textit{Local Accuracy}, \textit{Missingness}, and \textit{Consistency} \cite{lundberg2017unified}, thereby inheriting the classical Shapley axioms of Efficiency, Symmetry, Dummy, and Additivity. However, exact computation is exponential in the number of features, leading to approximation methods like GradientSHAP or KernelSHAP, which reintroduce estimation noise.
 
 \subsection{Localization Metrics}
 \label{subsec:localization-metrics}
@@ -80,36 +80,40 @@ A critical challenge in XAI research is the absence of "ground truth." Unlike cl
 
 A seminal study by Adebayo et al., titled "Sanity Checks for Saliency Maps," demonstrated that visual quality does not imply faithfulness \cite{adebayo2018sanity}. They introduced the \textbf{Model Parameter Randomization Test}, where model weights are progressively randomized from the output layer to the input layer. A valid explanation method should degrade to noise as the model's knowledge is destroyed.
 \begin{itemize}
-    \item \textbf{Failure of Guided Backpropagation:} The study revealed that methods like Guided Backpropagation and DeconvNet produced nearly identical heatmaps for a trained model and a random network. This indicates these methods act as edge detectors independent of the model's learned representations.
+    \item \textbf{Failure of Guided Backpropagation:} The study revealed that Guided Backpropagation and Guided Grad-CAM produced nearly identical heatmaps for a trained model and a random network. This indicates these methods act largely as edge detectors, independent of the model's learned representations.
     \item \textbf{Implication:} This finding established a "Crisis of Evaluation" \cite{hedstrom2023quantus}, necessitating a shift from human-grounded evaluation (which measures trust/plausibility) to functionally-grounded evaluation (which measures mathematical properties like fidelity).
 \end{itemize}
 
 \section{Taxonomy of Evaluation Metrics}
 \label{sec:taxonomy}
 
-To rigorously assess FAE models, recent literature proposes a modular taxonomy of metrics. This thesis adopts the framework formalized by Quantus \cite{hedstrom2023quantus}, focusing on Faithfulness, Robustness, and Complexity.
+To rigorously assess FAE models, recent literature proposes a modular taxonomy of metrics. This thesis adopts the framework formalized by Quantus \cite{hedstrom2023quantus}, covering all six of its categories: Faithfulness, Robustness, Localization (Section~\ref{subsec:localization-metrics}), Complexity, Randomization, and Axiomatic correctness.
 
 \subsection{Faithfulness (Fidelity)}
 Faithfulness quantifies how accurately the explanation reflects the model's internal decision logic, regardless of human intelligibility.
 
 \subsubsection{Pixel Flipping (AUC)}
-Pixel Flipping, introduced by \citet{pixelflip} in ``Evaluating the Visualization of What a Deep Neural Network Has Learned,'' evaluates faithfulness by iteratively removing the most important features (as ranked by the attribution map) and measuring the resulting degradation in the model's output.
-Pixels are replaced in descending order of attribution magnitude with a baseline value (e.g., black). The metric aggregates the output change across all removal steps into an area-under-the-curve (AUC) score:
+Pixel Flipping, introduced by \citet{bach2015lrp} and generalized to region
+perturbation with an area-under-the-curve protocol by \citet{pixelflip},
+evaluates faithfulness by iteratively removing the most important features (as
+ranked by the attribution map) and measuring the resulting degradation in the
+model's output.
+Pixels are replaced in descending order of attribution magnitude with a baseline value (e.g., black), producing a curve of model outputs as ever more of the highest-ranked features are removed. The metric summarizes this degradation curve by its area under the curve:
 \begin{equation}
-    \text{PixelFlipping}(x) = \frac{1}{N} \sum_{k=1}^{N} \bigl(f(x) - f(x^{(k)})\bigr),
+    \text{PixelFlipping}(x) = \frac{1}{N} \sum_{k=1}^{N} f\bigl(x^{(k)}\bigr),
 \end{equation}
-where $x^{(k)}$ is the image with the top $k$ most important features replaced. A steeper drop (higher AUC) indicates that the attribution method correctly identified the features most critical to the model's prediction. The Quantus implementation groups features into steps of configurable size (\texttt{features\_in\_step}), making the metric tractable for high-resolution inputs \cite{hedstrom2023quantus}.
+where $x^{(k)}$ is the image with the top $k$ most important features replaced. A faithful attribution identifies the truly critical features first, so the prediction collapses early and the area under the degradation curve is small: \emph{lower} scores are better. The Quantus implementation groups features into steps of configurable size (\texttt{features\_in\_step}), making the metric tractable for high-resolution inputs \cite{hedstrom2023quantus}.
 
 This formulation generalizes Deletion and Insertion curves \cite{petsiuk2018rise}: Deletion corresponds to removal in descending attribution order, while Insertion reverses the process by adding features to a blank canvas.
 
 \subsubsection{Faithfulness Correlation}
 Faithfulness Correlation, as implemented in Quantus, measures the Pearson correlation between attribution magnitude and the change in model output when features are masked in random subsets \cite{hedstrom2023quantus}. Given \texttt{nr\_runs} randomly sampled subsets $S_1, \dots, S_R$ of features:
 \begin{equation}
-    \text{FC} = r\!\left(\left\{\sum_{i \in S_j} |E_i|\right\}_{j=1}^{R},\; \left\{f(x) - f(x_{\setminus S_j})\right\}_{j=1}^{R}\right),
+    \text{FC} = r\!\left(\left\{\sum_{i \in S_j} E_i\right\}_{j=1}^{R},\; \left\{f(x) - f(x_{\setminus S_j})\right\}_{j=1}^{R}\right),
 \end{equation}
 where $r(\cdot, \cdot)$ denotes the Pearson correlation coefficient and $x_{\setminus S_j}$ is the input with features in $S_j$ replaced by a baseline. A high positive correlation ($\text{FC} \to +1$) indicates that regions with large attribution values are indeed the regions whose removal most degrades the model's prediction.
 
-A related measure, Infidelity (Yeh et al.), computes the expected squared error $\mathbb{E}[(I^T E - \Delta f)^2]$ between the attribution-weighted perturbation and the actual output change. Although theoretically motivated, Infidelity is not used in the evaluation framework of this thesis; Faithfulness Correlation provides a comparable signal while being more interpretable and directly comparable across methods.
+A related measure, Infidelity \citep{yeh2019}, computes the expected squared error $\mathbb{E}[(I^T E - \Delta f)^2]$ between the attribution-weighted perturbation and the actual output change. Although theoretically motivated, Infidelity is not used in the evaluation framework of this thesis; Faithfulness Correlation provides a comparable signal while being more interpretable and directly comparable across methods.
 
 \subsection{Robustness (Stability)}
 \label{subsec:robustness}
@@ -118,17 +122,21 @@ Robustness ensures that slight, non-semantic changes to the input (e.g., Gaussia
 The theoretical foundation for explanation robustness is Lipschitz continuity: a method $\Phi$ is robust if the ratio $\|\Phi(x) - \Phi(x')\| / \|x - x'\|$ remains bounded for inputs $x'$ in a neighborhood of $x$ \cite{alvarez2018robustness}. The metrics adopted in this thesis operationalize this principle via sensitivity analysis under random perturbations.
 
 \subsubsection{Max-Sensitivity}
-Max-Sensitivity, proposed by \citet{yeh2019} in ``On the (In)fidelity and Sensitivity of Explanations,'' measures the worst-case explanation change under small random perturbations of the input.
-Given $N$ perturbation samples $\delta_1, \dots, \delta_N$ drawn from $\mathcal{N}(0, \sigma^2 I)$ with $\|\delta_j\| \leq \varepsilon$:
+Max-Sensitivity, proposed by \citet{yeh2019} in ``On the (In)fidelity and Sensitivity of Explanations,'' measures the worst-case explanation change under small random perturbations of the input,
+$\mathrm{SENS}_{\mathrm{MAX}} = \max_{\|\delta\| \le r} \|\Phi(x + \delta) - \Phi(x)\|$.
+The Quantus implementation used in this thesis estimates it from $N$
+perturbation samples $\delta_1, \dots, \delta_N$ drawn uniformly with
+magnitude bounded by \texttt{lower\_bound}, and reports the change relative to
+the unperturbed attribution:
 \begin{equation}
-    \text{MaxSens}(\Phi, x) = \max_{j = 1, \dots, N} \frac{\|\Phi(x + \delta_j) - \Phi(x)\|}{\|\delta_j\|}.
+    \text{MaxSens}(\Phi, x) = \max_{j = 1, \dots, N} \frac{\|\Phi(x + \delta_j) - \Phi(x)\|_F}{\|\Phi(x)\|_F}.
 \end{equation}
 The implementation uses \texttt{nr\_samples}$= 10$ perturbation draws with \texttt{lower\_bound}$= 0.2$ controlling the perturbation magnitude. Lower values indicate a more stable explanation method.
 
 \subsubsection{Avg-Sensitivity}
 Avg-Sensitivity replaces the maximum with the mean across the same set of perturbations:
 \begin{equation}
-    \text{AvgSens}(\Phi, x) = \frac{1}{N} \sum_{j=1}^{N} \frac{\|\Phi(x + \delta_j) - \Phi(x)\|}{\|\delta_j\|}.
+    \text{AvgSens}(\Phi, x) = \frac{1}{N} \sum_{j=1}^{N} \frac{\|\Phi(x + \delta_j) - \Phi(x)\|_F}{\|\Phi(x)\|_F}.
 \end{equation}
 Lower is better. Together, Max-Sensitivity and Avg-Sensitivity provide complementary views: the former captures the tail behavior (susceptibility to worst-case perturbations), while the latter captures the expected behavior. Both are implemented in Quantus \cite{hedstrom2023quantus} and share hyperparameters in this thesis for comparability.
 
@@ -150,7 +158,7 @@ Proposed by Adebayo et al.\ as part of the ``Sanity Checks for Saliency Maps'' s
 \begin{equation}
     \text{MPRT}(\Phi) = \frac{1}{L} \sum_{\ell=1}^{L} \rho\bigl(\Phi(f, x),\; \Phi(f^{(\ell)}, x)\bigr),
 \end{equation}
-where $f^{(\ell)}$ denotes the model with the top $\ell$ layers randomized and $\rho$ is the chosen correlation measure. Lower average correlation indicates a better method---one that is genuinely sensitive to the model's learned parameters. As discussed in Section~\ref{sec:crisis}, Guided Backpropagation and DeconvNet fail this test, producing nearly identical maps for trained and randomized models.
+where $f^{(\ell)}$ denotes the model with the top $\ell$ layers randomized and $\rho$ is the chosen correlation measure. Lower average correlation indicates a better method---one that is genuinely sensitive to the model's learned parameters. As discussed in Section~\ref{sec:crisis}, Guided Backpropagation and Guided Grad-CAM fail this test, producing nearly identical maps for trained and randomized models.
 
 \subsubsection{Random Logit Test}
 The Random Logit test complements MPRT by perturbing the explanation target rather than the model weights. The target class index is replaced with a randomly sampled alternative class, and the resulting explanation is compared to the original. The metric computes the correlation between the two explanation maps:
@@ -173,7 +181,7 @@ The metric measures the absolute deviation from this axiom; lower is better. Com
 \subsubsection{Non-Sensitivity}
 Non-Sensitivity measures how much attribution a method assigns to features that are provably non-contributory (i.e., features whose removal does not change the model output). A faithful attribution should assign zero relevance to such features. The metric evaluates this by performing a forward pass for each feature (or a downsampled subset thereof) to identify non-contributory features, then measuring the attribution mass on those features. Lower is better.
 
-Non-Sensitivity is computationally intensive, as it requires $O(d)$ forward passes, where $d$ is the input dimensionality. In practice, the input is downsampled (e.g., to $56 \times 56$) to make the computation tractable \cite{hedstrom2023quantus}. Due to this cost, Non-Sensitivity is typically excluded from initial vertical-slice experiments and included only in full-scale evaluations.
+Non-Sensitivity is computationally intensive, as it requires $O(d)$ forward passes, where $d$ is the input dimensionality. In practice, the input is downsampled (e.g., to $56 \times 56$) to make the computation tractable \cite{hedstrom2023quantus}. Due to this cost, Non-Sensitivity is typically excluded from routine evaluations and reserved for targeted diagnostics.
 
 \section{Ensemble XAI: Theoretical Foundations}
 
@@ -181,13 +189,13 @@ Given the trade-offs between these metrics - where Gradient methods often excel 
 
 Ensembling in XAI draws inspiration from predictive ensembles (e.g., Random Forests), operating on the hypothesis that aggregating uncorrelated estimators reduces variance and bias \cite{hryniewska2024normensemblexai}.
 \begin{equation}
-    E_{Ensemble} = \mathcal{A}(\mathcal{N}(\Phi_1(x)), \mathcal{N}(\Phi_2(x)), \dots, \mathcal{N}(\Phi_k(x)))
+    E_{\text{ensemble}} = \mathcal{A}(\mathcal{N}(\Phi_1(x)), \mathcal{N}(\Phi_2(x)), \dots, \mathcal{N}(\Phi_n(x)))
 \end{equation}
 where $\mathcal{N}$ is a normalization function and $\mathcal{A}$ is an aggregation function.
 
 Hryniewska-Guzik et al. identify that the primary challenge in XAI ensembling is the heterogeneous scale of attributions (e.g., SHAP values are additive log-odds, while Grad-CAM is feature activation) \cite{hryniewska2024normensemblexai}. They propose \textbf{NormEnsembleXAI}, which utilizes robust normalization techniques such as Second Moment Scaling to align these diverse explanations before aggregation via Mean, Max, or Minimum functions. This thesis builds upon this framework to evaluate whether ensembling can simultaneously optimize the conflicting objectives of Faithfulness and Robustness.
 
-It is important to distinguish two levels of aggregation that appear in this thesis. \emph{Attribution ensembling}, as performed by NormEnsembleXAI, combines multiple attribution maps $\Phi_1(x), \dots, \Phi_k(x)$ into a single consolidated explanation $E_{\text{ensemble}}$. \emph{Metric aggregation}, which constitutes this thesis's novel contribution, operates at a different level: it combines multiple evaluation metric scores into a single effectiveness index $E(\Phi)$ that characterizes how well a given FAE method performs across all quality dimensions. Chapter~\ref{ch:methodology} develops the metric-aggregation layer on top of the NormEnsembleXAI normalization framework, treating both individual and ensembled attributions as inputs to the same multi-criteria evaluation pipeline.
+It is important to distinguish two levels of aggregation that appear in this thesis. \emph{Attribution ensembling}, as performed by NormEnsembleXAI, combines multiple attribution maps $\Phi_1(x), \dots, \Phi_n(x)$ into a single consolidated explanation $E_{\text{ensemble}}$. \emph{Metric aggregation}, which constitutes this thesis's novel contribution, operates at a different level: it combines multiple evaluation metric scores into a single effectiveness index $E(\Phi)$ that characterizes how well a given FAE method performs across all quality dimensions. Chapter~\ref{ch:methodology} develops the metric-aggregation layer on top of the NormEnsembleXAI normalization framework, treating both individual and ensembled attributions as inputs to the same multi-criteria evaluation pipeline.
 
 \section{Multi-Metric Aggregation and Evaluation Pipelines}
 \label{sec:multi-metric-aggregation}
@@ -272,14 +280,15 @@ failure modes:
 A metric that performs poorly on either test is deprioritized as an unreliable
 signal, regardless of its theoretical motivation. This meta-evaluation layer
 is essential for the framework proposed in this thesis, as it provides a
-principled criterion for the \emph{selection} of metrics in Phase~2,
+principled criterion for the \emph{weighting} of metrics in the aggregation
+stage of Chapter~\ref{ch:methodology},
 complementing the correlation-based redundancy analysis of
 Section~\ref{subsec:redundancy}.
 
 \subsection{Normalization and Aggregation Strategies}
 \label{subsec:aggregation-strategies}
 
-Once a non-redundant, meta-validated subset $\{M_1, \dots, M_k\}$ is selected,
+Once a non-redundant, meta-validated subset $\{M_1, \dots, M_K\}$ is selected,
 the individual scores must be combined into a scalar that supports method
 comparison. Two technical obstacles arise: heterogeneous scales and
 heterogeneous directions. A Faithfulness Correlation score lies in $[-1, 1]$;
@@ -310,10 +319,11 @@ the literature:
     aggregation.
 \end{enumerate}
 
-Once normalized, aggregation proceeds via a scalar combinator $\mathcal{A}$:
+Once normalized, aggregation proceeds via a scalar combinator $\mathcal{A}$,
+yielding the effectiveness index
 $$
-E_{\text{agg}}(\Phi) \;=\; \mathcal{A}\!\Bigl(
-    \tilde{M}_1(\Phi),\; \tilde{M}_2(\Phi),\; \dots,\; \tilde{M}_k(\Phi)
+E(\Phi) \;=\; \mathcal{A}\!\Bigl(
+    \tilde{M}_1(\Phi),\; \tilde{M}_2(\Phi),\; \dots,\; \tilde{M}_K(\Phi)
 \Bigr).
 $$
 Common choices for $\mathcal{A}$ include the weighted arithmetic mean
@@ -339,25 +349,22 @@ A key design choice within this pipeline is the weight vector
 $\mathbf{w} = (w_1, \dots, w_K)$. Fixed equal weighting assumes all retained
 criteria contribute equally---a strong assumption that the redundancy analysis
 alone does not validate. \citet{hryniewska2024normensemblexai} introduce the
-\emph{Autoweighted} mechanism, in which weights are derived from each metric's
-own ensemble score: explanations that agree more strongly with the ensemble
-consensus contribute more heavily to the aggregated assessment. Formally, if
-$\mathrm{ES}_k$ denotes the ensemble score assigned to the explanation by
-metric $k$, then
-$$
-w_k \;=\; \frac{\mathrm{ES}_k}{\sum_{j} \mathrm{ES}_j},
-$$
-producing a data-adaptive convex combination in which dominant, trustworthy
-signals receive higher weight without manual tuning. In this thesis,
-$\mathrm{ES}_k$ denotes the MetaQuantus-discounted ensemble score rather than
-the raw ensemble score: each metric's ensemble agreement is first attenuated
-by its meta-evaluation reliability (Noise Resilience and Adversarial
-Reactivity from \citet{hedstrom2024metaquantus}), so the Autoweighted formula
-already incorporates the meta-evaluation criterion into the weight derivation.
-This mechanism provides the theoretical foundation for the evaluation framework
-proposed in Chapter~\ref{ch:methodology}, which extends the Autoweighted
-concept by jointly accounting for ensemble disagreement and MetaQuantus
-failure rate in a single weighting step.
+\emph{Autoweighted} mechanism, a data-adaptive weighting in which each
+component's weight is derived from the statistics of its own scores rather
+than set by hand, so that dominant, trustworthy signals receive higher weight
+without manual tuning. This thesis adapts the Autoweighted idea to the
+metric-aggregation layer by weighting each metric by the inverse coefficient
+of variation of its scores across the test set---metrics whose scores are
+internally consistent are trusted more than metrics whose scores are
+noisy---with the exact formulation given in Chapter~\ref{ch:methodology}
+(Equation~\eqref{eq:autoweighted}). Crucially, the thesis keeps this
+Autoweighted scheme intact and \emph{separately} formulates a
+MetaQuantus-discounted extension (Equation~\eqref{eq:mq-discount}), in which
+each metric's Autoweighted coefficient is attenuated by its meta-evaluation
+reliability (Noise Resilience and Adversarial Reactivity from
+\citet{hedstrom2024metaquantus}). Keeping the two schemes distinct is what
+allows the experiments of Chapter~\ref{ch:experiments} to isolate the effect
+of the reliability discount on the resulting FAE ranking.
 
 Recent work has emphasized that evaluation pipelines are themselves a
 compliance instrument. \citet{hedstrom2025bridging} argue that standardized,

@@ -65,9 +65,11 @@ the model being explained are randomised, which means those maps cannot be
 reflecting the learned function at all \cite{adebayo2018sanity}. Compounding
 this, different methods frequently attribute importance to different features
 for the same prediction, a phenomenon documented as systematic disagreement
-across explanation methods \cite{krishna2024disagreement}; gradient-based
-estimators, for example, tend to score well on faithfulness yet poorly on
-robustness, while perturbation-based estimators exhibit the opposite profile
+across explanation methods \cite{krishna2024disagreement}; no single estimator
+family dominates across the quality criteria---gradient-based estimators, for
+example, are efficient and often faithful yet notoriously unstable under small
+input perturbations, while perturbation-based estimators carry their own
+sampling-induced instability and cost
 \cite{hryniewska2024normensemblexai}. A natural response to such
 single-estimator unreliability is to combine several attribution methods into an
 ensemble whose aggregated map is more stable than any of its constituents, as in
@@ -106,7 +108,8 @@ problem in a way that aligns naturally with the regulatory motivation above:
 expert-annotated lesion masks delineate exactly the region a clinically valid
 explanation ought to emphasise, and these masks therefore serve as an objective
 spatial reference for Localization metrics without any additional labelling
-effort \cite{sangwan2024quantifying}. The ISIC 2017 dermoscopic dataset, used
+effort \cite{sangwan2024quantifying}. The ISIC 2017 dermoscopic dataset
+\cite{codella2018isic}, used
 throughout this thesis, provides such expert masks paired with each image, which
 makes it possible to ground the Localization category empirically and gives the
 evaluation framework a concrete, auditable, and ethically motivated testbed.
@@ -152,7 +155,7 @@ background outlined above, the contributions of this work are as follows.
     NormEnsembleXAI-ensembled attributions---under the proposed aggregation, with
     statistical significance established through Friedman and Nemenyi tests
     across methods and Wilcoxon tests for paired comparisons
-    \cite{sangwan2024quantifying, hryniewska2024normensemblexai}.
+    \cite{codella2018isic, hryniewska2024normensemblexai}.
 \end{enumerate}
 
 %---------------------------------------------------------------------------
@@ -186,7 +189,7 @@ The remainder of this thesis is structured as follows.
 
     \item \textbf{Chapter~\ref{ch:experiments}: Experiments and Results}
     presents the empirical validation of the framework on the ISIC 2017
-    dermoscopic dataset \cite{sangwan2024quantifying}, whose expert-annotated
+    dermoscopic dataset \cite{codella2018isic}, whose expert-annotated
     lesion masks enable Localization metrics. It reports the metric redundancy
     analysis, the MetaQuantus-based reliability of each metric, the comparison of
     uniform, Autoweighted, and MetaQuantus-discounted aggregation, the contrast

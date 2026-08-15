@@ -20,12 +20,13 @@ result artifacts under \texttt{results/} by
 input}-ed here, so the numbers below are the full-run values over the 600
 ISIC~2017 test images. Two limitations are stated up front and revisited at the
 point of use: (i)~the MQ-discount weighting was applied with meta-evaluated
-reliability for five of the seven $M^{*}$ metrics; the two whose
+combined reliability for five of the seven $M^{*}$ metrics; the two whose
 adversarial-reactivity leg did not complete (\emph{max\_sensitivity},
-\emph{random\_logit}) fall back to the mean reliability of the remainder (see
-Section~\ref{sec:exp-meta}). The discount calibrates the effectiveness
-magnitudes (mean $|\Delta|\approx0.03$ relative to Autoweighted) while
-essentially preserving the ranking; and (ii)~the attribution-ensembling
+\emph{random\_logit}) fall back to their Noise-Resilience-only reliability
+($\mathrm{NR} = 1.000$ for both, i.e.\ effectively undiscounted; see
+Section~\ref{sec:exp-meta}). The discount attenuates the effectiveness
+magnitudes (mean $|\Delta|\approx0.02$ relative to Autoweighted) while
+leaving the induced ranking unchanged; and (ii)~the attribution-ensembling
 experiment of Section~\ref{sec:exp-ensemble} ensembles the six gradient-based
 methods only (Occlusion excluded as an ensemble member for tractability),
 though it otherwise uses the full 600 images and all seven $M^{*}$ metrics.
@@ -243,14 +244,15 @@ meta-evaluation; the remaining two, \emph{max\_sensitivity} and
 \emph{random\_logit}, do not (\textit{n/a} in Table~\ref{tab:meta}): their
 Adversarial Reactivity test relies on an \texttt{explain\_func} re-invocation
 that did not complete for those two metrics. The MQ-discounted aggregation of
-Section~\ref{sec:exp-ranking} therefore applies the reliability discount to the
-five validated metrics and falls back to the mean reliability of the remainder
-for the other two (the documented NaN-fallback rule, rather than dropping
-them). The resulting \texttt{effectiveness\_mqdiscount} column differs from the
-Autoweighted column by a small margin (mean $|\Delta|\approx0.03$): the discount
-attenuates the effectiveness magnitudes but leaves the ranking essentially
-unchanged (identical order on SqueezeNet; a single adjacent
-Integrated-Gradients\,$\leftrightarrow$\,LRP swap on ResNet-18). Closing the
+Section~\ref{sec:exp-ranking} therefore applies the combined-reliability
+discount to the five validated metrics and falls back to the
+Noise-Resilience-only reliability for the other two (the first rule of the
+documented fallback hierarchy, rather than dropping them); since both have
+$\mathrm{NR} = 1.000$, they are effectively undiscounted. The resulting
+\texttt{effectiveness\_mqdiscount} column differs from the Autoweighted column
+by a small margin (mean $|\Delta|\approx0.02$): the discount attenuates the
+effectiveness magnitudes but leaves the induced ranking unchanged (identical
+method order on both models, Table~\ref{tab:rank-stability}). Closing the
 remaining gap (re-running the failed AR leg for all $M^{*}$ metrics) is left to
 future work.
 
@@ -262,17 +264,18 @@ This section measures whether \emph{how} metrics are combined changes the
 conclusion about which FAE method is best. Three weighting schemes are applied
 to the same normalised scores over $M^{*}$:
 (i)~\textbf{uniform} ($w_k = 1/|M^{*}|$);
-(ii)~\textbf{Autoweighted} (weights from ensemble agreement $\mathrm{ES}_k$);
-(iii)~\textbf{MQ-discounted} (Equation~\eqref{eq:mq-discount}, agreement
-attenuated by reliability). A single-metric baseline (Faithfulness Correlation
+(ii)~\textbf{Autoweighted} (inverse-coefficient-of-variation weights,
+Equation~\eqref{eq:autoweighted});
+(iii)~\textbf{MQ-discounted} (Equation~\eqref{eq:mq-discount}, the
+Autoweighted weights attenuated by reliability). A single-metric baseline
+(Faithfulness Correlation
 alone, \texttt{effectiveness\_single\_fc}) is included to quantify how far a
 naive one-metric ranking departs from the multi-criteria index. All four columns
 are present in \texttt{results/ranking\_comparison.csv}. As noted in
 Section~\ref{sec:exp-meta}, the MQ-discount column applies a genuine but small
-reliability discount (mean $|\Delta|\approx0.03$ relative to Autoweighted): it
-attenuates the magnitudes while leaving the ranking essentially unchanged, so
-the MQ-discount and Autoweighted orders coincide except for one adjacent swap
-on ResNet-18.
+reliability discount (mean $|\Delta|\approx0.02$ relative to Autoweighted): it
+attenuates the magnitudes while leaving the induced method order unchanged on
+both models.
 
 \input{tables/ranking_resnet}
 
@@ -280,29 +283,35 @@ on ResNet-18.
 
 \input{tables/rank_stability}
 
-\paragraph{The ranking diverges with the weighting scheme.}
-The headline finding of Contributions~2--3 is that \emph{which FAE method ranks
-first depends on how the metrics are combined.} On ResNet-18
-(Table~\ref{tab:ranking-resnet}) Grad-CAM is the single best method under the
-uniform scheme ($E = 0.370$, ahead of occlusion at $0.348$ and saliency at
-$0.309$), but under the Autoweighted scheme it falls to fifth ($0.303$) while
-saliency rises to first ($0.350$). The induced rankings are correspondingly
-weakly correlated: the Spearman rank correlation between the uniform and
-Autoweighted per-method orderings is only $\rho = 0.286$ for ResNet-18, which
-contributes nine of the ten discordant method-pairs that
+\paragraph{The ranking shifts with the weighting scheme.}
+The headline finding of Contributions~2--3 is that \emph{the induced FAE
+ranking depends measurably on how the metrics are combined---although the
+top-ranked method proves robust to that choice.} On ResNet-18
+(Table~\ref{tab:ranking-resnet}) Occlusion leads under all three multi-metric
+schemes ($E = 0.164$ uniform, $0.123$ Autoweighted, $0.109$ MQ-discount), but
+the mid-field reorders substantially: Grad-CAM drops from second under uniform
+weights ($E = 0.133$) to fourth under Autoweighted ($0.023$), while Saliency
+and Integrated Gradients move up. The Spearman rank correlation between the
+uniform and Autoweighted per-method orderings is $\rho = 0.750$ for ResNet-18,
+which contributes five of the six discordant method-pairs that
 Table~\ref{tab:rank-stability} reports summed over both models. SqueezeNet is
-far more stable (Table~\ref{tab:ranking-squeeze})---Grad-CAM is first under
-both schemes ($E = 0.360$ uniform, $0.250$ Autoweighted) and the
-uniform/Autoweighted orderings agree closely ($\rho = 0.964$). The
-single-metric baseline (Faithfulness Correlation alone) diverges most sharply
-of all on ResNet-18, reordering the methods almost entirely
-(Single-FC vs.\ MQ-discount $\rho = 0.286$ on ResNet-18, $0.893$ on
-SqueezeNet, with eleven discordant pairs summed over both models), which
-confirms that a one-metric ranking is not a safe proxy for
-the multi-criteria index. This sensitivity to the weighting choice---present on
-one architecture and largely absent on the other---is precisely the phenomenon
-the framework is designed to surface; its interpretation is carried into
-Chapter~\ref{ch:discussion}.
+more stable (Table~\ref{tab:ranking-squeeze})---Grad-CAM is first and
+Occlusion second under both schemes ($E = 0.142$ and $0.086$ uniform, $0.124$
+and $0.066$ Autoweighted) and the orderings agree closely ($\rho = 0.964$).
+The single-metric baseline (Faithfulness Correlation alone) diverges most
+sharply of all on ResNet-18 (Single-FC vs.\ MQ-discount $\rho = 0.464$ on
+ResNet-18, $0.893$ on SqueezeNet, with nine discordant pairs summed over both
+models), which confirms that a one-metric ranking is not a safe proxy for the
+multi-criteria index. Two further observations are notable. First, the two
+methods that lead on both models under uniform weighting---Occlusion and
+Grad-CAM---are precisely the two coarse, low-resolution attribution methods;
+where the weighting scheme changes the picture at all, it is Grad-CAM whose
+position is most sensitive (second to fourth on ResNet-18). Second, the
+divergence is architecture-dependent: the reordering is pronounced on
+ResNet-18 and mild on SqueezeNet. This sensitivity to the weighting choice is
+precisely the
+phenomenon the framework is designed to surface; its interpretation is carried
+into Chapter~\ref{ch:discussion}.
 
 %% ========================================================================
 \section{Individual vs.\ Ensembled Attributions (Contribution~3)}
@@ -321,13 +330,13 @@ single methods are known to be unstable.
 on SqueezeNet.} Over all seven $M^{*}$ metrics (Robustness included) and the
 full 600 images, Table~\ref{tab:ensemble} gives a \emph{model-dependent} result.
 The ensembled attribution clearly exceeds the \emph{mean} individual method on
-SqueezeNet ($E = 0.318$ vs.\ $0.169$) but falls slightly \emph{below} it on
-ResNet-18 ($0.228$ vs.\ $0.260$): averaging attributions helps when the
+SqueezeNet ($E = 0.075$ vs.\ $-0.069$) but falls \emph{below} it on
+ResNet-18 ($-0.012$ vs.\ $0.019$): averaging attributions helps when the
 individual methods are weak and dispersed (SqueezeNet) but can dilute an
 already-strong gradient signal (ResNet-18), especially once the Robustness axis
 is counted---the averaged map is not necessarily more stable than its sharpest
 constituent. On \emph{neither} model does the ensemble beat the \emph{best}
-individual method ($\Delta = -0.288$ on ResNet-18, $-0.095$ on SqueezeNet): an
+individual method ($\Delta = -0.305$ on ResNet-18, $-0.135$ on SqueezeNet): an
 oracle that already knew the strongest single method would win. The Wilcoxon
 tests of Section~\ref{sec:exp-stats} (Table~\ref{tab:wilcoxon}) confirm all four
 gaps are statistically significant ($p < 10^{-3}$ over the 600 paired images).
@@ -355,9 +364,10 @@ scalar index.
     \caption{Per-metric comparison of the NormEnsembleXAI ensemble (crimson)
     against the mean individual attribution method (blue) over the seven
     $M^{*}$ metrics on the full 600 images, normalised per metric against the
-    method range. The ensemble's profile exceeds the mean on SqueezeNet but not
-    on ResNet-18 (cf.\ Table~\ref{tab:ensemble}); on both it trades gains on
-    some metrics for losses on others rather than dominating uniformly.}
+    method range and rectified by metric direction, so a larger radius is
+    always better. The ensemble's profile exceeds the mean on SqueezeNet but
+    not on ResNet-18 (cf.\ Table~\ref{tab:ensemble}); on both it trades gains
+    on some metrics for losses on others rather than dominating uniformly.}
     \label{fig:ensemble-radar}
 \end{figure}
 
@@ -384,9 +394,10 @@ effectiveness distributions:
 
 The Friedman omnibus test rejects the null hypothesis of equal method ranks
 decisively on both models (Table~\ref{tab:friedman}): ResNet-18 yields
-$\chi^2 = 437.4$ and SqueezeNet $\chi^2 = 1551.8$, both with $p < 10^{-3}$ over
-the 600 image blocks under the Autoweighted scheme (the MQ-discount scheme
-gives $\chi^2 = 591.2$ / $1546.5$, likewise $p < 10^{-3}$). At least one FAE
+$\chi^2 = 759.6$ and SqueezeNet $\chi^2 = 1430.3$, both with $p < 10^{-3}$ over
+the 600 image blocks under the Autoweighted scheme (uniform:
+$\chi^2 = 830.2$ / $1571.3$; MQ-discount: $878.5$ / $1412.2$; likewise
+$p < 10^{-3}$). At least one FAE
 method therefore differs significantly in mean rank, so
 the Nemenyi post-hoc and CD diagram (Figure~\ref{fig:cd-diagram}) are
 warranted; the per-method mean ranks feeding that diagram are in
@@ -397,9 +408,10 @@ warranted; the per-method mean ranks feeding that diagram are in
     \includegraphics[width=\linewidth]{figures/cd_diagram.pdf}
     \caption{Nemenyi critical-difference diagram over the seven FAE methods
     under the Autoweighted scheme, per model (mean-rank axis; methods joined by
-    a crimson bar are not significantly different at $\alpha=0.05$). The
-    weighting-dependent re-ordering of ResNet-18 (Grad-CAM falls from first
-    under uniform weights) is visible against the more stable SqueezeNet order.}
+    a crimson bar are not significantly different at $\alpha=0.05$). Occlusion
+    leads on ResNet-18 and Grad-CAM on SqueezeNet; the weighting-dependent
+    mid-field re-ordering of ResNet-18 (Grad-CAM second under uniform weights,
+    fourth here) is visible against the more stable SqueezeNet order.}
     \label{fig:cd-diagram}
 \end{figure}
 
@@ -408,10 +420,10 @@ warranted; the per-method mean ranks feeding that diagram are in
 The paired Wilcoxon tests (Table~\ref{tab:wilcoxon}, $n = 600$ per model)
 quantify the ensemble result of Section~\ref{sec:exp-ensemble}. Against the
 \emph{mean} individual method the outcome is model-dependent: the ensemble is
-significantly \emph{worse} on ResNet-18 ($W = 68493$, $p < 10^{-3}$) but
-significantly \emph{better} on SqueezeNet ($W = 6967$, $p < 10^{-3}$). Against
+significantly \emph{worse} on ResNet-18 ($W = 68517$, $p < 10^{-3}$) but
+significantly \emph{better} on SqueezeNet ($W = 6162$, $p < 10^{-3}$). Against
 the \emph{best} individual method the ensemble is significantly outperformed on
-both models (ResNet-18 $W = 3528$; SqueezeNet $W = 35380$; each $p < 10^{-3}$).
+both models (ResNet-18 $W = 3024$; SqueezeNet $W = 23436$; each $p < 10^{-3}$).
 All four comparisons are significant at $\alpha = 0.05$ over the 600 paired
 images, so the conclusion---ensembling never beats the oracle-best method, and
 beats the average only on the weaker architecture---is statistically robust
