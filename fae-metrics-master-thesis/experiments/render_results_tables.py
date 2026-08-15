@@ -23,20 +23,12 @@ yield a fragment whose cells read \texttt{[pending full run]} so the chapter
 still compiles. The script runs identically on the 12-image PILOT CSVs (the
 defaults) and on the 600-image FULL CSVs (pass the *_FULL / *_600 paths).
 
-Exact command (pilot, defaults point at results/):
+Exact command (the defaults under results/ ARE the authoritative full-run
+CSVs; only the redundancy caption note needs to be passed):
 
     fae-metrics-master-thesis/.venv/bin/python \
-        fae-metrics-master-thesis/experiments/render_results_tables.py
-
-Full run:
-
-    .venv/bin/python experiments/render_results_tables.py \
-        --slice-csv      ../results/full_run_7fae_12metrics_600.csv \
-        --reliability-csv ../results/meta_evaluation_reliability_FULL.csv \
-        --ranking-csv    ../results/ranking_comparison_FULL.csv \
-        --ensemble-slice-csv ../results/full_run_ensemble_7fae_12metrics_600.csv \
-        --ensemble-ranking-csv ../results/ensemble_ranking_FULL.csv \
-        --stats-csv      ../results/statistical_tests.csv
+        fae-metrics-master-thesis/experiments/render_results_tables.py \
+        --n-images-label "full run, 600 images"
 """
 
 from __future__ import annotations
@@ -334,12 +326,23 @@ Comparison & Uniform vs.\ AW & Uniform vs.\ MQ & AW vs.\ MQ & Single-FC vs.\ MQ 
 # Ensemble table (tab:ensemble)
 # ---------------------------------------------------------------------------
 
+def _ensemble_n_per_model(ensemble: pd.DataFrame | None) -> str:
+    """Human-readable per-model image count for captions (e.g. ``$n=600$``)."""
+    if ensemble is None or ensemble.empty:
+        return r"$n$ pending"
+    counts = sorted(ensemble.groupby("model")["image_id"].nunique().unique())
+    if len(counts) == 1:
+        return f"$n={counts[0]}$"
+    return "/".join(f"$n={c}$" for c in counts)
+
+
 def _ensemble_fragment(ensemble: pd.DataFrame | None) -> str:
     """Aggregate individual_vs_ensemble.csv per model.
 
     Columns: model, image_id, eff_ensemble, eff_individual_mean,
     eff_individual_best. Per model we average each effectiveness column over
-    the 64 sampled images and report Delta = ensembled - best individual.
+    all images present in the CSV and report Delta = ensembled - best
+    individual. The caption's per-model n is derived from the CSV itself.
     """
     def _row(model: str, model_label: str) -> str:
         ens_e = best_e = mean_e = None
@@ -353,13 +356,14 @@ def _ensemble_fragment(ensemble: pd.DataFrame | None) -> str:
         return (f"{model_label}  & {_fmt(ens_e)} & {_fmt(best_e)} & "
                 f"{_fmt(mean_e)} & {_fmt(delta)} \\\\")
 
+    n_label = _ensemble_n_per_model(ensemble)
     body = _row("resnet18", "ResNet-18") + "\n" + _row("squeezenet", "SqueezeNet")
     return rf"""\begin{{table}}[H]
 \centering
 \caption{{Effectiveness index $E(\Phi)$ of the NormEnsembleXAI-ensembled
-attribution against the best and mean individual method, per model (mean over a
-64-image sample; six gradient methods, occlusion excluded; the five
-non-Robustness $M^{{*}}$ metrics).}}
+attribution against the best and mean individual method, per model (mean over
+{n_label} test images per model; ensemble of the six gradient-based methods,
+occlusion excluded; all seven $M^{{*}}$ metrics).}}
 \begin{{tabularx}}{{\linewidth}}{{lcccc}}
 \toprule
 Model & Ensembled $E$ & Best individual $E$ & Mean individual $E$ & $\Delta$ (ens.\ $-$ best) \\
@@ -377,28 +381,38 @@ Model & Ensembled $E$ & Best individual $E$ & Mean individual $E$ & $\Delta$ (en
 
 def _friedman_fragment(stats: pd.DataFrame | None) -> str:
     # statistical_tests.csv schema: model,scheme,friedman_chi2,p_value,
-    # significant,critical_difference,n_blocks,n_methods. We report the
-    # Autoweighted scheme (== MQ-discount in this run; see caption/caveat).
-    def _row(model: str, model_label: str) -> str:
-        chi = p = sig = None
-        if stats is not None and not stats.empty:
-            m = stats[(stats["model"] == model)
-                      & (stats["scheme"] == "autoweighted")]
-            if not m.empty:
-                chi = float(m.iloc[0]["friedman_chi2"])
-                p = float(m.iloc[0]["p_value"])
-                sig = bool(m.iloc[0]["significant"])
-        sig_str = (_PENDING if sig is None else ("Yes" if sig else "No"))
-        return (f"{model_label}  & Autoweighted & {_fmt(chi, 2)} & "
-                f"{_fmt_p(p)} & {sig_str} \\\\")
+    # significant,critical_difference,n_blocks,n_methods. One row per
+    # (model, scheme) present in the CSV.
+    _SCHEME_LABELS = {
+        "uniform": "Uniform",
+        "autoweighted": "Autoweighted",
+        "mqdiscount": "MQ-discount",
+    }
 
-    body = _row("resnet18", "ResNet-18") + "\n" + _row("squeezenet", "SqueezeNet")
+    def _rows(model: str, model_label: str) -> list[str]:
+        out: list[str] = []
+        for scheme, scheme_label in _SCHEME_LABELS.items():
+            chi = p = sig = None
+            if stats is not None and not stats.empty:
+                m = stats[(stats["model"] == model)
+                          & (stats["scheme"] == scheme)]
+                if not m.empty:
+                    chi = float(m.iloc[0]["friedman_chi2"])
+                    p = float(m.iloc[0]["p_value"])
+                    sig = bool(m.iloc[0]["significant"])
+                else:
+                    continue  # scheme absent from this run's CSV
+            sig_str = (_PENDING if sig is None else ("Yes" if sig else "No"))
+            out.append(f"{model_label}  & {scheme_label} & {_fmt(chi, 2)} & "
+                       f"{_fmt_p(p)} & {sig_str} \\\\")
+        return out
+
+    body = "\n".join(_rows("resnet18", "ResNet-18")
+                     + _rows("squeezenet", "SqueezeNet"))
     return rf"""\begin{{table}}[H]
 \centering
-\caption{{Friedman omnibus test over the seven FAE methods, per model
-(Autoweighted weighting; blocks are the 600 test images). In this run the
-MQ-discount scheme is identical to Autoweighted, so the same statistic applies
-to both.}}
+\caption{{Friedman omnibus test over the seven FAE methods, per model and
+weighting scheme (blocks are the 600 test images).}}
 \begin{{tabularx}}{{\linewidth}}{{llccc}}
 \toprule
 Model & Weighting & Friedman $\chi^2$ & $p$-value & Significant ($\alpha=0.05$) \\
@@ -445,12 +459,13 @@ def _wilcoxon_fragment(ensemble: pd.DataFrame | None) -> str:
                        f"{_fmt(w, 1)} & {_fmt_p(p)} & {sig_str} \\\\")
         return out
 
+    n_label = _ensemble_n_per_model(ensemble)
     body = "\n".join(
         _rows("resnet18", "ResNet-18") + _rows("squeezenet", "SqueezeNet")
     )
     return rf"""\begin{{table}}[H]
 \centering
-\caption{{Wilcoxon signed-rank test (paired per image, $n=64$ per model):
+\caption{{Wilcoxon signed-rank test (paired per image, {n_label} per model):
 the NormEnsembleXAI-ensembled attribution against the best and the mean
 individual method.}}
 \begin{{tabularx}}{{\linewidth}}{{llccc}}
