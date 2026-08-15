@@ -217,7 +217,11 @@ failures and missing-value handling}. The Model Parameter Randomisation Test
 pilot it yielded large numbers of \texttt{NaN} values---most acutely for
 SqueezeNet and for Grad-CAM on the randomised ResNet---and on ISIC~2017 its
 implementation ultimately failed on every (model, image) sample, so it was
-disabled outright for the full run (Section~\ref{sec:metrics}). When a metric
+disabled outright for the full run (Section~\ref{sec:metrics}). The decision
+has since been vindicated by the metric's own authors, who document
+methodological flaws in the original MPRT and propose repaired variants
+\citep{hedstrom2024sanity}; a future run should adopt Smooth- or
+Efficient-MPRT rather than the original test. When a metric
 is computable on only a biased
 subsample of images, any correlation or reliability estimate derived from it is
 suspect: an apparent architectural difference in, say, the
@@ -291,6 +295,12 @@ and Adversarial Reactivity \citep{hedstrom2024metaquantus} are plausible
 necessary conditions for a trustworthy metric, but they are not sufficient: a
 metric can be stable under noise and reactive to explanation degradation while
 still failing to track any human-meaningful sense of explanation quality.
+Independent meta-evaluations sharpen the point: using transparent models with
+ground-truth explanations, \citet{miro2024stability} find that Max- and
+Avg-Sensitivity fail to flag randomly generated explanations---a more
+critical verdict on the same Robustness metrics than the NR/AR tests reach
+here, and a reminder that a metric's measured reliability depends on which
+meta-evaluation lens is applied.
 Because the entire study is functionally grounded---no clinician judgements
 enter the loop---there is an irreducible gap between ``passes the
 meta-evaluation stress tests'' and ``measures what a domain expert would call a

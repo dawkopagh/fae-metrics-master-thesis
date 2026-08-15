@@ -210,12 +210,15 @@ faithfulness metrics are redundant with their gradient-based counterparts.
 The thesis recommends the weighted arithmetic mean but reports the minimum and
 geometric-mean operators as alternatives encoding worst-dimension and
 catastrophic-failure-averse stances respectively. A focused study could compare
-these operators under the Autoweighted weighting (and the MQ-discount, should
-it prove to matter on other data), particularly for
+these operators under the Autoweighted weighting (and the MQ-discount, which
+materially reorders the ResNet-18 ranking here), particularly for
 safety-critical interpretations where the minimum operator's
 ``acceptable-on-every-axis'' semantics are most defensible, and could explore
 learned or preference-elicited weightings as a successor to the data-adaptive
-Autoweighted scheme.
+Autoweighted scheme. On the attribution-ensembling side, replacing the fixed
+Mean combinator with an \emph{optimized} convex combination of attributions
+\citep{decker2024provably} is the natural next step, given that the plain
+ensemble never beat the best individual method in this study.
 
 \paragraph{Regulatory alignment and auditability.}
 Finally, the reproducible, meta-validated pipeline is well positioned to serve
@@ -225,5 +228,9 @@ explicitly to the transparency and documentation requirements of the EU AI Act,
 formalising the pipeline's configuration record as an auditable evaluation
 artefact and assessing what additional evidence---human-grounded validation in
 particular---a regulator would require before a functionally grounded
-effectiveness index could support a compliance claim. This would extend the
+effectiveness index could support a compliance claim. Systematic reviews of
+the law-to-XAI translation gap confirm that the Act mandates transparency
+without prescribing operational metrics \citep{fresz2026gap}---precisely the
+gap that a meta-validated effectiveness index is positioned to fill. This
+would extend the
 contribution from a research methodology toward a candidate evaluation standard.

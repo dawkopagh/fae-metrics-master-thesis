@@ -248,7 +248,11 @@ from computation as implementation-driven decisions and recorded as NaN
     2017. Under Quantus~0.6.0 its implementation raises an
     \texttt{AssertionError} on every (model, image) sample in this dataset and
     additionally emits a per-call deprecation notice, so it contributes only
-    NaN while flooding the log and wasting compute. The Randomization category
+    NaN while flooding the log and wasting compute. The exclusion is
+    consistent with the literature: the metric's own authors have since
+    documented methodological flaws in the original MPRT formulation and
+    proposed repaired variants (Smooth-MPRT and Efficient-MPRT)
+    \citep{hedstrom2024sanity}. The Randomization category
     remains represented by RandomLogit, which exercises the same sanity-check
     principle (an explanation should change when the target logit is replaced),
     so the category is not lost.
