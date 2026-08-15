@@ -385,10 +385,10 @@ _QUANTUS_CATEGORIES = {
 }
 
 # Metrics whose AR is inapplicable (they internally re-compute attributions).
-# resnet18: all 4 have nr_score=1.0 → NR-only.
-# squeezenet: MPR nr_score aggregates to NaN → category fallback instead.
+# MPRT was disabled for the full ISIC run, so it has no reliability rows at
+# all in the full-run CSV (pilot-era expectation included it for resnet18).
 _NR_ONLY_RESNET18 = frozenset(
-    {"avg_sensitivity", "max_sensitivity", "model_parameter_randomisation", "random_logit"}
+    {"avg_sensitivity", "max_sensitivity", "random_logit"}
 )
 _NR_ONLY_ALL_MODELS = frozenset({"avg_sensitivity", "max_sensitivity", "random_logit"})
 

@@ -32,7 +32,12 @@ import pandas as pd
 METRIC_DIRECTIONS: dict[str, int] = {
     # Faithfulness
     "faithfulness_correlation": +1,  # higher = better
-    "pixel_flipping": +1,  # AUC, higher = better
+    # Quantus PixelFlipping (return_auc_per_sample=True) returns the AUC of
+    # the prediction curve on progressively perturbed inputs (MoRF order):
+    # a faithful attribution makes the prediction collapse early, so LOWER
+    # AUC = better. Matches quantus ScoreDirection.LOWER. Was erroneously +1
+    # until 2026-08-15, which inverted this metric inside every aggregate.
+    "pixel_flipping": -1,  # AUC of degradation curve, lower = better
     # Robustness
     "max_sensitivity": -1,  # lower = better
     "avg_sensitivity": -1,  # lower = better
@@ -46,7 +51,10 @@ METRIC_DIRECTIONS: dict[str, int] = {
     "model_parameter_randomisation": -1,  # lower = better
     "random_logit": -1,  # lower = better
     # Axiomatic
-    "completeness": -1,  # lower = better (deviation from axiom)
+    # Quantus Completeness returns a boolean (1.0 = axiom satisfied), so
+    # higher = better (quantus ScoreDirection.HIGHER). Direction is moot in
+    # practice: the score is constant per method and pre-screened out of M*.
+    "completeness": +1,  # bool axiom-satisfied, higher = better
     "non_sensitivity": -1,  # lower = better
 }
 

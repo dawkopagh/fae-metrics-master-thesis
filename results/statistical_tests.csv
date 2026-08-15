@@ -1,7 +1,9 @@
-model,scheme,friedman_chi2,p_value,significant,critical_difference,n_blocks,n_methods
-resnet18,uniform,593.6128571428562,5.564791743000314e-125,True,0.36780492111987845,600,7
-resnet18,autoweighted,437.41071428571377,2.512641477931471e-91,True,0.36780492111987845,600,7
-resnet18,mqdiscount,591.2342857142849,1.8133161777549811e-124,True,0.36780492111987845,600,7
-squeezenet,uniform,1786.4892857142859,0.0,True,0.36780492111987845,600,7
-squeezenet,autoweighted,1551.8342857142852,0.0,True,0.36780492111987845,600,7
-squeezenet,mqdiscount,1546.5128571428577,0.0,True,0.36780492111987845,600,7
+test,model,scheme,comparison,statistic,p_value,n,effect_size,significant_0.05,extra
+friedman,resnet18,uniform,fae_methods,830.2357142857145,4.5082762753678396e-176,600,,True,k=7;dropped=0
+friedman,resnet18,autoweighted,fae_methods,759.6492857142857,8.029279982358833e-161,600,,True,k=7;dropped=0
+friedman,resnet18,mqdiscount,fae_methods,878.5142857142855,1.6574169927227314e-186,600,,True,k=7;dropped=0
+friedman,resnet18,single_fc,fae_methods,397.55785714285776,9.364583095976457e-83,600,,True,k=7;dropped=0
+friedman,squeezenet,uniform,fae_methods,1571.3449999999993,0.0,600,,True,k=7;dropped=0
+friedman,squeezenet,autoweighted,fae_methods,1430.301428571429,6.652283764541758e-306,600,,True,k=7;dropped=0
+friedman,squeezenet,mqdiscount,fae_methods,1412.192857142858,5.548116095275135e-302,600,,True,k=7;dropped=0
+friedman,squeezenet,single_fc,fae_methods,1640.328571428572,0.0,600,,True,k=7;dropped=0

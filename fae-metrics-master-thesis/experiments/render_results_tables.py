@@ -381,14 +381,17 @@ Model & Ensembled $E$ & Best individual $E$ & Mean individual $E$ & $\Delta$ (en
 # ---------------------------------------------------------------------------
 
 def _friedman_fragment(stats: pd.DataFrame | None) -> str:
-    # statistical_tests.csv schema: model,scheme,friedman_chi2,p_value,
-    # significant,critical_difference,n_blocks,n_methods. One row per
-    # (model, scheme) present in the CSV.
+    # statistical_tests.csv long schema (run_statistical_analysis.py):
+    # test,model,scheme,comparison,statistic,p_value,n,effect_size,
+    # significant_0.05,extra. One table row per (model, scheme) with a
+    # friedman test row present in the CSV.
     _SCHEME_LABELS = {
         "uniform": "Uniform",
         "autoweighted": "Autoweighted",
         "mqdiscount": "MQ-discount",
     }
+    if stats is not None and not stats.empty and "test" in stats.columns:
+        stats = stats[stats["test"] == "friedman"]
 
     def _rows(model: str, model_label: str) -> list[str]:
         out: list[str] = []
@@ -398,9 +401,9 @@ def _friedman_fragment(stats: pd.DataFrame | None) -> str:
                 m = stats[(stats["model"] == model)
                           & (stats["scheme"] == scheme)]
                 if not m.empty:
-                    chi = float(m.iloc[0]["friedman_chi2"])
+                    chi = float(m.iloc[0]["statistic"])
                     p = float(m.iloc[0]["p_value"])
-                    sig = bool(m.iloc[0]["significant"])
+                    sig = bool(m.iloc[0]["significant_0.05"])
                 else:
                     continue  # scheme absent from this run's CSV
             sig_str = (_PENDING if sig is None else ("Yes" if sig else "No"))

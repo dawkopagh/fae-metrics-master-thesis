@@ -3,12 +3,12 @@ Unified interface over the quantus library for metric computation.
 
 Responsibilities (see docs/thesis_plan.md §6, Metric Computation):
     - Compute 12 evaluation metrics across 6 Quantus categories:
-        Faithfulness:    FaithfulnessCorrelation (+1), PixelFlipping (+1)
+        Faithfulness:    FaithfulnessCorrelation (+1), PixelFlipping (-1)
         Robustness:      MaxSensitivity (-1), AvgSensitivity (-1)
         Localization:    RelevanceMassAccuracy (+1), PointingGame (+1)
         Complexity:      Sparseness (+1), Complexity (-1)
         Randomization:   ModelParameterRandomisation (-1), RandomLogit (-1)
-        Axiomatic:       Completeness (-1), NonSensitivity (-1)
+        Axiomatic:       Completeness (+1, bool), NonSensitivity (-1)
     - Return per-image metric scores as a dict[str, float]
     - Catch per-metric exceptions and return NaN with a logged warning
     - Skip Completeness for FAE methods that do not satisfy the axiom
@@ -155,7 +155,8 @@ def compute_all_metrics(
     finally:
         timings["faithfulness_correlation"] = time.perf_counter() - t0
 
-    # --- PixelFlipping (direction: +1, AUC — higher means more faithful) ---
+    # --- PixelFlipping (direction: -1, AUC of MoRF degradation curve —
+    # lower means more faithful; see METRIC_DIRECTIONS) ---
     t0 = time.perf_counter()
     try:
         pf = quantus.PixelFlipping(
@@ -668,7 +669,7 @@ def compute_all_metrics_batched(
         )
     _run("faithfulness_correlation", _fc)
 
-    # --- PixelFlipping (direction: +1, AUC) [DETERMINISTIC] ---
+    # --- PixelFlipping (direction: -1, AUC) [DETERMINISTIC] ---
     def _pf():
         pf = quantus.PixelFlipping(
             features_in_step=224,

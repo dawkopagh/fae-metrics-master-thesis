@@ -26,6 +26,12 @@ import pandas as pd
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from src.aggregation.normalize import METRIC_DIRECTIONS  # noqa: E402
+
 RES = "results"
 FIG = "Latex/figures"
 LOGS = "fae-metrics-master-thesis/results"
@@ -123,12 +129,19 @@ def make_ensemble_radar() -> None:
         ind_mean = per_method.mean(axis=1)                       # mean individual method
         ens_mean = em.groupby("metric")["score"].mean()          # ensemble
         # Normalise each metric against the full range (all individual methods +
-        # ensemble) so the two curves sit at meaningful fractional radii.
+        # ensemble) so the two curves sit at meaningful fractional radii, and
+        # rectify by metric direction so a LARGER radius is always BETTER
+        # (lower-is-better axes are flipped: radius = (hi - x) / range).
         lo = pd.concat([per_method.min(axis=1), ens_mean], axis=1).min(axis=1)
         hi = pd.concat([per_method.max(axis=1), ens_mean], axis=1).max(axis=1)
         rng = (hi - lo).replace(0, 1)
-        iv = [(ind_mean[m] - lo[m]) / rng[m] for m in COMMON]
-        ev = [(ens_mean[m] - lo[m]) / rng[m] for m in COMMON]
+
+        def _radius(x, m):
+            frac = (x - lo[m]) / rng[m]
+            return frac if METRIC_DIRECTIONS[m] > 0 else 1.0 - frac
+
+        iv = [_radius(ind_mean[m], m) for m in COMMON]
+        ev = [_radius(ens_mean[m], m) for m in COMMON]
         iv += iv[:1]
         ev += ev[:1]
         ax.plot(ang, iv, "-o", label="Mean individual", color="steelblue", ms=3)
