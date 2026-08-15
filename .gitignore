@@ -1,0 +1,11 @@
+# LaTeX build artifacts
+Latex/*.aux
+Latex/*.bbl
+Latex/*.blg
+Latex/*.lof
+Latex/*.log
+Latex/*.lot
+Latex/*.out
+Latex/*.run.xml
+Latex/*.toc
+Latex/*-blx.bib.bak

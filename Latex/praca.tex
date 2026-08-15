@@ -16,11 +16,7 @@
 \usepackage{amsfonts}
 \usepackage{amsmath}
 \usepackage{amsthm}
-\usepackage{siunitx}
 \usepackage{amssymb}
-\usepackage{nomencl}
-\usepackage[inkscapeformat=png]{svg}
-\AtBeginDocument{\RenewCommandCopy\qty\SI}
 \captionsetup{justification=centering}
 \usepackage{float} % for [H] option
 \usepackage{tikz}
@@ -32,6 +28,8 @@
 \usepackage[
 style=numeric,
 sorting=none,
+% Zgodność z poleceniami natbib (\citet, \citep) używanymi w rozdziałach.
+natbib=true,
 %
 % Zastosuj styl wpisu bibliograficznego właściwy językowi publikacji.
 language=autobib,
@@ -147,7 +145,7 @@ backend=bibtex
 \faculty{Wydział Informatyki}
 %\faculty{Faculty of Electrical Engineering, Automatics, Computer Science and Biomedical Engineering}
 
-\acknowledgements}
+\acknowledgements{}
 
 
 \setlength{\cftsecnumwidth}{10mm}
@@ -218,6 +216,9 @@ NormEnsembleXAI, ISIC~2017, skin lesion classification.
 \clearpage
 \thispagestyle{empty}
 \listoffigures
+\newpage
+\thispagestyle{empty}
+\listoftables
 \newpage
 
 \include{chapter1_introduction}
