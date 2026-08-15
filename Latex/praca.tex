@@ -3,7 +3,8 @@
 
 % Lista wszystkich języków stanowiących języki pozycji bibliograficznych użytych w pracy.
 % (Zgodnie z zasadami tworzenia bibliografii każda pozycja powinna zostać utworzona zgodnie z zasadami języka, w którym dana publikacja została napisana.)
-\usepackage[english]{babel}
+% polish potrzebny dla Streszczenia; english (ostatni) pozostaje językiem głównym.
+\usepackage[polish,english]{babel}
 
 % Użyj polskiego łamania wyrazów (zamiast domyślnego angielskiego).
 % \usepackage{polski}
@@ -16,6 +17,10 @@
 \usepackage{amsfonts}
 \usepackage{amsmath}
 \usepackage{amsthm}
+% babel-polish defines \lll (pomocnicze ł); amssymb potrzebuje tej nazwy dla
+% relacji "very much less than". Przy UTF-8 + T1 znak ł składany jest
+% bezpośrednio, więc pomocnicze makro babela można bezpiecznie usunąć.
+\let\lll\undefined
 \usepackage{amssymb}
 \captionsetup{justification=centering}
 \usepackage{float} % for [H] option
@@ -128,7 +133,7 @@ backend=bibtex
 \shorttitlePL{FAE, effectiveness criteria and metrics for multi-objective models} % skrócona wersja tytułu jeśli jest bardzo długi
 \shorttitleEN{FAE, effectiveness criteria and metrics for multi-objective models}
 
-\thesistype{Projekt dyplomowy}
+\thesistype{Praca dyplomowa magisterska}
 
 
 \supervisor{dr Małgorzata Zajęcka-Bebel }
@@ -217,6 +222,69 @@ under multiple, potentially conflicting effectiveness criteria.
 \noindent\textbf{Keywords:} Explainable AI, feature attribution, evaluation
 metrics, meta-evaluation, multi-criteria aggregation, Quantus, MetaQuantus,
 NormEnsembleXAI, ISIC~2017, skin lesion classification.
+\newpage
+
+\begin{otherlanguage}{polish}
+\chapter*{Streszczenie}
+
+Metody wyjaśniania oparte na atrybucji cech (ang.\ \emph{Feature Attribution
+Explanations}, FAE) są coraz częściej wykorzystywane, aby uczynić decyzje
+głębokich sieci neuronowych zrozumiałymi, jednak ich ocena pozostaje
+rozproszona: istnieją dziesiątki metryk jakości, metryki te często wzajemnie
+się nie zgadzają i rzadko wiadomo, którym z nich należy ufać. Niniejsza praca
+traktuje jako przedmiot wkładu sam \emph{potok ewaluacyjny}, a nie kolejną
+metodę wyjaśniania, i rozwija wielokryterialny framework oceny metod FAE
+wzdłuż sześciu wymiarów jakości---wierności (\emph{Faithfulness}), odporności
+(\emph{Robustness}), lokalizacji (\emph{Localization}), złożoności
+(\emph{Complexity}), randomizacji (\emph{Randomization}) i poprawności
+aksjomatycznej---zaczerpniętych z taksonomii Quantus.
+
+Praca wnosi cztery wkłady. Po pierwsze, przedstawia empiryczną analizę
+nieredundancji dostępnych metryk, wykorzystując przycinanie oparte na
+korelacji do wyznaczenia zwartego, nieredundantnego podzbioru
+reprezentatywnego. Po drugie, proponuje wielokryterialny framework agregacji,
+który integruje meta-walidację w stylu MetaQuantus (odporność na szum oraz
+reaktywność adwersarialną) ze schematem ważenia Autoweighted inspirowanym
+NormEnsembleXAI, oraz wprowadza nowy operator ważenia z dyskontem
+MetaQuantus, osłabiający wpływ niewiarygodnych metryk. Po trzecie,
+charakteryzuje empirycznie, kiedy rankingi zagregowane rozchodzą się z
+rankingami opartymi na pojedynczej metryce, i porównuje pojedyncze metody FAE
+z atrybucjami zespolonymi metodą NormEnsembleXAI. Po czwarte, waliduje
+framework na dermoskopowym zbiorze danych ISIC~2017, którego eksperckie maski
+zmian skórnych umożliwiają stosowanie metryk lokalizacji, wykorzystując testy
+Friedmana, Nemenyiego i Wilcoxona do ustalenia istotności statystycznej.
+
+Empirycznie, dla dwóch klasyfikatorów (ResNet-18 i SqueezeNet~1.1), siedmiu
+metod atrybucji oraz 600-obrazowego zbioru testowego ISIC~2017 framework
+przynosi cztery ustalenia. Przycinanie redundancji redukuje dwanaście metryk
+kandydujących do \emph{tego samego} siedmioelementowego, nieredundantnego
+podzbioru na obu architekturach, co wskazuje, że struktura redundancji jest
+własnością baterii metryk, a nie klasyfikatora. Meta-ewaluacja wskazuje
+Max-Sensitivity, Sparseness i Pixel-Flipping jako metryki najbardziej
+wiarygodne, a Faithfulness Correlation i Relevance Mass Accuracy jako
+najmniej wiarygodne; oparte na tych wynikach ważenie z dyskontem
+wiarygodności przetasowuje ranking na jednej architekturze, a na drugiej
+niemal go nie zmienia. Zagregowane rankingi okazują się wrażliwe na schemat
+ważenia w sposób zależny od modelu: na ResNet-18 środek stawki istotnie się
+przestawia między ważeniem jednostajnym a ważeniem uwzględniającym
+wiarygodność (współczynnik Spearmana $\rho = 0{,}75$), podczas gdy Occlusion
+pozostaje na pierwszym miejscu, a ranking dla SqueezeNet jest niemal
+stabilny; ranking oparty na pojedynczej metryce koreluje z indeksem
+wielokryterialnym jedynie umiarkowanie---co konkretnie pokazuje, że wnioski
+wyciągane z pojedynczej metryki są zawodne. Wreszcie, atrybucje zespolone
+metodą NormEnsembleXAI przewyższają przeciętną metodę indywidualną wyłącznie
+na SqueezeNet i nigdy nie pokonują najlepszej metody indywidualnej; wszystkie
+raportowane różnice są istotne statystycznie (testy Friedmana i Wilcoxona,
+$p < 10^{-3}$). Łącznie elementy te dostarczają odtwarzalnej,
+meta-walidowanej procedury porównywania metod wyjaśniania w warunkach wielu,
+potencjalnie sprzecznych kryteriów skuteczności.
+
+\vspace{1em}
+\noindent\textbf{Słowa kluczowe:} wyjaśnialna sztuczna inteligencja,
+atrybucja cech, metryki ewaluacji, meta-ewaluacja, agregacja
+wielokryterialna, Quantus, MetaQuantus, NormEnsembleXAI, ISIC~2017,
+klasyfikacja zmian skórnych.
+\end{otherlanguage}
 \newpage
 % Ponowne zdefiniowanie stylu `plain`, aby usunąć numer strony z pierwszej strony spisu treści i poszczególnych rozdziałów.
 \fancypagestyle{plain}
