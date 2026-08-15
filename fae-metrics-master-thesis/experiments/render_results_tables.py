@@ -311,6 +311,7 @@ def _rank_stability_fragment(ranking: pd.DataFrame | None) -> str:
 \caption{{Induced FAE-method ranks under each weighting scheme, and
 rank-stability summary (Spearman rank correlation between per-method mean-$E$
 rankings; rank inversions summed over both models).}}
+\small
 \begin{{tabularx}}{{\linewidth}}{{lcccc}}
 \toprule
 Comparison & Uniform vs.\ AW & Uniform vs.\ MQ & AW vs.\ MQ & Single-FC vs.\ MQ \\

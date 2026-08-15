@@ -190,11 +190,24 @@ the framework on the ISIC~2017 dermoscopic dataset, whose expert-annotated
 lesion masks enable Localization metrics, using Friedman, Nemenyi, and Wilcoxon
 tests to establish statistical significance.
 
-The thesis presents the framework, its software implementation, and an
-experimental protocol over two classifiers (ResNet-18 and SqueezeNet~1.1) and
-seven attribution methods. Together these elements provide a reproducible,
-meta-validated procedure for comparing explanation methods under multiple,
-potentially conflicting effectiveness criteria.
+Empirically, over two classifiers (ResNet-18 and SqueezeNet~1.1), seven
+attribution methods, and the 600-image ISIC~2017 test split, the framework
+yields four findings. Redundancy pruning reduces the twelve candidate metrics
+to the \emph{same} seven-metric non-redundant subset on both architectures,
+indicating that the redundancy structure is a property of the metric battery
+rather than of the classifier. The meta-evaluation identifies Sparseness,
+Pixel-Flipping, and Pointing~Game as the most reliable metrics and
+Faithfulness Correlation among the least. The aggregated rankings prove
+weighting-dependent: on ResNet-18 the top-ranked method changes with the
+weighting scheme (Grad-CAM under uniform weights, Saliency under
+Autoweighted), while the SqueezeNet ranking is stable---a concrete
+demonstration that single-metric or single-scheme conclusions are unsafe.
+Finally, NormEnsembleXAI-ensembled attributions outperform the average
+individual method only on SqueezeNet and never beat the best individual
+method; all reported differences are statistically significant (Friedman and
+Wilcoxon tests, $p < 10^{-3}$). Together these elements provide a
+reproducible, meta-validated procedure for comparing explanation methods
+under multiple, potentially conflicting effectiveness criteria.
 
 \vspace{1em}
 \noindent\textbf{Keywords:} Explainable AI, feature attribution, evaluation
