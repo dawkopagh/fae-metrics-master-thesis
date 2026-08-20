@@ -106,6 +106,8 @@ where $x^{(k)}$ is the image with the top $k$ most important features replaced. 
 
 This formulation generalizes Deletion and Insertion curves \cite{petsiuk2018rise}: Deletion corresponds to removal in descending attribution order, while Insertion reverses the process by adding features to a blank canvas.
 
+A structural caveat applies to this whole family of perturbation-based metrics: replacing pixels with a baseline produces inputs that lie off the training distribution, so part of the measured prediction drop may reflect the model's reaction to out-of-distribution inputs rather than the quality of the attribution. Recent work addresses this confound explicitly---the F-Fidelity framework removes it via fine-tuning and random masking, recovering ground-truth explainer rankings that the naive protocol distorts \citep{zheng2025ffidelity}.
+
 \subsubsection{Faithfulness Correlation}
 Faithfulness Correlation, as implemented in Quantus, measures the Pearson correlation between attribution magnitude and the change in model output when features are masked in random subsets \cite{hedstrom2023quantus}. Given \texttt{nr\_runs} randomly sampled subsets $S_1, \dots, S_R$ of features:
 \begin{equation}
@@ -195,7 +197,7 @@ where $\mathcal{N}$ is a normalization function and $\mathcal{A}$ is an aggregat
 
 Hryniewska-Guzik et al. identify that the primary challenge in XAI ensembling is the heterogeneous scale of attributions (e.g., SHAP values are additive log-odds, while Grad-CAM is feature activation) \cite{hryniewska2024normensemblexai}. They propose \textbf{NormEnsembleXAI}, which utilizes robust normalization techniques such as Second Moment Scaling to align these diverse explanations before aggregation via Mean, Max, or Minimum functions. Subsequent work strengthens the ensembling premise: \citet{decker2024provably} show that an \emph{optimized} convex combination of attribution methods provably improves explanation quality over any single constituent, replacing NormEnsembleXAI's fixed combinators with learned weights. This thesis builds upon the NormEnsembleXAI framework to evaluate whether ensembling can simultaneously optimize the conflicting objectives of Faithfulness and Robustness.
 
-It is important to distinguish two levels of aggregation that appear in this thesis. \emph{Attribution ensembling}, as performed by NormEnsembleXAI, combines multiple attribution maps $\Phi_1(x), \dots, \Phi_n(x)$ into a single consolidated explanation $E_{\text{ensemble}}$. \emph{Metric aggregation}, which constitutes this thesis's novel contribution, operates at a different level: it combines multiple evaluation metric scores into a single effectiveness index $E(\Phi)$ that characterizes how well a given FAE method performs across all quality dimensions. Chapter~\ref{ch:methodology} develops the metric-aggregation layer on top of the NormEnsembleXAI normalization framework, treating both individual and ensembled attributions as inputs to the same multi-criteria evaluation pipeline.
+It is important to distinguish two levels of aggregation that appear in this thesis. \emph{Attribution ensembling}, as performed by NormEnsembleXAI, combines multiple attribution maps $\Phi_1(x), \dots, \Phi_n(x)$ into a single consolidated explanation $E_{\text{ensemble}}$ (a third, orthogonal axis---aggregating explanations across \emph{models} rather than across methods---has also been explored \citep{vascotto2025multimodel}). \emph{Metric aggregation}, which constitutes this thesis's novel contribution, operates at a different level: it combines multiple evaluation metric scores into a single effectiveness index $E(\Phi)$ that characterizes how well a given FAE method performs across all quality dimensions. Chapter~\ref{ch:methodology} develops the metric-aggregation layer on top of the NormEnsembleXAI normalization framework, treating both individual and ensembled attributions as inputs to the same multi-criteria evaluation pipeline.
 
 \section{Multi-Metric Aggregation and Evaluation Pipelines}
 \label{sec:multi-metric-aggregation}
@@ -237,7 +239,10 @@ This finding has since been replicated across modalities:
 \citet{bommer2024finding} observed metric-dependent rankings of XAI methods in
 a climate-science benchmark, and \citet{klein2024navigating} demonstrated
 systematic rank reversals between faithfulness operationalizations on a
-large-scale computer vision benchmark. \citet{pawlicki2024necessity} argue that
+large-scale computer vision benchmark. At the level of individual metrics,
+\citet{barr2023disagreement} document an analogous disagreement problem among
+faithfulness metrics themselves---the metric-level counterpart of the
+explainer-level disagreement of \citet{krishna2024disagreement}. \citet{pawlicki2024necessity} argue that
 this proliferation is counterproductive: many widely-used metrics either
 duplicate information already captured by simpler alternatives or are
 ineffective by their own operational definition, and recommend a deliberate
@@ -250,7 +255,10 @@ metrics as independent voters (e.g., averaging ranks across all available
 faithfulness metrics) are biased toward whichever operational family is most
 heavily represented in the chosen library. A principled evaluation must
 therefore begin with a redundancy analysis and proceed with a reduced,
-justified subset.
+justified subset. Meta-reviews of the metric landscape reach the same
+conclusion from the reporting side: \citet{gipiskis2026cards} find that
+correlations between related metrics are rarely reported at all, and propose
+evaluation cards that make them a required reporting field.
 
 \subsection{Meta-Evaluation: Validating the Validators}
 \label{subsec:meta-evaluation}
@@ -282,7 +290,11 @@ signal, regardless of its theoretical motivation. The concern is not merely
 theoretical: evaluating metrics against transparent models whose ground-truth
 explanations are known, \citet{miro2025fidelity} conclude that current
 fidelity metrics are not yet reliable enough for real-world scenarios, which
-underscores the need to validate a metric before trusting its verdict. This
+underscores the need to validate a metric before trusting its verdict, and
+\citet{fresz2024classification} likewise treat the reliability of the
+evaluation metrics themselves---their objectivity and consistency in the
+psychometric sense---as a first-class requirement for trustworthy XAI
+evaluation. This
 meta-evaluation layer
 is essential for the framework proposed in this thesis, as it provides a
 principled criterion for the \emph{weighting} of metrics in the aggregation

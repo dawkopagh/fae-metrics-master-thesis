@@ -313,7 +313,12 @@ because it aligns heterogeneous attribution scales without the outlier
 sensitivity of min--max scaling, but the choice is a modelling assumption about
 what makes two metric scores ``comparable.'' The ranking could in principle
 shift under $z$-score or min--max normalisation; any conclusion that is not
-stable across normalisers must be stated as normaliser-conditional. This caveat
+stable across normalisers must be stated as normaliser-conditional.
+Conversely, the per-(model, metric) grouping used here has independent
+support: \citet{edin2025naopc} show that raw faithfulness scores are not
+comparable across models at all unless normalised per model, which is exactly
+the grouping this thesis applies before any cross-model statement is made.
+This caveat
 is sharpened by the nature of the effectiveness index itself.
 
 The third construct risk is that \textbf{the effectiveness index is a relative,
