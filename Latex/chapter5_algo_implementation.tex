@@ -59,7 +59,8 @@ run returns.
     Yes---moderately, and model-dependently, once the meta-validation is
     complete. With all seven $M^{*}$ metrics carrying a measured combined
     reliability, the MQ-discounted ordering departs from Autoweighted on
-    ResNet-18 ($\rho = 0.79$: LRP rises from fourth to second and Grad-CAM
+    ResNet-18 ($\rho = 0.79$: LRP rises from fourth into the top three
+    (second at the point estimate) and Grad-CAM
     falls to fifth) while SqueezeNet moves by a single adjacent swap
     ($\rho = 0.96$); the mean effectiveness shift is $|\Delta|\approx0.07$.
     Mechanically, the discount redistributes weight toward the
@@ -340,6 +341,22 @@ enter the loop---there is an irreducible gap between ``passes the
 meta-evaluation stress tests'' and ``measures what a domain expert would call a
 good explanation.'' The framework narrows this gap but cannot close it without
 the human-grounded validation that is explicitly out of scope.
+
+A related construct risk is that \textbf{metric implementations can emit
+out-of-range or heavy-tailed raw scores}. Relevance Mass Accuracy is
+nominally a mass fraction in $[0, 1]$, yet with signed attributions
+(\texttt{abs=False}) its denominator---the total signed relevance---can
+approach zero, and $26\%$ of the valid full-run RMA values exceed $1$
+(maximum ${\approx}2 \times 10^{3}$, concentrated in Integrated Gradients,
+DeepLift, Guided Backpropagation, and LRP). Max-Sensitivity similarly
+explodes where the re-attributed explanations are unstable (for LRP on
+ResNet-18 the median is ${\approx}52$ and the maximum ${\approx}1.9 \times
+10^{5}$). Second Moment Scaling dampens but does not remove such heavy
+tails---an outlier-inflated RMS deflates every other score in its
+group---and this mechanism is precisely what produced the per-source
+ensemble artefact of Section~\ref{sec:exp-ensemble}. Robust or winsorized
+scaling, and an absolute-value RMA variant, are natural hardening steps for
+future work.
 
 The second construct risk concerns \textbf{normalisation}. Second Moment
 Scaling was adopted from NormEnsembleXAI \citep{hryniewska2024normensemblexai}

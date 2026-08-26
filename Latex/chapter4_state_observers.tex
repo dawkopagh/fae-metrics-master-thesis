@@ -278,7 +278,12 @@ the seven FAE cells removed from the reliability average) preserves the
 headline reordering in all seven replicates: LRP remains second and the
 top-2 order is unchanged, so the MQ-discount finding of
 Section~\ref{sec:exp-ranking} is not an artefact of any single reliability
-cell.
+cell. A harsher perturbation---shifting the two extension-measured AR
+values by $\pm 0.2$, twice the estimator's granularity---preserves the
+reordering but can move LRP between second and third place; the robust
+statement is therefore that the discount lifts LRP from fourth into the
+top three while Occlusion stays first, with the exact position contingent
+on the coarse AR estimate.
 
 \paragraph{Extending AR to explanation-recomputing metrics.}
 The MetaQuantus AR protocol degrades the explanation by zeroing a growing
@@ -413,6 +418,16 @@ nominally significant). That apparent win does not survive placing both
 populations on a common scale, and is therefore reported as an artefact of
 the normalization choice rather than as a finding---a concrete instance of
 the normaliser-conditionality caveat of Chapter~\ref{ch:discussion}. The
+mechanism is traceable: the individual methods' raw
+relevance-mass-accuracy scores are heavy-tailed (Section
+\ref{sec:disc-threats} of Chapter~\ref{ch:discussion} quantifies the
+out-of-range values), so their per-source RMS is inflated and their
+normalized RMA crushed relative to the well-behaved ensemble scores. Under
+a winsorized pooled scale---a third normalizer that trims the tails---the
+SqueezeNet comparison turns significantly \emph{against} the ensemble, so
+the ``beats none of the baselines'' verdict holds under all three
+normalizers while the direction of the mean-comparison on SqueezeNet is
+normalizer-dependent. The
 practical reading is that NormEnsembleXAI's Mean ensemble is not an
 improvement on this task under any reported baseline, and never a
 substitute for identifying the per-model best method.
