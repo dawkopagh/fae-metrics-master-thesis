@@ -197,7 +197,8 @@ tests to establish statistical significance.
 
 Empirically, over two classifiers (ResNet-18 and SqueezeNet~1.1), seven
 attribution methods, and the 600-image ISIC~2017 test split, the framework
-yields four findings. Redundancy pruning reduces the twelve candidate metrics
+yields four findings. A structural pre-screen and correlation-based
+redundancy pruning together reduce the twelve-metric battery
 to the \emph{same} seven-metric non-redundant subset on both architectures,
 indicating that the redundancy structure is a property of the metric battery
 rather than of the classifier. The meta-evaluation identifies
@@ -206,14 +207,18 @@ and Faithfulness Correlation and Relevance Mass Accuracy as the least; the
 reliability-discounted weighting built on these scores reorders the ranking
 on one architecture and barely moves it on the other. The aggregated rankings prove
 weighting-sensitive in a model-dependent way: on ResNet-18 the mid-field
-reorders substantially between uniform and reliability-aware weighting
+reorders substantially between uniform and the dispersion-based Autoweighted
+weighting
 (Spearman $\rho = 0.75$) while Occlusion stays first, whereas the SqueezeNet
 ranking is nearly stable; a single-metric ranking correlates only moderately
 with the multi-criteria index---a concrete demonstration that single-metric
 conclusions are unsafe.
-Finally, NormEnsembleXAI-ensembled attributions outperform the average
-individual method only on SqueezeNet and never beat the best individual
-method; all reported differences are statistically significant (Friedman and
+Finally, once ensembled and individual scores are normalised on a common
+scale, NormEnsembleXAI-ensembled attributions beat none of the individual
+baselines: they are significantly worse than the average individual method
+on ResNet-18, statistically indistinguishable from it on SqueezeNet, and
+decisively below the best individual method on both models; the ranking
+differences are statistically significant throughout (Friedman and
 Wilcoxon tests, $p < 10^{-3}$). Together these elements provide a
 reproducible, meta-validated procedure for comparing explanation methods
 under multiple, potentially conflicting effectiveness criteria.
@@ -256,8 +261,9 @@ Friedmana, Nemenyiego i Wilcoxona do ustalenia istotności statystycznej.
 
 Empirycznie, dla dwóch klasyfikatorów (ResNet-18 i SqueezeNet~1.1), siedmiu
 metod atrybucji oraz 600-obrazowego zbioru testowego ISIC~2017 framework
-przynosi cztery ustalenia. Przycinanie redundancji redukuje dwanaście metryk
-kandydujących do \emph{tego samego} siedmioelementowego, nieredundantnego
+przynosi cztery ustalenia. Wstępna selekcja strukturalna wraz z przycinaniem
+redundancji opartym na korelacji redukują dwunastometrykową baterię
+do \emph{tego samego} siedmioelementowego, nieredundantnego
 podzbioru na obu architekturach, co wskazuje, że struktura redundancji jest
 własnością baterii metryk, a nie klasyfikatora. Meta-ewaluacja wskazuje
 Max-Sensitivity, Sparseness i Pixel-Flipping jako metryki najbardziej
@@ -266,15 +272,18 @@ najmniej wiarygodne; oparte na tych wynikach ważenie z dyskontem
 wiarygodności przetasowuje ranking na jednej architekturze, a na drugiej
 niemal go nie zmienia. Zagregowane rankingi okazują się wrażliwe na schemat
 ważenia w sposób zależny od modelu: na ResNet-18 środek stawki istotnie się
-przestawia między ważeniem jednostajnym a ważeniem uwzględniającym
-wiarygodność (współczynnik Spearmana $\rho = 0{,}75$), podczas gdy Occlusion
+przestawia między ważeniem jednostajnym a opartym na rozrzucie ważeniem
+Autoweighted (współczynnik Spearmana $\rho = 0{,}75$), podczas gdy Occlusion
 pozostaje na pierwszym miejscu, a ranking dla SqueezeNet jest niemal
 stabilny; ranking oparty na pojedynczej metryce koreluje z indeksem
 wielokryterialnym jedynie umiarkowanie---co konkretnie pokazuje, że wnioski
-wyciągane z pojedynczej metryki są zawodne. Wreszcie, atrybucje zespolone
-metodą NormEnsembleXAI przewyższają przeciętną metodę indywidualną wyłącznie
-na SqueezeNet i nigdy nie pokonują najlepszej metody indywidualnej; wszystkie
-raportowane różnice są istotne statystycznie (testy Friedmana i Wilcoxona,
+wyciągane z pojedynczej metryki są zawodne. Wreszcie, po znormalizowaniu
+wyników zespołu i metod indywidualnych na wspólnej skali atrybucje zespolone
+metodą NormEnsembleXAI nie pokonują żadnego z raportowanych punktów
+odniesienia: są istotnie gorsze od przeciętnej metody indywidualnej na
+ResNet-18, statystycznie nieodróżnialne od niej na SqueezeNet i wyraźnie
+gorsze od najlepszej metody indywidualnej na obu modelach; różnice rankingowe
+pozostają istotne statystycznie (testy Friedmana i Wilcoxona,
 $p < 10^{-3}$). Łącznie elementy te dostarczają odtwarzalnej,
 meta-walidowanej procedury porównywania metod wyjaśniania w warunkach wielu,
 potencjalnie sprzecznych kryteriów skuteczności.

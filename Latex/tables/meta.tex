@@ -2,22 +2,29 @@
 % Regenerate after each run; \input this file from chapter4_state_observers.tex.
 \begin{table}[H]
 \centering
-\caption{Metric reliability from MetaQuantus (NR, AR, combined), averaged over
-(model, FAE) cells. AR for \emph{max\_sensitivity} and
-\emph{random\_logit} is measured under the extended protocol of
-Section~\ref{sec:exp-meta} (degradation injected into the explanation
-function, which those metrics re-invoke internally).}
-\begin{tabularx}{\linewidth}{lcccc}
+\caption{Metric reliability (NR, AR, combined $r_k$) estimated with this
+thesis's MetaQuantus-inspired protocol, averaged over the 14 (model, FAE)
+cells; SD is the between-cell standard deviation of $r_k$. NR and AR were
+computed on a fixed 64-image sample of the test split (5 noise seeds, 5
+degradation levels); the extended-AR completion for \emph{max\_sensitivity}
+and \emph{random\_logit} (degradation injected into the explanation
+function, which those metrics re-invoke internally;
+Section~\ref{sec:exp-meta}) used a 12-image sample. Values are reported to
+two decimals to reflect the estimator's granularity. Runtime is the
+meta-evaluation cost per (model, FAE) cell at these sample sizes, not the
+full-run evaluation cost.}
+\small
+\begin{tabularx}{\linewidth}{lccccc}
 \toprule
-Metric & NR & AR & Combined $r_k$ & Mean runtime (s) \\
+Metric & NR & AR & Combined $r_k$ & SD($r_k$) & Runtime (s) \\
 \midrule
-faithfulness\_correlation & 0.564 & 0.600 & 0.582 & 151.5 \\
-max\_sensitivity & 1.000 & 0.943 & 0.971 & 128.2 \\
-pixel\_flipping & 0.995 & 0.771 & 0.883 & 186.7 \\
-pointing\_game & 0.962 & 0.659 & 0.811 & 40.7 \\
-random\_logit & 1.000 & 0.450 & 0.725 & 127.2 \\
-relevance\_mass\_accuracy & 0.589 & 0.514 & 0.552 & 40.5 \\
-sparseness & 0.994 & 0.943 & 0.969 & 40.4 \\
+faithfulness\_correlation & 0.56 & 0.60 & 0.58 & 0.28 & 151.5 \\
+max\_sensitivity & 1.00 & 0.94 & 0.97 & 0.09 & 128.2 \\
+pixel\_flipping & 0.99 & 0.77 & 0.88 & 0.15 & 186.7 \\
+pointing\_game & 0.96 & 0.66 & 0.81 & 0.15 & 40.7 \\
+random\_logit & 1.00 & 0.45 & 0.72 & 0.15 & 127.2 \\
+relevance\_mass\_accuracy & 0.59 & 0.51 & 0.55 & 0.22 & 40.5 \\
+sparseness & 0.99 & 0.94 & 0.97 & 0.09 & 40.4 \\
 \bottomrule
 \end{tabularx}
 \label{tab:meta}

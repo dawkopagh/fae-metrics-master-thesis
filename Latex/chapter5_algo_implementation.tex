@@ -63,24 +63,32 @@ run returns.
     falls to fifth) while SqueezeNet moves by a single adjacent swap
     ($\rho = 0.96$); the mean effectiveness shift is $|\Delta|\approx0.07$.
     Mechanically, the discount redistributes weight toward the
-    high-reliability metrics (max-sensitivity $0.971$, sparseness $0.969$,
-    pixel-flipping $0.883$) and away from the low-reliability ones
-    (random-logit $0.725$, faithfulness-correlation $0.582$, relevance-mass
-    accuracy $0.552$). The discount is therefore a consequential modelling
+    high-reliability metrics (max-sensitivity $r_k \approx 0.97$, sparseness
+    $0.97$, pixel-flipping $0.88$) and away from the low-reliability ones
+    (random-logit $0.72$, faithfulness-correlation $0.58$, relevance-mass
+    accuracy $0.55$). The discount is therefore a consequential modelling
     choice on one architecture and nearly inert on the other---the same
     conditional pattern as the uniform-vs-Autoweighted comparison
     (Section~\ref{sec:disc-redundancy}).
     \item \textbf{Per-category trade-offs.} The ensembling comparison
-    (Section~\ref{sec:exp-ensemble}) shows that NormEnsembleXAI does not buy a
-    uniform improvement: on both models the ensemble trades gains on some metric
-    categories for losses on others rather than dominating, and the scalar index
-    can hide this. The effect is model-dependent (below), which is exactly why
-    the per-category profiles are reported alongside the scalar.
+    (Section~\ref{sec:exp-ensemble}) shows that NormEnsembleXAI does not buy
+    any improvement on this task: on both models the ensemble trades gains on
+    some metric
+    categories for losses on others rather than dominating, and once ensemble
+    and individual scores are placed on a common scale its scalar
+    effectiveness beats none of the reported baselines---significantly worse
+    than the mean individual method on ResNet-18, indistinguishable from it
+    on SqueezeNet, and decisively below the best fixed method on both. A
+    nominal SqueezeNet advantage under the earlier per-source normalization
+    proved to be an artefact of that normalization choice, which is exactly
+    why the per-category profiles and the normalization protocol are reported
+    alongside the scalar.
     \item \textbf{Cross-model consistency.} The two architectures agree on the
     one result that matters most for Contribution~1---the reduced metric set
     $M^{*}$ is \emph{identical} across ResNet-18 and SqueezeNet---but disagree on
     almost everything downstream: the ranking divergence is large on ResNet-18
-    and negligible on SqueezeNet, and the ensemble loses on ResNet-18 but wins
+    and negligible on SqueezeNet, and the ensemble is significantly worse than
+    the average method on ResNet-18 yet indistinguishable from it
     on SqueezeNet. Persistent agreement on $M^{*}$ strengthens the claim that the
     redundancy structure is a metric-battery property; persistent disagreement
     elsewhere is itself the finding, and a caution against treating any single
@@ -272,14 +280,40 @@ degradation is injected into the explanation function itself
 (Section~\ref{sec:exp-meta}). With the extension, all seven $M^{*}$ metrics
 carry a measured combined reliability ($126$ of $168$ reliability rows are
 valid; the invalid remainder belongs entirely to the three structurally
-excluded metrics). The residual threat is that the extension is this thesis's
+excluded metrics). Three caveats accumulate here. First, the extension is
+this thesis's
 own construction rather than part of the published MetaQuantus suite: the
 degraded-explainer AR measures reaction to a \emph{stochastically corrupted
 explanation process}, which is analogous to, but not identical with, the
-original array-degradation test. The reliability scores of those two
-metrics---and therefore the ResNet-18 reordering the MQ-discount
-produces---inherit that caveat, and validating the extension against a
-reference implementation is listed as future work.
+original array-degradation test---and for the sensitivity metrics, whose very
+definition compares repeated explainer invocations, the independently drawn
+degradation masks mechanically induce part of the measured reactivity, so
+max-sensitivity's top reliability rank should be read with particular
+caution. Second, the reliability estimates rest on small samples (64 images;
+12 for the extension, drawn by a different rule than the 64) with a
+coarse-grained AR estimator, as disclosed in
+Section~\ref{sec:exp-meta}; the leave-one-cell-out jackknife reported there
+shows the ResNet-18 reordering is at least not an artefact of any single
+cell. Third, the direction-agnostic $|\rho_S|$ awarded credit to four of the
+42 audited cells that reacted in the unexpected direction. The reliability
+scores---and therefore the ResNet-18 reordering the MQ-discount
+produces---inherit these caveats, and validating the extension (shared
+degradation masks per level, a direction-rectified AR, larger samples)
+is listed as future work.
+
+A fifth internal threat is \textbf{post-selection inference}. The same 600
+test images supply the correlation matrix that selects $M^{*}$, the
+normalisation statistics, the Autoweighted weights, and the per-image
+effectiveness values on which the Friedman and Wilcoxon tests are run. The
+significance tests therefore certify differences in a statistic whose
+configuration was itself tuned on the tested data, and their nominal
+$p$-values should be read in that light. Two mitigations apply: the
+selection and weighting steps do not optimise for any particular method
+ordering (they see only metric-level statistics, never the method
+labels being ranked), and the observed $p$-values ($<10^{-10}$) leave a wide
+margin. A held-out-split protocol---selecting $M^{*}$ and the weights on one
+half of the test set and testing on the other---is the clean remedy and is
+listed as future work.
 
 \subsection{Construct Validity}
 
@@ -313,7 +347,12 @@ because it aligns heterogeneous attribution scales without the outlier
 sensitivity of min--max scaling, but the choice is a modelling assumption about
 what makes two metric scores ``comparable.'' The ranking could in principle
 shift under $z$-score or min--max normalisation; any conclusion that is not
-stable across normalisers must be stated as normaliser-conditional.
+stable across normalisers must be stated as normaliser-conditional. This is
+not a hypothetical caveat: the individual-vs-ensemble verdict on SqueezeNet
+changes from a nominally significant ensemble win to statistical
+indistinguishability when the per-source scaling is replaced by a pooled
+scale (Section~\ref{sec:exp-ensemble})---the clearest demonstration in this
+thesis that a normalisation choice can manufacture or dissolve a finding.
 Conversely, the per-(model, metric) grouping used here has independent
 support: \citet{edin2025naopc} show that raw faithfulness scores are not
 comparable across models at all unless normalised per model, which is exactly
@@ -359,8 +398,9 @@ models is the thesis's strongest transfer claim. But the same two-model design
 sharply limits the reach of the \emph{divergence} findings. The headline result
 that aggregation can reorder the FAE ranking rests substantially on a single
 model---ResNet-18, where the uniform/Autoweighted correlation is $\rho = 0.75$,
-against $\rho = 0.96$ on SqueezeNet---and the ensemble's behaviour likewise
-inverts between the two (it loses to the mean on ResNet-18, wins on SqueezeNet).
+against $\rho = 0.96$ on SqueezeNet---and the ensemble's standing likewise
+differs between the two (significantly below the mean on ResNet-18,
+indistinguishable from it on SqueezeNet).
 A finding that is large on one of two architectures and negligible on the other
 cannot be generalised; it is a demonstration that the phenomenon \emph{can}
 occur, not a measurement of how often it does. A wider panel of architectures is

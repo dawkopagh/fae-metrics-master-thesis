@@ -279,13 +279,17 @@ FaithfulnessCorrelation and PixelFlipping both quantify how well the
 attribution map identifies features that the model relies on for its
 prediction. FaithfulnessCorrelation uses random subset masking with 100
 runs to estimate the Pearson correlation between attribution magnitude and
-output change. PixelFlipping removes features in descending order of
-attributed importance and aggregates the output degradation as an AUC
-score. Both metrics are higher-is-better \cite{hedstrom2023quantus}.
+output change; higher is better. PixelFlipping removes features in
+descending order of attributed importance and reports the area under the
+degradation curve of model outputs; a faithful attribution collapses the
+prediction early, so \emph{lower} is better
+\cite{hedstrom2023quantus}.
 
 \paragraph{Robustness.}
 MaxSensitivity and AvgSensitivity evaluate explanation stability under
-small Gaussian perturbations of the input. Both use 10 perturbation samples
+small uniform-noise perturbations of the input (the Quantus implementation
+draws uniform noise with magnitude bounded by \texttt{lower\_bound}). Both
+use 10 perturbation samples
 with a perturbation magnitude lower bound of 0.2. MaxSensitivity reports
 the worst-case sensitivity, while AvgSensitivity reports the average.
 Lower is better for both \cite{hedstrom2023quantus}.
@@ -319,6 +323,36 @@ from aggregation rather than imputed. NonSensitivity measures attribution
 mass on provably non-contributory features. Due to its $O(d)$ forward-pass
 cost, the input is downsampled to $56 \times 56$, and the metric is
 excluded from all runs by default \cite{hedstrom2023quantus}.
+
+\subsection{Metric Redundancy Pruning}
+\label{subsec:redundancy-pruning}
+
+The reduced metric set $M^{*}$ (Contribution~1) is derived per model in
+three steps.
+
+\emph{Variance pre-screen.} Within each model group, a metric is removed
+before correlation analysis if its non-NaN fraction falls below $0.20$ or
+the standard deviation of its scores falls below $10^{-6}$ (a constant
+metric carries no ranking signal; a mostly-NaN metric yields unstable
+correlation estimates).
+
+\emph{Correlation matrix.} For the surviving metrics, the Spearman
+rank-correlation matrix is computed on the wide table whose observations
+are (image, FAE-method) pairs --- i.e.\ correlations are pooled across
+attribution methods as well as images, so ``redundant'' means that two
+metrics order the full population of explanations alike, not merely that
+they agree for one method. Spearman is used rather than Pearson because
+the raw metric scales are heterogeneous and partly unbounded.
+
+\emph{Greedy pruning (Decision~D4).} While any pair of surviving metrics
+has $|\rho| > 0.85$, the member of the pair with the \emph{higher} mean
+absolute correlation to the rest of the surviving set is dropped (the
+retained member is the one carrying more independent signal); the
+procedure iterates until no pair exceeds the threshold. The threshold
+$0.85$ follows the convention of treating $|\rho|$ above ${\sim}0.85$ as
+operational collinearity; Chapter~\ref{ch:discussion} discusses its
+sensitivity. The procedure is run per model, and the reported $M^{*}$ is
+the cross-model intersection.
 
 %% ========================================================================
 \section{Score Normalization}
@@ -425,9 +459,27 @@ where $\varepsilon = 10^{-8}$ provides numerical stability and all statistics
 are NaN-aware. A metric with a low coefficient of variation (stable across
 images relative to its mean) receives a high weight; a noisy metric receives a
 small one. Metrics whose scores are all-NaN in a group receive $a_k = 0$, and
-the remaining weights renormalise so that $\sum_k w_k^{\mathrm{AW}} = 1$. The
+the remaining weights renormalise so that $\sum_k w_k^{\mathrm{AW}} = 1$.
+The statistics are pooled across all FAE methods and test images within a
+model group. The
 coefficient of variation is scale-invariant, so Autoweighted yields the same
-result whether computed on raw or Second-Moment-scaled scores.
+result whether computed on raw or Second-Moment-scaled scores (this
+invariance does not extend to the $z$-score alternative, whose centring
+removes the mean the CV depends on).
+
+Two structural caveats of inverse-CV weighting are acknowledged as
+modelling assumptions rather than hidden. First, the CV is
+\emph{location-sensitive}: for a metric whose scores straddle zero ---
+FaithfulnessCorrelation, with range $[-1, 1]$, is the case in point ---
+$|\mathrm{mean}(M_k)|$ can be small for reasons unrelated to noise, which
+inflates the CV and suppresses the weight as an artefact of where the
+scale's zero sits. Second, consistency is not discriminative power: a
+degenerate metric returning a near-constant score would receive maximal
+weight while carrying no ranking signal (the variance pre-screen of
+Section~\ref{subsec:redundancy-pruning} removes the limiting case, but the
+gradient of the pathology remains). Both caveats motivate testing, rather
+than assuming, whether the reliability discount of the next subsection
+changes the induced ranking.
 
 \subsection{MetaQuantus-discounted Weighting (Contribution~2)}
 \label{subsec:mq-discount}
@@ -448,10 +500,29 @@ Each metric is assigned a reliability coefficient $\lambda_k \in [0, 1]$
 obtained from the meta-evaluation stage
 (Section~\ref{subsec:meta-evaluation} of Chapter~\ref{ch:sota}). MetaQuantus
 produces two scores per metric: a Noise Resilience score $\mathrm{NR}_k$ and
-an Adversarial Reactivity score $\mathrm{AR}_k$. Their combination is the
-per-metric \texttt{combined\_reliability} reported in
-\texttt{results/meta\_evaluation\_reliability.csv}, averaged over the
-(model, FAE) cells in which the metric is defined.
+an Adversarial Reactivity score $\mathrm{AR}_k$. These are this thesis's
+MetaQuantus-\emph{inspired} estimators of the two reliability properties,
+not the published IAC/IEC consistency estimators:
+$\mathrm{NR}_k = 1/(1 + \mathrm{CV})$, where CV is the coefficient of
+variation of the metric's score across five noise seeds, and
+$\mathrm{AR}_k = |\rho_S|$, the absolute Spearman correlation between five
+explanation-degradation levels and the mean metric score at each level.
+Both are computed on a fixed, seed-determined 64-image random sample of the
+test split per
+(model, FAE) cell; the extended-AR completion for the two
+explanation-recomputing metrics used a fixed 12-image split-order sample,
+distinct from the 64-image draw, so the combined $\lambda_k$ for those two
+metrics mixes the two samples. The combined
+reliability is their equal-weight mean,
+\begin{equation}
+    \lambda_k \;=\; \tfrac{1}{2}\bigl(\mathrm{NR}_k + \mathrm{AR}_k\bigr),
+\end{equation}
+reported per (model, FAE, metric) in
+\texttt{results/meta\_evaluation\_reliability.csv} and averaged over the
+(model, FAE) cells in which the metric is defined. Because $|\rho_S|$ over
+five levels has a granularity of ${\sim}0.1$ and is direction-agnostic,
+reliability values are reported to two decimals and the direction of each
+cell's reactivity is audited in Chapter~\ref{ch:experiments}.
 
 The AR test requires one protocol extension. MetaQuantus degrades the
 explanation by zeroing a growing fraction of the attribution array, but the
@@ -467,8 +538,10 @@ capped at $f = 0.9$ because a fully zeroed attribution is rejected by the
 metric implementations. With this extension, every computable metric carries
 a measured combined reliability.
 
-Where \texttt{combined\_reliability} is nonetheless undefined (the
-structurally excluded metrics), $\lambda_k$ is resolved by an
+Where \texttt{combined\_reliability} is undefined for a metric that
+nonetheless enters an aggregation --- a configuration safeguard: in the
+reported run every $M^{*}$ metric carries a measured reliability, so the
+hierarchy is not exercised --- $\lambda_k$ is resolved by an
 explicit fallback hierarchy: (i)~the Noise-Resilience-only score, where NR
 alone is available;
 (ii)~the mean reliability of the other valid metrics in the same
@@ -612,8 +685,8 @@ and~\ref{ch:discussion} are collected here:
     weighting scheme under test (Section~\ref{subsec:mq-discount}).
     \item[D4] Greedy redundancy pruning at $|\rho| > 0.85$ over the pooled
     (cross-category) correlation matrix, with variance pre-screening
-    (Section~\ref{sec:metrics}); a strictly within-category policy is the
-    considered alternative.
+    (Section~\ref{subsec:redundancy-pruning}); a strictly within-category
+    policy is the considered alternative.
     \item[D5] Friedman $+$ Nemenyi for the omnibus method comparison and
     Wilcoxon signed-rank for the paired individual-vs-ensemble comparison
     (Section~\ref{sec:pipeline}).

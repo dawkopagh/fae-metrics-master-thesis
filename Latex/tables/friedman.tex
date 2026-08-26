@@ -3,17 +3,20 @@
 \begin{table}[H]
 \centering
 \caption{Friedman omnibus test over the seven FAE methods, per model and
-weighting scheme (blocks are the 600 test images).}
-\begin{tabularx}{\linewidth}{llccc}
+weighting scheme (blocks are the 600 test images). $W$ is Kendall's
+coefficient of concordance, $\chi^2 / (N(k-1))$, the standardized effect
+size.}
+\small
+\begin{tabularx}{\linewidth}{llcccc}
 \toprule
-Model & Weighting & Friedman $\chi^2$ & $p$-value & Significant ($\alpha=0.05$) \\
+Model & Weighting & Friedman $\chi^2$ & $p$-value & Kendall's $W$ & Sig.\ ($\alpha{=}0.05$) \\
 \midrule
-ResNet-18  & Uniform & 830.24 & $<10^{-3}$ & Yes \\
-ResNet-18  & Autoweighted & 759.65 & $<10^{-3}$ & Yes \\
-ResNet-18  & MQ-discount & 469.20 & $<10^{-3}$ & Yes \\
-SqueezeNet  & Uniform & 1571.34 & $<10^{-3}$ & Yes \\
-SqueezeNet  & Autoweighted & 1430.30 & $<10^{-3}$ & Yes \\
-SqueezeNet  & MQ-discount & 1217.74 & $<10^{-3}$ & Yes \\
+ResNet-18  & Uniform & 830.24 & $<10^{-3}$ & 0.23 & Yes \\
+ResNet-18  & Autoweighted & 759.65 & $<10^{-3}$ & 0.21 & Yes \\
+ResNet-18  & MQ-discount & 469.20 & $<10^{-3}$ & 0.13 & Yes \\
+SqueezeNet  & Uniform & 1571.34 & $<10^{-3}$ & 0.44 & Yes \\
+SqueezeNet  & Autoweighted & 1430.30 & $<10^{-3}$ & 0.40 & Yes \\
+SqueezeNet  & MQ-discount & 1217.74 & $<10^{-3}$ & 0.34 & Yes \\
 \bottomrule
 \end{tabularx}
 \label{tab:friedman}

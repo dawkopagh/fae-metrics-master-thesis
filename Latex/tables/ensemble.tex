@@ -3,15 +3,22 @@
 \begin{table}[H]
 \centering
 \caption{Effectiveness index $E(\Phi)$ of the NormEnsembleXAI-ensembled
-attribution against the best and mean individual method, per model (mean over
-$n=600$ test images per model; ensemble of the six gradient-based methods,
-occlusion excluded; all seven $M^{*}$ metrics).}
-\begin{tabularx}{\linewidth}{lcccc}
+attribution against four individual-method baselines, per model (mean over
+$n=600$ test images per model; uniform weights over the seven $M^{*}$
+metrics; POOLED Second-Moment normalization, i.e.\ ensemble and individual
+scores share one RMS per (model, metric), so level differences are visible).
+The ensemble aggregates the six gradient-based methods; ``oracle'' is the
+per-image best over all seven methods (it may switch methods per image and
+includes Occlusion, which is not an ensemble member); ``best fixed'' is the
+single strongest method per model, and ``best gradient'' the strongest
+actual ensemble member.}
+\small
+\begin{tabularx}{\linewidth}{lccccc}
 \toprule
-Model & Ensembled $E$ & Best individual $E$ & Mean individual $E$ & $\Delta$ (ens.\ $-$ best) \\
+Model & Ensembled & Mean ind. & Best fixed & Best gradient & Oracle \\
 \midrule
-ResNet-18  & -0.012 & 0.292 & 0.019 & -0.305 \\
-SqueezeNet  & 0.075 & 0.209 & -0.069 & -0.135 \\
+ResNet-18  & -0.012 & 0.022 & 0.169 (occlusion) & 0.137 (gradcam) & 0.299 \\
+SqueezeNet  & -0.066 & -0.067 & 0.146 (gradcam) & 0.146 (gradcam) & 0.213 \\
 \bottomrule
 \end{tabularx}
 \label{tab:ensemble}

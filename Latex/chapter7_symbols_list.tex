@@ -72,7 +72,6 @@ framework (Chapters~\ref{ch:sota} and~\ref{ch:methodology}).
     \item[$\mathcal{A}$] Aggregation (combinator) operator over normalized scores
     \item[$w_k$] Weight assigned to metric $k$ in the aggregation, $w_k \geq 0$, $\sum_k w_k = 1$
     \item[$\mathbf{w}$] Weight vector $\mathbf{w} = (w_1, \dots, w_K)$
-    \item[$\mathrm{ES}_k$] Ensemble (agreement) score of metric $k$ (Autoweighted derivation)
     \item[$\mathrm{cv}_k$] Coefficient of variation of metric $k$'s raw scores across the test set
     \item[$a_k$] Autoweighted agreement weight of metric $k$, $a_k = 1/(\mathrm{cv}_k + \varepsilon)$
     \item[$w_k^{\mathrm{AW}}$] Normalized Autoweighted coefficient of metric $k$
@@ -84,7 +83,7 @@ framework (Chapters~\ref{ch:sota} and~\ref{ch:methodology}).
     \item[$r(\cdot,\cdot)$] Pearson correlation coefficient
     \item[$\mu_k, \sigma_k$] Group mean and standard deviation of metric $k$ ($z$-score normalization)
     \item[$\varepsilon$] Small positive constant (geometric-mean stabiliser / perturbation bound)
-    \item[$\delta_j$] Random input perturbation drawn from $\mathcal{N}(0, \sigma^2 I)$ in robustness metrics
+    \item[$\delta_j$] Random input perturbation (uniform noise of bounded magnitude) in robustness metrics
     \item[$\alpha_k^c$] Grad-CAM neuron-importance weight for feature map $k$ and class $c$
     \item[{$\mathbb{E}[\cdot]$}] Expectation operator
     \item[$\mathbb{R}$] Set of real numbers

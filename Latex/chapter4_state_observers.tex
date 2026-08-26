@@ -17,8 +17,12 @@ Nemenyi, and Wilcoxon testing (Contribution~4).
 All quantitative tables in this chapter are generated directly from the
 result artifacts under \texttt{results/} by
 \texttt{experiments/render\_results\_tables.py} and \texttt{\textbackslash
-input}-ed here, so the numbers below are the full-run values over the 600
-ISIC~2017 test images. Two limitations are stated up front and revisited at the
+input}-ed here. The scores, rankings, ensemble comparison, and statistical
+tests are computed over the full 600-image ISIC~2017 test split; the
+meta-evaluation (Section~\ref{sec:exp-meta}) is the deliberate exception,
+running on a fixed 64-image sample (12 images for the extended-AR
+completion), as disclosed where its numbers are used. Two further
+limitations are stated up front and revisited at the
 point of use: (i)~scoring the Adversarial Reactivity of the two $M^{*}$
 metrics that internally re-compute attributions (\emph{max\_sensitivity},
 \emph{random\_logit}) required an extension of the AR protocol---the
@@ -44,12 +48,13 @@ All experiments use the ISIC~2017 Challenge dataset (Task~1) described in
 Section~\ref{sec:dataset}: 2{,}000 training, 150 validation, and 600 test
 dermoscopic images across three diagnostic classes (melanoma, nevus,
 seborrheic keratosis), each paired with an expert-annotated binary lesion
-mask. The redundancy, meta-evaluation, aggregation, and statistical analyses
-are all computed on the full 600-image test split. A fixed, reproducible
+mask. The redundancy, aggregation, and statistical analyses are computed on
+the full 600-image test split; the meta-evaluation runs on a fixed 64-image
+sample (Section~\ref{sec:exp-meta}). A fixed, reproducible
 12-image pilot subset of the test split was used to validate the pipeline
 plumbing prior to the full run; Table~\ref{tab:exp-scale} contrasts the two
-scales, and the axiom-verification check (Table~\ref{tab:axiom}) is the only
-result below still reported at pilot scale.
+scales, and the axiom-verification check (Table~\ref{tab:axiom}) is also
+reported at that pilot scale.
 
 \subsection{Models}
 
@@ -134,7 +139,9 @@ the reduced, non-redundant subset $M^{*}$ that feeds the aggregation stage.
 Two metrics are removed before correlation analysis on structural grounds:
 \emph{Completeness} (constant at $0.0$ for the methods that satisfy the axiom,
 hence zero-variance and uninformative for ranking) and \emph{Non-Sensitivity}
-(disabled by default due to $O(d)$ forward-pass cost). The remaining ten
+(disabled by default due to $O(d)$ forward-pass cost); \emph{MPRT} was
+disabled for the full run outright (Section~\ref{sec:metrics}). The
+remaining nine
 metrics enter the matrix. The exclusion of Completeness is justified by the
 axiom-verification result (Table~\ref{tab:axiom}) rather than by correlation.
 
@@ -142,7 +149,7 @@ axiom-verification result (Table~\ref{tab:axiom}) rather than by correlation.
 Tables~\ref{tab:redundancy-resnet} and~\ref{tab:redundancy-squeeze} hold the
 within-category redundancy summaries for ResNet-18 and SqueezeNet, derived from
 \texttt{results/redundancy\_matrix\_resnet18.csv} and
-\texttt{results/redundancy\_matrix\_squeezenet.csv}. The full $10 \times 10$
+\texttt{results/redundancy\_matrix\_squeezenet.csv}. The full $9 \times 9$
 Spearman matrices are reproduced in those CSVs; only the summary and the pruned
 pairs are shown here for legibility.
 
@@ -166,7 +173,11 @@ the two models and comprises the same seven metrics:
 (Tables~\ref{tab:redundancy-resnet}--\ref{tab:redundancy-squeeze}). That the
 two architectures yield the same $M^{*}$ is the principal evidence for
 Contribution~1: the redundancy structure of these metrics is a property of the
-metric battery rather than of the classifier. Table~\ref{tab:mstar} records
+metric battery rather than of the classifier. The pruning also costs no
+discriminative signal in practice: the per-method mean-effectiveness ranking
+computed over the full nine-metric battery and over $M^{*}$ (uniform
+weights) are identical on both models (Spearman $\rho = 1.00$).
+Table~\ref{tab:mstar} records
 the set carried forward into aggregation.
 
 \begin{table}[H]
@@ -208,37 +219,66 @@ ResNet-18 / SqueezeNet & LRP                  & 0.000 & Yes \\
 
 The redundancy analysis identifies which metrics overlap; meta-evaluation
 identifies which metrics can be \emph{trusted}. Each metric in $M^{*}$ is
-subjected to the two MetaQuantus stress tests of
-Section~\ref{subsec:meta-evaluation}: Noise Resilience (NR), measuring score
+subjected to this thesis's estimators of the two MetaQuantus reliability
+properties (Section~\ref{subsec:mq-discount}): Noise Resilience (NR),
+measuring score
 stability under semantically meaningless input/weight perturbation, and
-Adversarial Reactivity (AR), measuring whether the score drops monotonically as
+Adversarial Reactivity (AR), measuring whether the score reacts
+systematically as
 the explanation is deliberately degraded. The combined reliability
 $r_k = \tfrac{1}{2}(\mathrm{NR}_k + \mathrm{AR}_k)$ is the discount coefficient
 used in Equation~\eqref{eq:mq-discount}.
 
+Unlike every other analysis in this chapter, the meta-evaluation runs on a
+fixed, seed-determined \textbf{64-image random sample} of the test split per
+(model, FAE) cell (5 noise seeds, 5 degradation levels); the extended-AR
+completion for \emph{max\_sensitivity} and \emph{random\_logit} used a
+fixed \textbf{12-image split-order sample} distinct from the 64-image draw,
+so those two metrics' combined reliability mixes the two samples. The reliability estimates are correspondingly
+coarse, and are treated as such: values are reported to two decimals, the
+between-cell dispersion is reported alongside each mean, and the
+robustness of the downstream MQ-discount finding to these estimates is
+checked below.
+
 Table~\ref{tab:meta} reports NR, AR, and combined reliability per metric,
 averaged over the (model, FAE) cells in which each metric is defined, read from
-\texttt{results/meta\_evaluation\_reliability.csv}. The accompanying runtime
-column documents the cost of each metric and motivates the exclusion of the
-most expensive metrics from default runs.
+\texttt{results/meta\_evaluation\_reliability.csv}. The runtime
+column documents the meta-evaluation cost per cell at these sample sizes
+(the full-run evaluation cost per metric is substantially larger and scales
+with the 600-image split).
 
 \input{tables/meta}
 
 The reliability table is read as follows: a metric with high NR but low AR is
 stable but insensitive (it does not react when the explanation degrades); a
 metric with low NR is noisy. Among the $M^{*}$ metrics, \emph{max\_sensitivity}
-($r_k = 0.971$), \emph{sparseness} ($0.969$), and \emph{pixel\_flipping}
-($0.883$) are the most reliable, combining high noise resilience with strong
-adversarial reactivity; \emph{pointing\_game} ($0.811$) and
-\emph{random\_logit} ($0.725$) follow. \emph{Faithfulness\_correlation}
-($0.582$) and
-\emph{relevance\_mass\_accuracy} ($0.552$) are the least reliable: both are
+($r_k \approx 0.97$), \emph{sparseness} ($0.97$), and \emph{pixel\_flipping}
+($0.88$) are the most reliable, combining high noise resilience with strong
+adversarial reactivity; \emph{pointing\_game} ($0.81$) and
+\emph{random\_logit} ($0.72$) follow. \emph{Faithfulness\_correlation}
+($0.58$) and
+\emph{relevance\_mass\_accuracy} ($0.55$) are the least reliable: both are
 noise-resilient only moderately (NR $\approx 0.56$--$0.59$) and react
 comparatively weakly to deliberate degradation (AR $\approx 0.51$--$0.60$).
-The runtime column also explains the default configuration:
-\emph{pixel\_flipping} ($186.7$\,s per (model, FAE) cell) and
-\emph{faithfulness\_correlation} ($151.5$\,s) dominate the cost, motivating
-their optional exclusion on tighter budgets.
+The dispersion column tempers these point estimates: the two least reliable
+metrics are also the least consistently estimated
+($\mathrm{SD}(r_k) = 0.28$ for faithfulness\_correlation, whose per-cell
+values span $0.05$--$0.98$), whereas the most reliable metrics are also the
+most stable across cells ($\mathrm{SD} \approx 0.09$).
+
+Two audits qualify the AR leg. First, because AR is the \emph{absolute}
+Spearman correlation, a metric reacting in the unexpected direction would
+still earn credit; auditing the signed monotonicity of the 42 extended-AR
+cells finds 4 such cells (three for random\_logit, one for
+max\_sensitivity, with $|\rho_S| \le 0.7$) --- their contribution is
+disclosed rather than re-scored, and a direction-rectified AR is noted as
+future work. Second, a leave-one-cell-out jackknife of the per-metric
+$\lambda_k$ (recomputing the MQ-discounted ResNet-18 ranking with each of
+the seven FAE cells removed from the reliability average) preserves the
+headline reordering in all seven replicates: LRP remains second and the
+top-2 order is unchanged, so the MQ-discount finding of
+Section~\ref{sec:exp-ranking} is not an artefact of any single reliability
+cell.
 
 \paragraph{Extending AR to explanation-recomputing metrics.}
 The MetaQuantus AR protocol degrades the explanation by zeroing a growing
@@ -334,25 +374,48 @@ achieves a higher---or at least more balanced---effectiveness index than its
 constituent individual methods, particularly on the Robustness axis where
 single methods are known to be unstable.
 
+\paragraph{Comparison protocol.} Each side's effectiveness is a uniform
+NaN-aware mean over the seven $M^{*}$ metrics, per (model, image), after
+Second-Moment scaling with a \emph{pooled} RMS per (model, metric)---the
+individual-method scores and the ensemble scores share one scale, so a level
+difference between the two populations is visible. (An earlier per-source
+variant, in which each population was scaled by its own RMS, is blind to
+uniform level differences because $\mathrm{mean}(x)/\mathrm{RMS}(x) =
+1/\sqrt{1 + \mathrm{CV}^2}$ for a positive-valued metric; it is retained
+only as a robustness variant below.) Four baselines are reported: the
+\emph{mean} individual method; the \emph{best fixed} method (the single
+strongest method per model); the best fixed \emph{gradient} member (the
+strongest method actually inside the ensemble); and a per-image
+\emph{oracle} that picks the best of all seven methods separately for every
+image---the strongest conceivable baseline, which may switch methods
+image-by-image and includes Occlusion, a non-member.
+
 \input{tables/ensemble}
 
-\paragraph{The ensemble never beats the best method, and beats the average only
-on SqueezeNet.} Over all seven $M^{*}$ metrics (Robustness included) and the
-full 600 images, Table~\ref{tab:ensemble} gives a \emph{model-dependent} result.
-The ensembled attribution clearly exceeds the \emph{mean} individual method on
-SqueezeNet ($E = 0.075$ vs.\ $-0.069$) but falls \emph{below} it on
-ResNet-18 ($-0.012$ vs.\ $0.019$): averaging attributions helps when the
-individual methods are weak and dispersed (SqueezeNet) but can dilute an
-already-strong gradient signal (ResNet-18), especially once the Robustness axis
-is counted---the averaged map is not necessarily more stable than its sharpest
-constituent. On \emph{neither} model does the ensemble beat the \emph{best}
-individual method ($\Delta = -0.305$ on ResNet-18, $-0.135$ on SqueezeNet): an
-oracle that already knew the strongest single method would win. The Wilcoxon
-tests of Section~\ref{sec:exp-stats} (Table~\ref{tab:wilcoxon}) confirm all four
-gaps are statistically significant ($p < 10^{-3}$ over the 600 paired images).
-The practical reading is that NormEnsembleXAI is a reasonable default on the
-weaker architecture but not a universal improvement, and never a substitute for
-identifying the per-model best method.
+\paragraph{The ensemble does not beat any baseline.} Over all seven $M^{*}$
+metrics (Robustness included) and the
+full 600 images, Table~\ref{tab:ensemble} is unambiguous.
+The ensembled attribution is significantly \emph{below} the mean individual
+method on ResNet-18 ($-0.012$ vs.\ $0.022$) and statistically
+indistinguishable from it on SqueezeNet ($-0.066$ vs.\ $-0.067$;
+$p = 0.74$, Table~\ref{tab:wilcoxon}); it is decisively below the best
+fixed method on both models ($0.169$ for Occlusion on ResNet-18, $0.146$
+for Grad-CAM on SqueezeNet), below the best gradient member it actually
+contains, and far below the per-image oracle ($0.299$ / $0.213$).
+Averaging attribution maps does not, on this data, buy effectiveness:
+whatever stability the mean map gains is offset by losses on other axes,
+and the averaged map is not more effective than its strongest constituent.
+
+\paragraph{Normalization-conditionality of the earlier verdict.} Under the
+per-source variant the SqueezeNet comparison \emph{appears} favourable to
+the ensemble ($0.075$ vs.\ $-0.069$ against the mean individual method,
+nominally significant). That apparent win does not survive placing both
+populations on a common scale, and is therefore reported as an artefact of
+the normalization choice rather than as a finding---a concrete instance of
+the normaliser-conditionality caveat of Chapter~\ref{ch:discussion}. The
+practical reading is that NormEnsembleXAI's Mean ensemble is not an
+improvement on this task under any reported baseline, and never a
+substitute for identifying the per-model best method.
 
 \paragraph{Caveat: ensemble scope.}
 The ensemble is formed over the six gradient-based methods only; Occlusion was
@@ -375,9 +438,10 @@ scalar index.
     against the mean individual attribution method (blue) over the seven
     $M^{*}$ metrics on the full 600 images, normalised per metric against the
     method range and rectified by metric direction, so a larger radius is
-    always better. The ensemble's profile exceeds the mean on SqueezeNet but
-    not on ResNet-18 (cf.\ Table~\ref{tab:ensemble}); on both it trades gains
-    on some metrics for losses on others rather than dominating uniformly.}
+    always better. On both models the ensemble trades gains on some metrics
+    for losses on others rather than dominating uniformly---which is why its
+    scalar effectiveness never exceeds the individual baselines of
+    Table~\ref{tab:ensemble}.}
     \label{fig:ensemble-radar}
 \end{figure}
 
@@ -407,7 +471,15 @@ decisively on both models (Table~\ref{tab:friedman}): ResNet-18 yields
 $\chi^2 = 759.6$ and SqueezeNet $\chi^2 = 1430.3$, both with $p < 10^{-3}$ over
 the 600 image blocks under the Autoweighted scheme (uniform:
 $\chi^2 = 830.2$ / $1571.3$; MQ-discount: $469.2$ / $1217.7$; likewise
-$p < 10^{-3}$). At least one FAE
+$p < 10^{-3}$). The standardized effect sizes put these in perspective:
+Kendall's $W$ indicates small-to-moderate concordance of the per-image
+rankings on ResNet-18 ($W = 0.13$--$0.23$ across schemes) and moderate
+concordance on SqueezeNet ($0.34$--$0.44$)---the method differences are
+unambiguous but far from deterministic at the level of individual images.
+Twelve omnibus and paired tests are run in this chapter; no formal
+multiplicity correction is applied, which is immaterial at the observed
+$p < 10^{-10}$ but is noted for completeness (the one non-significant
+result below is reported as such, not screened out). At least one FAE
 method therefore differs significantly in mean rank, so
 the Nemenyi post-hoc and CD diagram (Figure~\ref{fig:cd-diagram}) are
 warranted; the per-method mean ranks feeding that diagram are in
@@ -427,16 +499,20 @@ warranted; the per-method mean ranks feeding that diagram are in
 
 \input{tables/wilcoxon}
 
-The paired Wilcoxon tests (Table~\ref{tab:wilcoxon}, $n = 600$ per model)
+The paired Wilcoxon tests (Table~\ref{tab:wilcoxon}, $n = 600$ per model,
+pooled normalization)
 quantify the ensemble result of Section~\ref{sec:exp-ensemble}. Against the
-\emph{mean} individual method the outcome is model-dependent: the ensemble is
-significantly \emph{worse} on ResNet-18 ($W = 68517$, $p < 10^{-3}$) but
-significantly \emph{better} on SqueezeNet ($W = 6162$, $p < 10^{-3}$). Against
-the \emph{best} individual method the ensemble is significantly outperformed on
-both models (ResNet-18 $W = 3024$; SqueezeNet $W = 23436$; each $p < 10^{-3}$).
-All four comparisons are significant at $\alpha = 0.05$ over the 600 paired
-images, so the conclusion---ensembling never beats the oracle-best method, and
-beats the average only on the weaker architecture---is statistically robust
+\emph{mean} individual method the ensemble is
+significantly \emph{worse} on ResNet-18 ($W = 62587$, $p < 10^{-3}$,
+rank-biserial $r = -0.31$) and statistically indistinguishable on SqueezeNet
+($W = 88718$, $p = 0.74$, $r = 0.02$). Against
+the \emph{best fixed} method it is decisively outperformed on both models
+($r = -0.69$ and $-0.87$), and against the per-image oracle the losses are
+near-total ($r = -0.99$ and $-1.00$); all five of these comparisons are
+significant at $p < 10^{-3}$ over the 600 paired
+images. The conclusion---the Mean ensemble beats none of the reported
+baselines, and does not reliably beat even the average individual
+method---is therefore statistically robust
 rather than a sampling artefact.
 
 The broader interpretation of these tests is carried into the discussion of

@@ -164,7 +164,7 @@ def _meta_na(x, nd: int = 3) -> str:
 
 def _meta_fragment(rel: pd.DataFrame | None) -> str:
     rows_tex: list[str] = []
-    agg = None
+    agg = sd = None
     if rel is not None and not rel.empty:
         comp = rel[rel.get("status", "completed") == "completed"] \
             if "status" in rel.columns else rel
@@ -173,28 +173,40 @@ def _meta_fragment(rel: pd.DataFrame | None) -> str:
                                     "combined_reliability", "runtime_seconds"]]
             .mean()
         )
+        sd = comp.groupby("metric")["combined_reliability"].std()
     for metric in _M_STAR:
         if agg is not None and metric in agg.index:
             r = agg.loc[metric]
+            sd_val = sd.loc[metric] if sd is not None else float("nan")
             rows_tex.append(
-                f"{_esc(metric)} & {_meta_na(r['nr_score'])} & {_meta_na(r['ar_score'])} & "
-                f"{_meta_na(r['combined_reliability'])} & {_fmt(r['runtime_seconds'], 1)} \\\\"
+                f"{_esc(metric)} & {_meta_na(r['nr_score'], 2)} & "
+                f"{_meta_na(r['ar_score'], 2)} & "
+                f"{_meta_na(r['combined_reliability'], 2)} & "
+                f"{_meta_na(sd_val, 2)} & {_fmt(r['runtime_seconds'], 1)} \\\\"
             )
         else:
             rows_tex.append(
-                f"{_esc(metric)} & {_PENDING} & {_PENDING} & {_PENDING} & {_PENDING} \\\\"
+                f"{_esc(metric)} & {_PENDING} & {_PENDING} & {_PENDING} & "
+                f"{_PENDING} & {_PENDING} \\\\"
             )
     body = "\n".join(rows_tex)
     return rf"""\begin{{table}}[H]
 \centering
-\caption{{Metric reliability from MetaQuantus (NR, AR, combined), averaged over
-(model, FAE) cells. AR for \emph{{max\_sensitivity}} and
-\emph{{random\_logit}} is measured under the extended protocol of
-Section~\ref{{sec:exp-meta}} (degradation injected into the explanation
-function, which those metrics re-invoke internally).}}
-\begin{{tabularx}}{{\linewidth}}{{lcccc}}
+\caption{{Metric reliability (NR, AR, combined $r_k$) estimated with this
+thesis's MetaQuantus-inspired protocol, averaged over the 14 (model, FAE)
+cells; SD is the between-cell standard deviation of $r_k$. NR and AR were
+computed on a fixed 64-image sample of the test split (5 noise seeds, 5
+degradation levels); the extended-AR completion for \emph{{max\_sensitivity}}
+and \emph{{random\_logit}} (degradation injected into the explanation
+function, which those metrics re-invoke internally;
+Section~\ref{{sec:exp-meta}}) used a 12-image sample. Values are reported to
+two decimals to reflect the estimator's granularity. Runtime is the
+meta-evaluation cost per (model, FAE) cell at these sample sizes, not the
+full-run evaluation cost.}}
+\small
+\begin{{tabularx}}{{\linewidth}}{{lccccc}}
 \toprule
-Metric & NR & AR & Combined $r_k$ & Mean runtime (s) \\
+Metric & NR & AR & Combined $r_k$ & SD($r_k$) & Runtime (s) \\
 \midrule
 {body}
 \bottomrule
@@ -341,34 +353,52 @@ def _ensemble_n_per_model(ensemble: pd.DataFrame | None) -> str:
 def _ensemble_fragment(ensemble: pd.DataFrame | None) -> str:
     """Aggregate individual_vs_ensemble.csv per model.
 
-    Columns: model, image_id, eff_ensemble, eff_individual_mean,
-    eff_individual_best. Per model we average each effectiveness column over
-    all images present in the CSV and report Delta = ensembled - best
-    individual. The caption's per-model n is derived from the CSV itself.
+    Expects the post-2026-08 schema from experiments/compare_ensemble.py
+    (pooled normalization): eff_ensemble, eff_individual_mean,
+    eff_individual_best (per-image oracle), eff_best_fixed (+ method name),
+    eff_best_fixed_gradient (+ method name).
     """
     def _row(model: str, model_label: str) -> str:
-        ens_e = best_e = mean_e = None
+        vals = {c: None for c in ["eff_ensemble", "eff_individual_mean",
+                                  "eff_best_fixed", "eff_best_fixed_gradient",
+                                  "eff_individual_best"]}
+        fixed_name = grad_name = ""
         if ensemble is not None and not ensemble.empty:
             es = ensemble[ensemble["model"] == model]
             if not es.empty:
-                ens_e = float(es["eff_ensemble"].mean())
-                best_e = float(es["eff_individual_best"].mean())
-                mean_e = float(es["eff_individual_mean"].mean())
-        delta = (ens_e - best_e) if (ens_e is not None and best_e is not None) else None
-        return (f"{model_label}  & {_fmt(ens_e)} & {_fmt(best_e)} & "
-                f"{_fmt(mean_e)} & {_fmt(delta)} \\\\")
+                for c in vals:
+                    if c in es.columns:
+                        vals[c] = float(es[c].mean())
+                if "best_fixed_method" in es.columns:
+                    fixed_name = _esc(str(es["best_fixed_method"].iloc[0]))
+                if "best_fixed_gradient_method" in es.columns:
+                    grad_name = _esc(str(es["best_fixed_gradient_method"].iloc[0]))
+        fixed_lbl = f" ({fixed_name})" if fixed_name else ""
+        grad_lbl = f" ({grad_name})" if grad_name else ""
+        return (f"{model_label}  & {_fmt(vals['eff_ensemble'])} & "
+                f"{_fmt(vals['eff_individual_mean'])} & "
+                f"{_fmt(vals['eff_best_fixed'])}{fixed_lbl} & "
+                f"{_fmt(vals['eff_best_fixed_gradient'])}{grad_lbl} & "
+                f"{_fmt(vals['eff_individual_best'])} \\\\")
 
     n_label = _ensemble_n_per_model(ensemble)
     body = _row("resnet18", "ResNet-18") + "\n" + _row("squeezenet", "SqueezeNet")
     return rf"""\begin{{table}}[H]
 \centering
 \caption{{Effectiveness index $E(\Phi)$ of the NormEnsembleXAI-ensembled
-attribution against the best and mean individual method, per model (mean over
-{n_label} test images per model; ensemble of the six gradient-based methods,
-occlusion excluded; all seven $M^{{*}}$ metrics).}}
-\begin{{tabularx}}{{\linewidth}}{{lcccc}}
+attribution against four individual-method baselines, per model (mean over
+{n_label} test images per model; uniform weights over the seven $M^{{*}}$
+metrics; POOLED Second-Moment normalization, i.e.\ ensemble and individual
+scores share one RMS per (model, metric), so level differences are visible).
+The ensemble aggregates the six gradient-based methods; ``oracle'' is the
+per-image best over all seven methods (it may switch methods per image and
+includes Occlusion, which is not an ensemble member); ``best fixed'' is the
+single strongest method per model, and ``best gradient'' the strongest
+actual ensemble member.}}
+\small
+\begin{{tabularx}}{{\linewidth}}{{lccccc}}
 \toprule
-Model & Ensembled $E$ & Best individual $E$ & Mean individual $E$ & $\Delta$ (ens.\ $-$ best) \\
+Model & Ensembled & Mean ind. & Best fixed & Best gradient & Oracle \\
 \midrule
 {body}
 \bottomrule
@@ -397,19 +427,21 @@ def _friedman_fragment(stats: pd.DataFrame | None) -> str:
     def _rows(model: str, model_label: str) -> list[str]:
         out: list[str] = []
         for scheme, scheme_label in _SCHEME_LABELS.items():
-            chi = p = sig = None
+            chi = p = w_eff = sig = None
             if stats is not None and not stats.empty:
                 m = stats[(stats["model"] == model)
                           & (stats["scheme"] == scheme)]
                 if not m.empty:
                     chi = float(m.iloc[0]["statistic"])
                     p = float(m.iloc[0]["p_value"])
+                    if "effect_size" in m.columns:
+                        w_eff = float(m.iloc[0]["effect_size"])
                     sig = bool(m.iloc[0]["significant_0.05"])
                 else:
                     continue  # scheme absent from this run's CSV
             sig_str = (_PENDING if sig is None else ("Yes" if sig else "No"))
             out.append(f"{model_label}  & {scheme_label} & {_fmt(chi, 2)} & "
-                       f"{_fmt_p(p)} & {sig_str} \\\\")
+                       f"{_fmt_p(p)} & {_fmt(w_eff, 2)} & {sig_str} \\\\")
         return out
 
     body = "\n".join(_rows("resnet18", "ResNet-18")
@@ -417,10 +449,13 @@ def _friedman_fragment(stats: pd.DataFrame | None) -> str:
     return rf"""\begin{{table}}[H]
 \centering
 \caption{{Friedman omnibus test over the seven FAE methods, per model and
-weighting scheme (blocks are the 600 test images).}}
-\begin{{tabularx}}{{\linewidth}}{{llccc}}
+weighting scheme (blocks are the 600 test images). $W$ is Kendall's
+coefficient of concordance, $\chi^2 / (N(k-1))$, the standardized effect
+size.}}
+\small
+\begin{{tabularx}}{{\linewidth}}{{llcccc}}
 \toprule
-Model & Weighting & Friedman $\chi^2$ & $p$-value & Significant ($\alpha=0.05$) \\
+Model & Weighting & Friedman $\chi^2$ & $p$-value & Kendall's $W$ & Sig.\ ($\alpha{{=}}0.05$) \\
 \midrule
 {body}
 \bottomrule
@@ -436,32 +471,37 @@ Model & Weighting & Friedman $\chi^2$ & $p$-value & Significant ($\alpha=0.05$) 
 def _wilcoxon_fragment(ensemble: pd.DataFrame | None) -> str:
     """Compute paired Wilcoxon from individual_vs_ensemble.csv per model.
 
-    Two paired comparisons per model: ensembled effectiveness vs. the best
-    individual method, and vs. the mean individual method (paired per image).
+    Three paired comparisons per model: ensembled effectiveness vs. the mean
+    individual method, vs. the best fixed method, and vs. the per-image
+    oracle. Effect size is the matched-pairs rank-biserial correlation
+    (positive = ensemble higher).
     """
     from src.comparison.statistical_tests import wilcoxon_paired
 
     def _rows(model: str, model_label: str) -> list[str]:
         out: list[str] = []
         pairs = [
-            ("ensemble vs.\\ best individual", "eff_individual_best"),
-            ("ensemble vs.\\ mean individual", "eff_individual_mean"),
+            ("vs.\\ mean individual", "eff_individual_mean"),
+            ("vs.\\ best fixed method", "eff_best_fixed"),
+            ("vs.\\ per-image oracle", "eff_individual_best"),
         ]
         sub = None
         if ensemble is not None and not ensemble.empty:
             sub = ensemble[ensemble["model"] == model]
         for pair_label, col in pairs:
-            w = p = sig = None
+            w = p = r = sig = None
             if sub is not None and not sub.empty and col in sub.columns:
                 res = wilcoxon_paired(
                     sub["eff_ensemble"].to_numpy(), sub[col].to_numpy()
                 )
                 w = float(res["statistic"])
                 p = float(res["p_value"])
+                r = float(res["effect_size"])
                 sig = p < 0.05
             sig_str = (_PENDING if sig is None else ("Yes" if sig else "No"))
             out.append(f"{model_label} & {pair_label} & "
-                       f"{_fmt(w, 1)} & {_fmt_p(p)} & {sig_str} \\\\")
+                       f"{_fmt(w, 1)} & {_fmt_p(p)} & {_fmt(r, 2)} & "
+                       f"{sig_str} \\\\")
         return out
 
     n_label = _ensemble_n_per_model(ensemble)
@@ -470,12 +510,15 @@ def _wilcoxon_fragment(ensemble: pd.DataFrame | None) -> str:
     )
     return rf"""\begin{{table}}[H]
 \centering
-\caption{{Wilcoxon signed-rank test (paired per image, {n_label} per model):
-the NormEnsembleXAI-ensembled attribution against the best and the mean
-individual method.}}
-\begin{{tabularx}}{{\linewidth}}{{llccc}}
+\caption{{Wilcoxon signed-rank tests (paired per image, {n_label} per model,
+pooled normalization): the NormEnsembleXAI-ensembled attribution against the
+mean individual method, the best fixed method, and the per-image oracle.
+$r$ is the matched-pairs rank-biserial correlation (positive = ensemble
+higher).}}
+\small
+\begin{{tabularx}}{{\linewidth}}{{llcccc}}
 \toprule
-Model & Pair & $W$ statistic & $p$-value & Significant \\
+Model & Pair & $W$ & $p$-value & $r$ & Significant \\
 \midrule
 {body}
 \bottomrule

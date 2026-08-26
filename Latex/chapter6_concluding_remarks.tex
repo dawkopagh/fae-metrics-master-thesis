@@ -45,14 +45,18 @@ architectures---Complexity (complexity~$\leftrightarrow$~sparseness,
 $|\rho| = 0.999$ on ResNet-18 / $0.993$ on SqueezeNet) and Robustness
 (avg-~$\leftrightarrow$~max-sensitivity, $|\rho| = 0.93$ / $0.98$)---while the
 Faithfulness and Localization metrics carried independent signal
-($|\rho| < 0.25$). Greedy pruning therefore reduced the twelve metrics to an
+($|\rho| < 0.25$). Together, the structural pre-screen (Completeness,
+Non-Sensitivity, and the failed MPRT) and the greedy pruning of the two
+correlated pairs reduced the twelve-metric battery to an
 \emph{identical} seven-metric set $M^{*}$ on \emph{both} models
 (faithfulness\_correlation, max\_sensitivity, pixel\_flipping, pointing\_game,
 random\_logit, relevance\_mass\_accuracy, sparseness). That two different
 architectures yield the same $M^{*}$ shows the redundancy is a property of the
 metric battery rather than of the classifier, so an evaluator quoting ``twelve
 metrics'' is in effect quoting roughly seven---and can prune the rest with no
-loss of discriminative signal.
+loss of discriminative signal: the per-method ranking over the full computed
+battery and over $M^{*}$ are identical on both models
+(Spearman $\rho = 1.00$).
 
 \paragraph{Contribution~2 --- Multi-criteria aggregation framework, and a test
 of reliability-discounted weighting.}
@@ -103,16 +107,19 @@ metric-aggregation side, a single-metric ranking (Faithfulness Correlation
 alone) is not a safe proxy for the multi-criteria index---the two correlate at
 only $\rho = 0.29$ on ResNet-18 and $0.86$ on SqueezeNet---confirming that the
 metric family chosen, and how it is weighted, can change which method wins. On
-the attribution-ensembling side, the result is \emph{model-dependent and partly
-negative}. Over all seven $M^{*}$ metrics and the full 600 images (Wilcoxon
-$n = 600$, $p < 10^{-3}$ throughout), the NormEnsembleXAI ensemble beats the
-\emph{mean} individual method on SqueezeNet ($0.075$ vs.\ $-0.069$) but
-\emph{loses} to it on ResNet-18 ($-0.012$ vs.\ $0.019$), and it never beats the
-\emph{best} individual method on either model ($\Delta = -0.305$ and $-0.135$).
-Averaging attributions helps a weak, dispersed method set but dilutes a strong
-gradient signal once Robustness is counted; ensembling is thus a reasonable
-default on the weaker architecture, not a general improvement, and never a
-substitute for identifying the per-model best method.
+the attribution-ensembling side, the result is \emph{negative}. Over all
+seven $M^{*}$ metrics and the full 600 images, with ensemble and individual
+scores normalised on a common (pooled) scale, the NormEnsembleXAI Mean
+ensemble beats none of the reported baselines: it is significantly worse
+than the \emph{mean} individual method on ResNet-18 ($-0.012$ vs.\ $0.022$,
+$p < 10^{-3}$), statistically indistinguishable from it on SqueezeNet
+($p = 0.74$), and decisively below the best \emph{fixed} method, the best
+gradient-based member it actually contains, and the per-image oracle on both
+models ($p < 10^{-3}$ throughout). A nominal SqueezeNet advantage reported
+under an earlier per-source normalization did not survive the common scale
+and is classified as a normalization artefact. Averaging attribution maps
+thus bought no effectiveness on this task; ensembling is not a substitute
+for identifying the per-model best method.
 
 \paragraph{Contribution~4 --- Empirical validation on ISIC~2017.}
 The thesis validates the framework on expert-annotated dermoscopic data, using
@@ -125,10 +132,13 @@ the framework on a real, mask-annotated medical task.
 not sampling noise. The Friedman omnibus test over the seven methods and 600
 image-blocks rejects equal mean ranks for every scheme and model at
 $p < 10^{-3}$ (ResNet-18 $\chi^2 = 760$ Autoweighted / $469$ MQ-discount;
-SqueezeNet $\chi^2 = 1430$ / $1218$), with a Nemenyi critical difference of
-$\mathrm{CD} = 0.368$. The paired Wilcoxon tests confirm all four ensemble
-comparisons are significant at $p < 10^{-3}$. The statistics therefore
-establish that the model-dependent ensemble result and the weighting-driven
+SqueezeNet $\chi^2 = 1430$ / $1218$; Kendall's $W$ between $0.13$ and
+$0.44$), with a Nemenyi critical difference of
+$\mathrm{CD} = 0.368$. Five of the six paired Wilcoxon ensemble comparisons
+are significant at $p < 10^{-3}$; the sixth---ensemble vs.\ the mean
+individual method on SqueezeNet---is reported as a null
+($p = 0.74$), which is itself informative. The statistics therefore
+establish that the negative ensemble result and the weighting-driven
 ranking divergence are genuine effects of the framework's configuration rather
 than artefacts of the particular draw of images---which is precisely what makes
 the cautionary findings above defensible.
@@ -141,7 +151,8 @@ that apparatus changes a conclusion (substantial metric redundancy; a
 model-dependent ranking divergence under different weightings, including the
 reliability discount itself) and where it does
 not (ensembling,
-which helps only the weaker model and never beats the best method). The yield is
+which beats none of the individual baselines once scores share a common
+scale). The yield is
 deliberately cautionary: its main practical lesson is to distrust single-number
 FAE leaderboards and to test, rather than assume, that any aggregation
 refinement earns its place.
@@ -156,12 +167,19 @@ ordered roughly from those that consolidate the present results to those that
 broaden the framework's reach.
 
 \paragraph{Scaling the statistical analysis.}
-The redundancy and reliability estimates rest on a finite sample from a single
-challenge distribution. Although both analyses were computed on the full
-600-image test set, the immediate next step is to repeat them on repeated
+The redundancy and reliability estimates rest on finite samples from a single
+challenge distribution---the redundancy analysis on the full 600-image test
+set, the meta-evaluation on a 64-image sample (12 for the extended-AR
+completion). The immediate next steps are to enlarge the meta-evaluation
+sample and, more importantly, the number of degradation levels (the
+5-level AR estimator has $0.1$-granularity regardless of image count); to
+repeat both analyses on repeated
 subsamples, reporting confidence intervals on the correlation and reliability
 estimates and a stability analysis of the membership of $M^{*}$ and of the
-metric weights. This would move the metric structure from a property of one
+metric weights; and to adopt a held-out-split protocol that separates
+metric selection and weighting from significance testing
+(Chapter~\ref{ch:discussion}). This would move the metric structure from a
+property of one
 draw of images to a property of the domain. Validating the extended
 Adversarial-Reactivity protocol belongs to the same consolidation: the AR
 scores of \emph{max\_sensitivity} and \emph{random\_logit} are measured under

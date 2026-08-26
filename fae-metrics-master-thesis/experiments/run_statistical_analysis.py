@@ -104,6 +104,12 @@ def _run_friedman_nemenyi(
                 continue
 
             sig = bool(fres["p_value"] < _ALPHA) if np.isfinite(fres["p_value"]) else False
+            # Kendall's W (coefficient of concordance): chi2 / (N * (k - 1)),
+            # in [0, 1] — the standardized effect size for the Friedman test.
+            kendalls_w = (
+                fres["statistic"] / (fres["n_blocks"] * (fres["n_methods"] - 1))
+                if fres["n_blocks"] > 0 and fres["n_methods"] > 1 else np.nan
+            )
             test_rows.append({
                 "test": "friedman",
                 "model": model,
@@ -112,7 +118,7 @@ def _run_friedman_nemenyi(
                 "statistic": fres["statistic"],
                 "p_value": fres["p_value"],
                 "n": fres["n_blocks"],
-                "effect_size": np.nan,
+                "effect_size": kendalls_w,
                 "significant_0.05": sig,
                 "extra": f"k={fres['n_methods']};dropped={fres['n_blocks_dropped']}",
             })
