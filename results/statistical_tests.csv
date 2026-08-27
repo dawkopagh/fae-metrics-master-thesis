@@ -1,11 +1,11 @@
 test,model,scheme,comparison,statistic,p_value,n,effect_size,significant_0.05,extra
 friedman,resnet18,uniform,fae_methods,830.2357142857145,4.5082762753678396e-176,600,0.2306210317460318,True,k=7;dropped=0
 friedman,resnet18,autoweighted,fae_methods,759.6492857142857,8.029279982358833e-161,600,0.21101369047619048,True,k=7;dropped=0
-friedman,resnet18,mqdiscount,fae_methods,373.7457142857147,1.227042807272207e-77,600,0.10381825396825409,True,k=7;dropped=0
+friedman,resnet18,mqdiscount,fae_methods,863.7628571428577,2.5585208779120983e-183,600,0.23993412698412714,True,k=7;dropped=0
 friedman,resnet18,single_fc,fae_methods,397.55785714285776,9.364583095976457e-83,600,0.11043273809523826,True,k=7;dropped=0
 friedman,squeezenet,uniform,fae_methods,1571.3449999999993,0.0,600,0.43648472222222207,True,k=7;dropped=0
 friedman,squeezenet,autoweighted,fae_methods,1430.301428571429,6.652283764541758e-306,600,0.39730595238095245,True,k=7;dropped=0
-friedman,squeezenet,mqdiscount,fae_methods,1185.2800000000007,7.34067158181462e-253,600,0.3292444444444446,True,k=7;dropped=0
+friedman,squeezenet,mqdiscount,fae_methods,1080.8964285714283,2.8340539831408755e-230,600,0.30024900793650783,True,k=7;dropped=0
 friedman,squeezenet,single_fc,fae_methods,1640.328571428572,0.0,600,0.4556468253968256,True,k=7;dropped=0
 wilcoxon,resnet18,pooled_uniform_mstar,ensemble_vs_mean_individual,62587.0,8.666566165027441e-11,600,-0.3057459789240155,True,direction=a<b;n_zero=0
 wilcoxon,resnet18,pooled_uniform_mstar,ensemble_vs_best_fixed,27972.0,1.6262909752326347e-48,600,-0.6897171381031614,True,direction=a<b;n_zero=0

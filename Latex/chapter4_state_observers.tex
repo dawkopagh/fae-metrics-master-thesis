@@ -20,16 +20,19 @@ result artifacts under \texttt{results/} by
 input}-ed here. The scores, rankings, ensemble comparison, and statistical
 tests are computed over the full 600-image ISIC~2017 test split; the
 meta-evaluation (Section~\ref{sec:exp-meta}) is the deliberate exception,
-running on a fixed 64-image sample (12 images for the extended-AR
-completion), as disclosed where its numbers are used. Two further
+running on a fixed 64-image sample, as disclosed where its numbers are used.
+Two further
 limitations are stated up front and revisited at the
-point of use: (i)~scoring the Adversarial Reactivity of the two $M^{*}$
+point of use: (i)~the reliability of the two $M^{*}$
 metrics that internally re-compute attributions (\emph{max\_sensitivity},
-\emph{random\_logit}) required an extension of the AR protocol---the
+\emph{random\_logit}) rests on their Adversarial Reactivity alone: their
+Noise-Resilience measurements failed silently in the meta-evaluation run
+and are discarded as artifacts, and scoring their AR required an extension
+of the AR protocol---the
 degradation is injected into the explanation function itself
-(Section~\ref{sec:exp-meta}); with that extension every $M^{*}$ metric
-carries a meta-evaluated combined reliability, and the MQ-discount genuinely
-reweights the index (mean $|\Delta|\approx0.13$ on ResNet-18 and $0.06$ on
+(Section~\ref{sec:exp-meta}). With that extension every $M^{*}$ metric
+carries a measured reliability, and the MQ-discount substantially
+reweights the index (mean $|\Delta|\approx0.33$ on ResNet-18 and $0.16$ on
 SqueezeNet relative to Autoweighted,
 with a model-dependent effect on the ranking); and (ii)~the attribution-ensembling
 experiment of Section~\ref{sec:exp-ensemble} ensembles the six gradient-based
@@ -174,7 +177,13 @@ the two models and comprises the same seven metrics:
 (Tables~\ref{tab:redundancy-resnet}--\ref{tab:redundancy-squeeze}). That the
 two architectures yield the same $M^{*}$ is the principal evidence for
 Contribution~1: the redundancy structure of these metrics is a property of the
-metric battery rather than of the classifier. The pruning also costs no
+metric battery rather than of the classifier. One caveat on that identity
+deserves disclosure: within the Complexity pair on ResNet-18 the greedy rule
+retains sparseness over complexity by a razor-thin margin (mean
+$|\rho|$-with-the-remainder of $0.323$ vs.\ $0.325$), so a marginally
+different draw of images could have flipped the retained member on one
+model and broken the cross-model identity; a repeated-subsample stability
+check of this tie-break is deferred to future work. The pruning costs no
 discriminative signal in practice: the per-method mean-effectiveness ranking
 computed over the full nine-metric battery and over $M^{*}$ (uniform
 weights) are identical on both models (Spearman $\rho = 1.00$).
@@ -242,6 +251,25 @@ between-cell dispersion is reported alongside each mean, and the
 robustness of the downstream MQ-discount finding to these estimates is
 checked below.
 
+\paragraph{A silent failure in the NR stage, and its correction.}
+An independent audit of the reliability CSV found that the Noise-Resilience
+values recorded for the explanation-recomputing metrics
+(\emph{max\_sensitivity}, \emph{avg\_sensitivity}, \emph{random\_logit})
+were $1.00$ \emph{bitwise-identically} in all 14 (model, FAE) cells---while
+every metric that demonstrably computed shows between-cell variation. The
+cause is a defect in the NR implementation: when every seeded metric call
+fails (as those metrics' calls did in the meta-evaluation run, consistent
+with their near-uniform per-cell runtimes and their simultaneously
+unmeasurable AR), the empty score set produced a coefficient of variation of
+zero and thus a ``perfect'' $\mathrm{NR}=1.0$---total failure scored as
+total stability. The defect is fixed in the code (failed measurements now
+yield NaN), the artifact NR values are invalidated in the released data, and
+the combined reliability of the two affected $M^{*}$ metrics is therefore
+their \emph{measured Adversarial Reactivity alone}
+($\lambda_k = \mathrm{AR}_k$), reported as such in Table~\ref{tab:meta}.
+Re-measuring NR for these metrics on Colab is prepared as follow-up work;
+until then, no fabricated number enters the discount.
+
 Table~\ref{tab:meta} reports NR, AR, and combined reliability per metric,
 averaged over the (model, FAE) cells in which each metric is defined, read from
 \texttt{results/meta\_evaluation\_reliability.csv}. The runtime
@@ -253,20 +281,23 @@ with the 600-image split).
 
 The reliability table is read as follows: a metric with high NR but low AR is
 stable but insensitive (it does not react when the explanation degrades); a
-metric with low NR is noisy. Among the $M^{*}$ metrics, \emph{max\_sensitivity}
-($r_k \approx 0.97$), \emph{sparseness} ($0.97$), and \emph{pixel\_flipping}
-($0.88$) are the most reliable, combining high noise resilience with strong
-adversarial reactivity; \emph{pointing\_game} ($0.81$) and
-\emph{random\_logit} ($0.64$) follow. \emph{Faithfulness\_correlation}
+metric with low NR is noisy. Among the $M^{*}$ metrics, \emph{sparseness}
+($r_k = 0.97$), \emph{max\_sensitivity} ($0.95$, AR-only), and
+\emph{pixel\_flipping}
+($0.88$) are the most reliable; \emph{pointing\_game} ($0.81$) follows.
+\emph{Random\_logit} is now the \emph{least} reliable metric of all
+($r_k = 0.27$, AR-only): its measured reactivity sits at the noise floor
+(below). \emph{Faithfulness\_correlation}
 ($0.58$) and
-\emph{relevance\_mass\_accuracy} ($0.55$) are the least reliable: both are
+\emph{relevance\_mass\_accuracy} ($0.55$) also score low: both are
 noise-resilient only moderately (NR $\approx 0.56$--$0.59$) and react
 comparatively weakly to deliberate degradation (AR $\approx 0.51$--$0.60$).
-The dispersion column tempers these point estimates: the two least reliable
+The dispersion column tempers these point estimates: the least reliable
 metrics are also the least consistently estimated
 ($\mathrm{SD}(r_k) = 0.28$ for faithfulness\_correlation, whose per-cell
-values span $0.05$--$0.98$), whereas the most reliable metrics are also the
-most stable across cells ($\mathrm{SD} \approx 0.09$).
+values span $0.05$--$0.98$; $0.24$ for random\_logit), whereas the most
+reliable metrics are also the
+most stable across cells ($\mathrm{SD} \approx 0.09$--$0.18$).
 
 Two audits qualify the AR leg. First, because AR is the \emph{absolute}
 Spearman correlation, a metric reacting in the unexpected direction would
@@ -279,26 +310,23 @@ the noise floor of a ten-point $|\rho_S|$ estimate (the expected
 $|\rho_S|$ of a random ordering over ten levels is ${\approx}0.27$, and
 $45\%$ of random orderings exceed the measured value), and its per-cell
 signed monotonicity is mixed (9 of 14 cells positive): its measured
-adversarial reactivity is statistically indistinguishable from zero, so
-its combined reliability of $0.64$ is best read as an upper bound
-($\lambda_k \to 0.5$ as $\mathrm{AR}_k \to 0$).
+adversarial reactivity---and therefore its entire AR-only reliability---is
+statistically indistinguishable from zero.
 \emph{Max\_sensitivity}, by contrast, is overwhelmingly directional (13 of
 14 cells positive, mean signed $\rho_S = 0.91$)---a real, if partly
 mechanical, response (see Section~\ref{sec:disc-threats}). Second, a
 leave-one-cell-out jackknife of the per-metric
 $\lambda_k$ (recomputing the MQ-discounted ResNet-18 ranking with each of
 the seven FAE cells removed from the reliability average) preserves the
-headline reordering in all seven replicates: Occlusion and LRP form the
-top-2 set in every replicate, so the MQ-discount finding of
-Section~\ref{sec:exp-ranking} is not an artefact of any single reliability
-cell. Their mutual order, however, is not resolvable: the two sit within
-$0.001$ of each other at the point estimate, the jackknife flips them in
-two of seven replicates, and shifting the two extension-measured AR
-values by $\pm 0.2$ (twice the estimator's granularity) flips them again.
-The robust
-statement is therefore that the discount lifts LRP from fourth into a
-statistical tie with Occlusion at the top, with first place contingent
-on the coarse AR estimate.
+two headline moves in all seven replicates: LRP is \emph{first} and
+Grad-CAM \emph{last} in every replicate, and both survive shifting the two
+AR-only reliabilities by $\pm 0.2$ (twice the estimator's granularity at
+five levels, and well above it at ten). The mid-order---Guided
+Backpropagation, Occlusion, and Integrated Gradients in places two to
+four---is \emph{not} stable under these perturbations. The robust statement
+is therefore that the discount lifts LRP from fifth under Autoweighted to
+first and demotes Grad-CAM to last on ResNet-18, while the middle of the
+field should not be over-read.
 
 \paragraph{Extending AR to explanation-recomputing metrics.}
 The MetaQuantus AR protocol degrades the explanation by zeroing a growing
@@ -316,14 +344,13 @@ implementations). With this extension, every computable metric carries a
 combined reliability ($126$ of $168$ reliability rows are valid; the
 remaining $42$ belong to the three structurally excluded metrics---MPRT,
 Non-Sensitivity, and the zero-variance Completeness). The completed discount
-is no longer a near-no-op: it shifts the effectiveness magnitudes by mean
-$|\Delta|\approx0.13$ on ResNet-18 and $0.06$ on SqueezeNet relative to
-Autoweighted, and reorders the ResNet-18
-field substantially ($\rho(\mathrm{AW},\mathrm{MQ}) = 0.61$; LRP rises from
-fourth into a statistical tie with Occlusion at the top) while leaving
-SqueezeNet nearly unchanged
-($\rho = 0.96$, a single
-adjacent Saliency\,$\leftrightarrow$\,Occlusion swap;
+is far from a no-op: it shifts the effectiveness magnitudes by mean
+$|\Delta|\approx0.33$ on ResNet-18 and $0.16$ on SqueezeNet relative to
+Autoweighted, and largely inverts the ResNet-18
+ordering ($\rho(\mathrm{AW},\mathrm{MQ}) = -0.14$; LRP rises from
+fifth under Autoweighted to first) while altering
+SqueezeNet only mildly
+($\rho = 0.89$;
 Table~\ref{tab:rank-stability}).
 
 %% ========================================================================
@@ -342,12 +369,21 @@ Autoweighted weights attenuated by reliability). A single-metric baseline
 alone, \texttt{effectiveness\_single\_fc}) is included to quantify how far a
 naive one-metric ranking departs from the multi-criteria index. All four columns
 are present in \texttt{results/ranking\_comparison.csv}. As noted in
-Section~\ref{sec:exp-meta}, the MQ-discount column applies a genuine
-reliability reweighting (mean $|\Delta|\approx0.13$ on ResNet-18, $0.06$ on
+Section~\ref{sec:exp-meta}, the MQ-discount column applies a strong
+reliability reweighting (mean $|\Delta|\approx0.33$ on ResNet-18, $0.16$ on
 SqueezeNet, relative to Autoweighted):
-it reorders the ResNet-18 field substantially ($\rho = 0.61$) while leaving
-SqueezeNet
-nearly unchanged ($\rho = 0.96$).
+it largely inverts the ResNet-18 ordering ($\rho = -0.14$) while altering
+SqueezeNet only mildly ($\rho = 0.89$). The de-facto weight vectors that
+produce this are disclosed here because they qualify every aggregate in
+this section: under Autoweighted-with-discount on ResNet-18 the index is
+dominated by sparseness ($w = 0.52$) and pixel-flipping ($0.20$), with
+pointing-game at $0.15$, random-logit at $0.10$, and---owing to the
+location-sensitivity of the inverse-CV weight documented in
+Section~\ref{sec:weighting}---faithfulness-correlation at only $0.02$ and
+relevance-mass-accuracy at effectively zero. The ``multi-criteria'' index
+under these data-adaptive schemes is thus in practice a three-to-four
+metric index, and the comparison against the Single-FC baseline below
+should be read with FC's near-zero weight in the index in mind.
 
 \input{tables/ranking_resnet}
 
@@ -359,26 +395,28 @@ nearly unchanged ($\rho = 0.96$).
 The headline finding of Contributions~2--3 is that \emph{the induced FAE
 ranking depends measurably on how the metrics are combined---although the
 top-ranked method proves robust to that choice.} On ResNet-18
-(Table~\ref{tab:ranking-resnet}) Occlusion leads under all three multi-metric
-schemes ($E = 0.164$ uniform, $0.123$ Autoweighted, $0.213$ MQ-discount), but
-the field reorders substantially: Grad-CAM drops from second under uniform
+(Table~\ref{tab:ranking-resnet}) the winner itself is scheme-dependent:
+Occlusion leads under uniform ($E = 0.164$) and Autoweighted ($0.123$)
+weighting, but under the MQ-discount LRP takes first place ($0.498$, from
+fifth under Autoweighted) with Occlusion third ($0.353$), while Grad-CAM
+drops from second under uniform
 weights ($E = 0.133$) to fourth under Autoweighted ($0.023$) and last under
-the MQ-discount ($0.121$), while under the MQ-discount LRP rises to a
-statistical tie with Occlusion at the top
-($0.212$ vs.\ $0.213$). The Spearman rank correlation between the
+the MQ-discount ($0.280$). The Spearman rank correlation between the
 uniform and Autoweighted per-method orderings is $\rho = 0.750$ for ResNet-18,
 which contributes five of the six discordant method-pairs that
 Table~\ref{tab:rank-stability} reports summed over both models. SqueezeNet is
 more stable (Table~\ref{tab:ranking-squeeze})---Grad-CAM is first and
 Occlusion second under both schemes ($E = 0.142$ and $0.086$ uniform, $0.124$
 and $0.066$ Autoweighted) and the orderings agree closely ($\rho = 0.964$).
-The single-metric baseline (Faithfulness Correlation alone) diverges most
-sharply of all on ResNet-18 (Single-FC vs.\ MQ-discount $\rho = -0.04$ on
-ResNet-18---essentially no correlation---against $0.857$ on SqueezeNet, with
-thirteen discordant pairs summed over
-both models), which confirms that a one-metric ranking is not a safe proxy
-for the
-multi-criteria index. Two further observations are notable. First, the two
+The single-metric baseline (Faithfulness Correlation alone) is
+essentially uncorrelated with the discounted index on ResNet-18
+(Single-FC vs.\ MQ-discount $\rho = -0.18$, against $0.79$ on SqueezeNet,
+with sixteen discordant pairs summed over
+both models)---though, given FC's near-zero weight in that index, this
+divergence partly reflects the weight collapse disclosed above rather than
+a pure multi-criteria effect; the more even-handed uniform index still
+correlates only moderately with Single-FC.
+Two further observations are notable. First, the two
 methods that lead on both models under uniform weighting---Occlusion and
 Grad-CAM---are precisely the two coarse, low-resolution attribution methods;
 where the weighting scheme changes the picture at all, it is Grad-CAM whose
@@ -510,13 +548,14 @@ The Friedman omnibus test rejects the null hypothesis of equal method ranks
 decisively on both models (Table~\ref{tab:friedman}): ResNet-18 yields
 $\chi^2 = 759.6$ and SqueezeNet $\chi^2 = 1430.3$, both with $p < 10^{-3}$ over
 the 600 image blocks under the Autoweighted scheme (uniform:
-$\chi^2 = 830.2$ / $1571.3$; MQ-discount: $373.7$ / $1185.3$; likewise
+$\chi^2 = 830.2$ / $1571.3$; MQ-discount: $863.8$ / $1080.9$; likewise
 $p < 10^{-3}$). The standardized effect sizes put these in perspective:
 Kendall's $W$ indicates small-to-moderate concordance of the per-image
-rankings on ResNet-18 ($W = 0.10$--$0.23$ across schemes) and moderate
-concordance on SqueezeNet ($0.33$--$0.44$)---the method differences are
+rankings on ResNet-18 ($W = 0.11$--$0.24$ across schemes) and moderate
+concordance on SqueezeNet ($0.30$--$0.46$)---the method differences are
 unambiguous but far from deterministic at the level of individual images.
-Twelve omnibus and paired tests are run in this chapter; no formal
+Sixteen omnibus and paired tests are recorded for this chapter (including
+the single-FC scheme and the auxiliary ensemble pairings); no formal
 multiplicity correction is applied, which is immaterial at the observed
 $p < 10^{-10}$ but is noted for completeness (the one non-significant
 result below is reported as such, not screened out). At least one FAE

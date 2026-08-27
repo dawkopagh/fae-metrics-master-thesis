@@ -1,16 +1,17 @@
 """
 compare_rankings.py — Part D of S10: compare four FAE ranking schemes.
 
-Metric set M* (7 metrics, cross-model intersection from S8.5):
-  faithfulness_correlation, max_sensitivity, model_parameter_randomisation,
-  pixel_flipping, pointing_game, random_logit, relevance_mass_accuracy
+Metric set M* (7 metrics, cross-model intersection; see the M_STAR constant
+below, which is authoritative):
+  faithfulness_correlation, max_sensitivity, pixel_flipping, pointing_game,
+  random_logit, relevance_mass_accuracy, sparseness
 
 Explicitly excluded from aggregation (not in M*):
-  avg_sensitivity  — not in S8.5 cross-model intersection
-  completeness     — not in S8.5 cross-model intersection
-  complexity       — not in S8.5 cross-model intersection
-  non_sensitivity  — not in S8.5 cross-model intersection (all-NaN scores)
-  sparseness       — not in S8.5 cross-model intersection
+  avg_sensitivity  — pruned (redundant with max_sensitivity)
+  complexity       — pruned (redundant with sparseness)
+  completeness     — structural pre-screen (zero variance)
+  non_sensitivity  — structural pre-screen (disabled, all-NaN)
+  model_parameter_randomisation — structural pre-screen (disabled on ISIC)
 
 Four effectiveness schemes:
   (a) uniform      — 1/7 per metric, second-moment normalisation

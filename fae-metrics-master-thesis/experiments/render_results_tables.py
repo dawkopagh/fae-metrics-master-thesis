@@ -174,6 +174,15 @@ def _meta_fragment(rel: pd.DataFrame | None) -> str:
             .mean()
         )
         sd = comp.groupby("metric")["combined_reliability"].std()
+        # The June-run runtimes for the explain_func metrics are the cost of
+        # a FAILED evaluation loop (the metric call errored instantly); use
+        # the real per-cell cost from the AR-v2 completion where available.
+        v2_path = _RESULTS / "ar_completion_v2_n64.csv"
+        if v2_path.exists():
+            v2rt = pd.read_csv(v2_path).groupby("metric").runtime_seconds.mean()
+            for m in v2rt.index:
+                if m in agg.index:
+                    agg.loc[m, "runtime_seconds"] = float(v2rt[m])
     for metric in _M_STAR:
         if agg is not None and metric in agg.index:
             r = agg.loc[metric]
@@ -198,8 +207,11 @@ cells; SD is the between-cell standard deviation of $r_k$. NR and AR were
 computed on the same fixed seed-42 64-image sample of the test split (5 noise
 seeds; 5 degradation levels, or 10 for the extended-AR completion of
 \emph{{max\_sensitivity}} and \emph{{random\_logit}}, whose degradation is
-injected into the explanation function those metrics re-invoke internally;
-Section~\ref{{sec:exp-meta}}). Values are reported to
+injected into the explanation function those metrics re-invoke internally).
+NR is \textit{{n/a}} for those two metrics: their NR-stage metric calls
+failed silently in the meta-evaluation run and the recorded values were an
+artifact of the failure (Section~\ref{{sec:exp-meta}}), so their $r_k$ is
+the measured AR alone. Values are reported to
 two decimals to reflect the estimator's granularity. Runtime is the
 meta-evaluation cost per (model, FAE) cell at these sample sizes, not the
 full-run evaluation cost.}}

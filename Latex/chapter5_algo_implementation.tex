@@ -58,17 +58,20 @@ run returns.
     \item \textbf{Does the MetaQuantus reliability discount change anything?}
     Yes---moderately, and model-dependently, once the meta-validation is
     complete. With all seven $M^{*}$ metrics carrying a measured combined
-    reliability, the MQ-discounted ordering departs from Autoweighted on
-    ResNet-18 ($\rho = 0.61$: LRP rises from fourth into a statistical tie
-    with Occlusion at the top, and Grad-CAM
-    falls to last) while SqueezeNet moves by a single adjacent swap
-    ($\rho = 0.96$); the mean effectiveness shift is $|\Delta|\approx0.13$
-    on ResNet-18 and $0.06$ on SqueezeNet.
+    reliability, the MQ-discounted ordering largely inverts the Autoweighted
+    order on
+    ResNet-18 ($\rho = -0.14$: LRP rises from fifth to first---stable in
+    every jackknife replicate and under $\pm0.2$ reliability shifts---and
+    Grad-CAM
+    falls to last) while SqueezeNet moves only mildly
+    ($\rho = 0.89$); the mean effectiveness shift is $|\Delta|\approx0.33$
+    on ResNet-18 and $0.16$ on SqueezeNet.
     Mechanically, the discount redistributes weight toward the
-    high-reliability metrics (max-sensitivity $r_k \approx 0.98$, sparseness
-    $0.97$, pixel-flipping $0.88$) and away from the low-reliability ones
-    (random-logit $0.64$, faithfulness-correlation $0.58$, relevance-mass
-    accuracy $0.55$). The discount is therefore a consequential modelling
+    high-reliability metrics (sparseness $r_k = 0.97$, max-sensitivity
+    $0.95$, pixel-flipping $0.88$) and sharply away from
+    random-logit ($0.27$, an AR-only reliability at the noise floor),
+    faithfulness-correlation ($0.58$), and relevance-mass
+    accuracy ($0.55$). The discount is therefore a consequential modelling
     choice on one architecture and nearly inert on the other---the same
     conditional pattern as the uniform-vs-Autoweighted comparison
     (Section~\ref{sec:disc-redundancy}).
@@ -123,7 +126,9 @@ moderate, architecture-dependent reweighting of the ranking.
     $M^{*}$ on two different architectures is the strongest single finding here:
     the redundancy is a property of the metric battery, not of the classifier,
     and it transfers. A practitioner can therefore halve the costly Robustness
-    leg (avg-sensitivity pruned, at ${\sim}128$\,s per (model, FAE) cell) and
+    leg (avg-sensitivity pruned---the sensitivity metrics are among the most
+    expensive in the battery, as each score re-invokes the explanation
+    function ten times per image) and
     drop Complexity's duplicate, with no loss of discriminative signal; the two
     expensive Faithfulness metrics are retained, as both carry independent
     signal.
@@ -143,10 +148,10 @@ moderate, architecture-dependent reweighting of the ranking.
     MQ-discount precisely to let the former attenuate the latter. Empirically,
     the discount is consequential exactly where the two orderings disagree
     most: on ResNet-18 it shifts the per-method effectiveness by
-    $|\Delta|\approx0.13$ on average and reorders the field
-    ($\rho(\text{Autoweighted},\text{MQ-discount}) = 0.61$; LRP fourth
-    $\to$ statistical tie for first), while on SqueezeNet it is nearly inert
-    ($\rho = 0.96$).
+    $|\Delta|\approx0.33$ on average and largely inverts the field
+    ($\rho(\text{Autoweighted},\text{MQ-discount}) = -0.14$; LRP fifth
+    $\to$ first, Grad-CAM $\to$ last), while on SqueezeNet it is mild
+    ($\rho = 0.89$).
     Two caveats keep this claim honest. First, the AR leg for the two
     explanation-recomputing metrics required a protocol extension introduced
     by this thesis (degrading the explanation function itself,
@@ -297,13 +302,21 @@ with a
 coarse-grained AR estimator, as disclosed in
 Section~\ref{sec:exp-meta}; the leave-one-cell-out jackknife reported there
 shows the ResNet-18 reordering is at least not an artefact of any single
-cell, though the Occlusion/LRP order at the top is not resolvable at this
+cell (LRP first and Grad-CAM last in all seven replicates), though the
+middle of the MQ-discounted order is not resolvable at this
 granularity. Third, the direction-agnostic $|\rho_S|$ awarded credit to one
 of the
 28 audited cells that reacted in the unexpected direction, and
-random-logit's mean AR ($0.27$) is indistinguishable from the noise floor
-of a ten-level $|\rho_S|$ estimate---its $\lambda_k$ of $0.64$ is best
-read as an upper bound on a possibly fully unreactive metric. The reliability
+random-logit's AR-only reliability ($0.27$) is indistinguishable from the
+noise floor
+of a ten-level $|\rho_S|$ estimate---it may be a fully unreactive metric,
+in which case even its residual $0.10$ weight overstates it. Fourth, the
+silent NR failure disclosed in Section~\ref{sec:exp-meta} means the
+Noise-Resilience leg for the two extension metrics is currently
+\emph{unmeasured}, not merely coarse; since $\lambda_k = \tfrac12
+(\mathrm{NR}_k + \mathrm{AR}_k)$ once NR exists, re-measuring a high NR
+would raise random-logit's $\lambda_k$ above its AR-only value and shift
+the MQ-discounted ordering back toward the Autoweighted one. The reliability
 scores---and therefore the ResNet-18 reordering the MQ-discount
 produces---inherit these caveats, and validating the extension (shared
 degradation masks per level, a direction-rectified AR, larger samples)

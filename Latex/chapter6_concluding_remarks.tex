@@ -83,14 +83,18 @@ model-dependent way. Measuring it required extending the MetaQuantus
 Adversarial-Reactivity test to the two metrics that re-compute attributions
 internally (the degradation is injected into the explanation function
 itself, Section~\ref{sec:exp-meta}); with the extension, all seven $M^{*}$
-metrics carry a measured reliability. The completed discount reorders the
-ResNet-18 field substantially relative to plain Autoweighted
-($\rho = 0.61$; LRP rises from fourth into a statistical tie with Occlusion
-at the top, driven by the low measured
-reliability of random-logit and the high reliability of the
-max-sensitivity/sparseness/pixel-flipping trio) while leaving SqueezeNet
-nearly unchanged ($\rho = 0.96$; mean shift $|\Delta|\approx0.13$ on
-ResNet-18, $0.06$ on SqueezeNet). The
+metrics carry a measured reliability---after an audit-discovered silent
+failure in the Noise-Resilience stage was corrected, that reliability is the
+measured Adversarial Reactivity alone for those two metrics. The completed
+discount largely inverts the
+ResNet-18 ordering relative to plain Autoweighted
+($\rho = -0.14$; LRP rises from fifth to first and Grad-CAM falls to last,
+both stable under a leave-one-cell-out jackknife and $\pm0.2$ reliability
+shifts, driven by the near-zero measured
+reactivity of random-logit and the dominance of the
+sparseness/pixel-flipping weights) while altering SqueezeNet
+only mildly ($\rho = 0.89$; mean shift $|\Delta|\approx0.33$ on
+ResNet-18, $0.16$ on SqueezeNet). The
 contribution is the measured answer itself: a reliability-discounted
 aggregation \emph{can} change the FAE verdict, whether it does is
 architecture-dependent, and no ground truth certifies the discounted ranking
@@ -133,9 +137,9 @@ the framework on a real, mask-annotated medical task.
 \emph{Verdict.} The differences the framework reports are statistically real,
 not sampling noise. The Friedman omnibus test over the seven methods and 600
 image-blocks rejects equal mean ranks for every scheme and model at
-$p < 10^{-3}$ (ResNet-18 $\chi^2 = 760$ Autoweighted / $374$ MQ-discount;
-SqueezeNet $\chi^2 = 1430$ / $1185$; Kendall's $W$ between $0.10$ and
-$0.44$), with a Nemenyi critical difference of
+$p < 10^{-3}$ (ResNet-18 $\chi^2 = 760$ Autoweighted / $864$ MQ-discount;
+SqueezeNet $\chi^2 = 1430$ / $1081$; Kendall's $W$ between $0.11$ and
+$0.46$), with a Nemenyi critical difference of
 $\mathrm{CD} = 0.368$. Five of the six paired Wilcoxon ensemble comparisons
 are significant at $p < 10^{-3}$; the sixth---ensemble vs.\ the mean
 individual method on SqueezeNet---is reported as a null
@@ -171,10 +175,11 @@ broaden the framework's reach.
 \paragraph{Scaling the statistical analysis.}
 The redundancy and reliability estimates rest on finite samples from a single
 challenge distribution---the redundancy analysis on the full 600-image test
-set, the meta-evaluation on a 64-image sample (12 for the extended-AR
-completion). The immediate next steps are to enlarge the meta-evaluation
-sample and, more importantly, the number of degradation levels (the
-5-level AR estimator has $0.1$-granularity regardless of image count); to
+set, the meta-evaluation on a 64-image sample. The immediate next steps are
+to re-measure the Noise-Resilience leg of the two explanation-recomputing
+metrics (whose recorded NR proved to be a silent-failure artifact and is
+currently discarded), to enlarge the meta-evaluation
+sample and the number of degradation levels further; to
 repeat both analyses on repeated
 subsamples, reporting confidence intervals on the correlation and reliability
 estimates and a stability analysis of the membership of $M^{*}$ and of the

@@ -8,8 +8,11 @@ cells; SD is the between-cell standard deviation of $r_k$. NR and AR were
 computed on the same fixed seed-42 64-image sample of the test split (5 noise
 seeds; 5 degradation levels, or 10 for the extended-AR completion of
 \emph{max\_sensitivity} and \emph{random\_logit}, whose degradation is
-injected into the explanation function those metrics re-invoke internally;
-Section~\ref{sec:exp-meta}). Values are reported to
+injected into the explanation function those metrics re-invoke internally).
+NR is \textit{n/a} for those two metrics: their NR-stage metric calls
+failed silently in the meta-evaluation run and the recorded values were an
+artifact of the failure (Section~\ref{sec:exp-meta}), so their $r_k$ is
+the measured AR alone. Values are reported to
 two decimals to reflect the estimator's granularity. Runtime is the
 meta-evaluation cost per (model, FAE) cell at these sample sizes, not the
 full-run evaluation cost.}
@@ -19,10 +22,10 @@ full-run evaluation cost.}
 Metric & NR & AR & Combined $r_k$ & SD($r_k$) & Runtime (s) \\
 \midrule
 faithfulness\_correlation & 0.56 & 0.60 & 0.58 & 0.28 & 151.5 \\
-max\_sensitivity & 1.00 & 0.95 & 0.98 & 0.09 & 128.2 \\
+max\_sensitivity & \textit{n/a} & 0.95 & 0.95 & 0.18 & 2820.7 \\
 pixel\_flipping & 0.99 & 0.77 & 0.88 & 0.15 & 186.7 \\
 pointing\_game & 0.96 & 0.66 & 0.81 & 0.15 & 40.7 \\
-random\_logit & 1.00 & 0.27 & 0.64 & 0.12 & 127.2 \\
+random\_logit & \textit{n/a} & 0.27 & 0.27 & 0.24 & 306.7 \\
 relevance\_mass\_accuracy & 0.59 & 0.51 & 0.55 & 0.22 & 40.5 \\
 sparseness & 0.99 & 0.94 & 0.97 & 0.09 & 40.4 \\
 \bottomrule

@@ -123,6 +123,13 @@ def _state() -> dict:
     return s
 
 
+def _is_nan(v) -> bool:
+    try:
+        return isinstance(v, float) and np.isnan(v)
+    except TypeError:
+        return False
+
+
 def _diff(before: dict, after: dict, prefix: str = "") -> list[str]:
     lines = []
     keys = sorted(set(before) | set(after), key=str)
@@ -130,6 +137,8 @@ def _diff(before: dict, after: dict, prefix: str = "") -> list[str]:
         b, a = before.get(k), after.get(k)
         if isinstance(b, dict) and isinstance(a, dict):
             lines += _diff(b, a, prefix=f"{prefix}{k}.")
+        elif _is_nan(b) and _is_nan(a):
+            continue  # NaN == NaN for diff purposes (JSON round-trips NaN)
         elif b != a:
             lines.append(f"  {prefix}{k}: {b}  ->  {a}")
     return lines

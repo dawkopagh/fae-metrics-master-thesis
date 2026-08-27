@@ -285,12 +285,21 @@ def noise_resilience_test(
     mean_score = float(np.mean(valid)) if valid else float("nan")
     std_score = float(np.std(valid, ddof=0)) if len(valid) > 1 else 0.0
 
-    if np.isnan(mean_score) or abs(mean_score) < 1e-10:
-        cv_score = float("inf") if std_score > 1e-10 else 0.0
+    # A failed measurement is NOT a stable one: if fewer than two seeds
+    # produced a finite score, stability across seeds is undefined. The
+    # pre-2026-08 version mapped the all-NaN case to cv=0 -> NR=1.0, which
+    # scored silent metric failures as PERFECT noise resilience (caught by
+    # the independent examination: NR was bitwise 1.0 for exactly the
+    # explain_func-recomputing metrics whose calls errored out).
+    if len(valid) < 2:
+        nr_score = float("nan")
+        cv_score = float("nan")
     else:
-        cv_score = std_score / abs(mean_score)
-
-    nr_score = 1.0 / (1.0 + cv_score) if np.isfinite(cv_score) else 0.0
+        if abs(mean_score) < 1e-10:
+            cv_score = float("inf") if std_score > 1e-10 else 0.0
+        else:
+            cv_score = std_score / abs(mean_score)
+        nr_score = 1.0 / (1.0 + cv_score) if np.isfinite(cv_score) else 0.0
 
     return {
         "mean_score": mean_score,

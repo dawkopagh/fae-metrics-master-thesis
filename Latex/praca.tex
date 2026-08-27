@@ -202,16 +202,21 @@ redundancy pruning together reduce the twelve-metric battery
 to the \emph{same} seven-metric non-redundant subset on both architectures,
 indicating that the redundancy structure is a property of the metric battery
 rather than of the classifier. The meta-evaluation identifies
-Max-Sensitivity, Sparseness, and Pixel-Flipping as the most reliable metrics
-and Faithfulness Correlation and Relevance Mass Accuracy as the least; the
-reliability-discounted weighting built on these scores reorders the ranking
-on one architecture and barely moves it on the other. The aggregated rankings prove
+Sparseness, Max-Sensitivity, and Pixel-Flipping as the most reliable metrics
+and Random-Logit---whose measured reactivity is indistinguishable from
+noise---alongside Faithfulness Correlation and Relevance Mass Accuracy as
+the least; the
+reliability-discounted weighting built on these measurements largely inverts
+the ranking
+on one architecture and only mildly alters the other. The aggregated
+rankings prove
 weighting-sensitive in a model-dependent way: on ResNet-18 the mid-field
 reorders substantially between uniform and the dispersion-based Autoweighted
 weighting
 (Spearman $\rho = 0.75$) while Occlusion stays first, whereas the SqueezeNet
-ranking is nearly stable; a single-metric ranking correlates only moderately
-with the multi-criteria index---a concrete demonstration that single-metric
+ranking is nearly stable; a single-metric ranking is essentially
+uncorrelated with the reliability-discounted index on ResNet-18---a
+concrete demonstration that single-metric
 conclusions are unsafe.
 Finally, once ensembled and individual scores are normalised on a common
 scale, NormEnsembleXAI-ensembled attributions beat none of the individual
@@ -266,17 +271,21 @@ redundancji opartym na korelacji redukują dwunastometrykową baterię
 do \emph{tego samego} siedmioelementowego, nieredundantnego
 podzbioru na obu architekturach, co wskazuje, że struktura redundancji jest
 własnością baterii metryk, a nie klasyfikatora. Meta-ewaluacja wskazuje
-Max-Sensitivity, Sparseness i Pixel-Flipping jako metryki najbardziej
-wiarygodne, a Faithfulness Correlation i Relevance Mass Accuracy jako
-najmniej wiarygodne; oparte na tych wynikach ważenie z dyskontem
-wiarygodności przetasowuje ranking na jednej architekturze, a na drugiej
-niemal go nie zmienia. Zagregowane rankingi okazują się wrażliwe na schemat
+Sparseness, Max-Sensitivity i Pixel-Flipping jako metryki najbardziej
+wiarygodne, a Random-Logit---którego zmierzona reaktywność jest
+nieodróżnialna od szumu---oraz Faithfulness Correlation i Relevance Mass
+Accuracy jako
+najmniej wiarygodne; oparte na tych pomiarach ważenie z dyskontem
+wiarygodności w dużej mierze odwraca ranking na jednej architekturze, a na
+drugiej zmienia go tylko nieznacznie. Zagregowane rankingi okazują się
+wrażliwe na schemat
 ważenia w sposób zależny od modelu: na ResNet-18 środek stawki istotnie się
 przestawia między ważeniem jednostajnym a opartym na rozrzucie ważeniem
 Autoweighted (współczynnik Spearmana $\rho = 0{,}75$), podczas gdy Occlusion
 pozostaje na pierwszym miejscu, a ranking dla SqueezeNet jest niemal
-stabilny; ranking oparty na pojedynczej metryce koreluje z indeksem
-wielokryterialnym jedynie umiarkowanie---co konkretnie pokazuje, że wnioski
+stabilny; ranking oparty na pojedynczej metryce jest na ResNet-18
+praktycznie nieskorelowany z indeksem z dyskontem wiarygodności---co
+konkretnie pokazuje, że wnioski
 wyciągane z pojedynczej metryki są zawodne. Wreszcie, po znormalizowaniu
 wyników zespołu i metod indywidualnych na wspólnej skali atrybucje zespolone
 metodą NormEnsembleXAI nie pokonują żadnego z raportowanych punktów

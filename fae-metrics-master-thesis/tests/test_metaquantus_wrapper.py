@@ -337,6 +337,37 @@ class TestARAttributionSumMetric:
 
 
 # ---------------------------------------------------------------------------
+# Silent-failure NR regression (the NR=1.0 artifact caught in review)
+# ---------------------------------------------------------------------------
+
+class _AlwaysFailingMetric:
+    """Metric whose every invocation raises — as the explain_func metrics did
+    in the 2026-06 Colab run. NR must be NaN, never 1.0."""
+
+    def __call__(self, *args, **kwargs):
+        raise RuntimeError("simulated metric failure")
+
+
+class TestNRFailedMetricIsNaN:
+    def test_all_nan_seeds_yield_nan_nr(self):
+        images, attrs, targets = _make_inputs()
+        result = noise_resilience_test(
+            metric_fn=_AlwaysFailingMetric(),
+            model=_DummyModel(),
+            images=images,
+            attributions=attrs,
+            targets=targets,
+            explain_fn=_explain_zeros,
+            n_seeds=3,
+        )
+        assert np.isnan(result["nr_score"]), (
+            "A metric that never produced a finite score must have NaN noise "
+            f"resilience, not {result['nr_score']} (the pre-2026-08 code "
+            "scored total failure as NR=1.0)."
+        )
+
+
+# ---------------------------------------------------------------------------
 # Degraded-explain_func AR tests (max_sensitivity / random_logit failure mode)
 # ---------------------------------------------------------------------------
 

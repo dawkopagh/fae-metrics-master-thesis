@@ -518,8 +518,13 @@ reliability is their equal-weight mean,
 \end{equation}
 reported per (model, FAE, metric) in
 \texttt{results/meta\_evaluation\_reliability.csv} and averaged over the
-(model, FAE) cells in which the metric is defined. Because $|\rho_S|$ over
-five levels has a granularity of ${\sim}0.1$ and is direction-agnostic,
+(model, FAE) cells in which the metric is defined. For the two
+explanation-recomputing metrics, whose NR-stage measurements failed in the
+meta-evaluation run and are discarded as artifacts
+(Section~\ref{sec:exp-meta}), $\lambda_k$ is the measured Adversarial
+Reactivity alone. Because $|\rho_S|$ over
+five levels has a granularity of ${\sim}0.1$ (finer at the ten levels used
+for the extended-AR completion) and is direction-agnostic,
 reliability values are reported to two decimals and the direction of each
 cell's reactivity is audited in Chapter~\ref{ch:experiments}.
 Figure~\ref{fig:ar-schematic} illustrates the estimator on two measured
@@ -579,9 +584,14 @@ renormalised to a convex combination:
 Equation~\eqref{eq:mq-discount} is the MetaQuantus-discounted Autoweighted
 operator. It reduces to the plain Autoweighted scheme of
 \citet{hryniewska2024normensemblexai} when every metric is perfectly reliable
-($\lambda_k \equiv 1$), and it drives $w_k \to 0$ for any metric that either is
-internally noisy (small $w_k^{\mathrm{AW}}$) or fails meta-evaluation (small
-$\lambda_k$). The three weighting schemes---uniform, Autoweighted, and
+($\lambda_k \equiv 1$), and it attenuates $w_k$ toward zero for a metric
+that is either
+internally noisy (small $w_k^{\mathrm{AW}}$) or unreliable under
+meta-evaluation (small
+$\lambda_k$); being multiplicative, however, it can only rescale the
+Autoweighted allocation, so a metric with a large agreement weight retains
+substantial influence unless its $\lambda_k$ is itself small.
+The three weighting schemes---uniform, Autoweighted, and
 MQ-discounted---are reported side by side in Chapter~\ref{ch:experiments} so
 that their effect on the final method ranking can be assessed directly.
 
