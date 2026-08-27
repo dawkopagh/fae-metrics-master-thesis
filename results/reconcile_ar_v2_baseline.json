@@ -1,0 +1,98 @@
+{
+ "reliability": {
+  "faithfulness_correlation": {
+   "NR": 0.56,
+   "AR": 0.6,
+   "r_k": 0.58,
+   "SD": 0.28
+  },
+  "max_sensitivity": {
+   "NR": 1.0,
+   "AR": 0.94,
+   "r_k": 0.97,
+   "SD": 0.09
+  },
+  "pixel_flipping": {
+   "NR": 0.99,
+   "AR": 0.77,
+   "r_k": 0.88,
+   "SD": 0.15
+  },
+  "pointing_game": {
+   "NR": 0.96,
+   "AR": 0.66,
+   "r_k": 0.81,
+   "SD": 0.15
+  },
+  "random_logit": {
+   "NR": 1.0,
+   "AR": 0.45,
+   "r_k": 0.72,
+   "SD": 0.15
+  },
+  "relevance_mass_accuracy": {
+   "NR": 0.59,
+   "AR": 0.51,
+   "r_k": 0.55,
+   "SD": 0.22
+  },
+  "sparseness": {
+   "NR": 0.99,
+   "AR": 0.94,
+   "r_k": 0.97,
+   "SD": 0.09
+  }
+ },
+ "rho_aw_mq_resnet18": 0.786,
+ "rho_uni_mq_resnet18": 0.321,
+ "mq_ranking_resnet18": [
+  "occlusion",
+  "lrp",
+  "saliency",
+  "integrated_gradients",
+  "gradcam",
+  "deep_lift",
+  "guided_backprop"
+ ],
+ "mq_values_resnet18": [
+  0.178,
+  0.141,
+  0.13,
+  0.119,
+  0.082,
+  0.079,
+  0.054
+ ],
+ "lrp_mq_pos_resnet18": 2,
+ "mean_abs_delta_resnet18": 0.086,
+ "rho_aw_mq_squeezenet": 0.964,
+ "rho_uni_mq_squeezenet": 0.929,
+ "mq_ranking_squeezenet": [
+  "gradcam",
+  "saliency",
+  "occlusion",
+  "guided_backprop",
+  "integrated_gradients",
+  "lrp",
+  "deep_lift"
+ ],
+ "mq_values_squeezenet": [
+  0.162,
+  0.102,
+  0.084,
+  0.06,
+  0.018,
+  0.015,
+  -0.005
+ ],
+ "lrp_mq_pos_squeezenet": 6,
+ "mean_abs_delta_squeezenet": 0.046,
+ "friedman_mq_resnet18": {
+  "chi2": 469.2,
+  "kendalls_w": 0.13
+ },
+ "friedman_mq_squeezenet": {
+  "chi2": 1217.7,
+  "kendalls_w": 0.338
+ }
+}
