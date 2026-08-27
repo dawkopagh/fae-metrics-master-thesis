@@ -384,13 +384,14 @@ _QUANTUS_CATEGORIES = {
     "random_logit": "randomisation",
 }
 
-# Metrics whose AR is inapplicable (they internally re-compute attributions).
-# MPRT was disabled for the full ISIC run, so it has no reliability rows at
-# all in the full-run CSV (pilot-era expectation included it for resnet18).
-_NR_ONLY_RESNET18 = frozenset(
+# Metrics that re-compute attributions internally. After the 2026-08 NR
+# audit their artifact NR values were invalidated and their
+# combined_reliability is the measured AR alone — so in the released CSV
+# they resolve via the COMBINED path, not any fallback. (Historic
+# expectations: pilot era = NR-only incl. MPRT; post-AR-v1 = NR-only.)
+_EXPLAIN_FUNC_METRICS = frozenset(
     {"avg_sensitivity", "max_sensitivity", "random_logit"}
 )
-_NR_ONLY_ALL_MODELS = frozenset({"avg_sensitivity", "max_sensitivity", "random_logit"})
 
 
 @pytest.mark.skipif(
@@ -471,18 +472,24 @@ class TestIntegrationMetaquantusDiscount:
             print(f"  {model}: {sorted(nr_only_per_model.get(model, set()))}")
 
         # --- Assertions ---
-        # 3 metrics are NR-only for every model (AR universally inapplicable).
+        # The explain_func metrics carry a measured (AR-only) combined
+        # reliability in the released CSV, so they must resolve via the
+        # combined path — NEVER via the nr_only fallback, whose inputs were
+        # invalidated as silent-failure artifacts.
         for model in models:
             model_nr = nr_only_per_model.get(model, set())
-            assert _NR_ONLY_ALL_MODELS <= model_nr, (
-                f"Expected {_NR_ONLY_ALL_MODELS} ⊆ NR-only for {model}; got {model_nr}"
+            overlap = _EXPLAIN_FUNC_METRICS & model_nr
+            assert not overlap, (
+                f"{model}: {sorted(overlap)} resolved via the nr_only "
+                "fallback, but their NR was invalidated (artifact) and "
+                "combined_reliability (= measured AR) is present."
             )
-
-        # resnet18: all 4 user-identified metrics are NR-only.
-        resnet_nr = nr_only_per_model.get("resnet18", set())
-        assert _NR_ONLY_RESNET18 <= resnet_nr, (
-            f"Expected {_NR_ONLY_RESNET18} ⊆ NR-only for resnet18; got {resnet_nr}"
-        )
+            for m in _EXPLAIN_FUNC_METRICS:
+                src = per_model_metric.get((model, m))
+                assert src == "combined", (
+                    f"{model}/{m}: expected source 'combined' (AR-only "
+                    f"measured reliability), got {src!r}"
+                )
 
         # squeezenet MPR: must NOT be NR-only (nr_score=NaN → category fallback).
         squeezenet_mpr_src = per_model_metric.get(("squeezenet", "model_parameter_randomisation"))
