@@ -300,7 +300,10 @@ shows the ResNet-18 reordering is at least not an artefact of any single
 cell, though the Occlusion/LRP order at the top is not resolvable at this
 granularity. Third, the direction-agnostic $|\rho_S|$ awarded credit to one
 of the
-28 audited cells that reacted in the unexpected direction. The reliability
+28 audited cells that reacted in the unexpected direction, and
+random-logit's mean AR ($0.27$) is indistinguishable from the noise floor
+of a ten-level $|\rho_S|$ estimate---its $\lambda_k$ of $0.64$ is best
+read as an upper bound on a possibly fully unreactive metric. The reliability
 scores---and therefore the ResNet-18 reordering the MQ-discount
 produces---inherit these caveats, and validating the extension (shared
 degradation masks per level, a direction-rectified AR, larger samples)

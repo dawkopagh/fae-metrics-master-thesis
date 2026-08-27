@@ -274,7 +274,18 @@ still earn credit; auditing the signed monotonicity of the 28 extended-AR
 cells finds one such cell (\emph{random\_logit} on
 guided-backprop/ResNet-18, $|\rho_S| = 0.59$) --- its contribution is
 disclosed rather than re-scored, and a direction-rectified AR is noted as
-future work. Second, a leave-one-cell-out jackknife of the per-metric
+future work. Relatedly, \emph{random\_logit}'s mean AR of $0.27$ sits at
+the noise floor of a ten-point $|\rho_S|$ estimate (the expected
+$|\rho_S|$ of a random ordering over ten levels is ${\approx}0.27$, and
+$45\%$ of random orderings exceed the measured value), and its per-cell
+signed monotonicity is mixed (9 of 14 cells positive): its measured
+adversarial reactivity is statistically indistinguishable from zero, so
+its combined reliability of $0.64$ is best read as an upper bound
+($\lambda_k \to 0.5$ as $\mathrm{AR}_k \to 0$).
+\emph{Max\_sensitivity}, by contrast, is overwhelmingly directional (13 of
+14 cells positive, mean signed $\rho_S = 0.91$)---a real, if partly
+mechanical, response (see Section~\ref{sec:disc-threats}). Second, a
+leave-one-cell-out jackknife of the per-metric
 $\lambda_k$ (recomputing the MQ-discounted ResNet-18 ranking with each of
 the seven FAE cells removed from the reliability average) preserves the
 headline reordering in all seven replicates: Occlusion and LRP form the
