@@ -523,6 +523,25 @@ reported per (model, FAE, metric) in
 five levels has a granularity of ${\sim}0.1$ and is direction-agnostic,
 reliability values are reported to two decimals and the direction of each
 cell's reactivity is audited in Chapter~\ref{ch:experiments}.
+Figure~\ref{fig:ar-schematic} illustrates the estimator on two measured
+cells, including one whose reactivity runs opposite to the expected
+direction---exactly the case the audit exists to expose.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{figures/ar_schematic.pdf}
+    \caption{The AR estimator on two measured (model, FAE, metric) cells
+    from the extended-AR run: mean metric score against the fraction $f$ of
+    the explanation degraded, with $\mathrm{AR} = |\rho_S|$ over the level
+    curve. Both metrics shown are lower-is-better, so degradation should
+    \emph{raise} the score. Left: Max-Sensitivity under Integrated Gradients
+    reacts monotonically in the expected direction. Right: Random Logit
+    under Guided Backpropagation \emph{falls} as the explanation degrades,
+    yet the direction-agnostic estimator still awards
+    $\mathrm{AR} = |\rho_S|$---the pathology the direction audit of
+    Chapter~\ref{ch:experiments} quantifies.}
+    \label{fig:ar-schematic}
+\end{figure}
 
 The AR test requires one protocol extension. MetaQuantus degrades the
 explanation by zeroing a growing fraction of the attribution array, but the

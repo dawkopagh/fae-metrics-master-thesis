@@ -68,7 +68,8 @@ the model being explained are randomised, which means those maps cannot be
 reflecting the learned function at all \cite{adebayo2018sanity}. Compounding
 this, different methods frequently attribute importance to different features
 for the same prediction, a phenomenon documented as systematic disagreement
-across explanation methods \cite{krishna2024disagreement}; no single estimator
+across explanation methods \cite{krishna2024disagreement} and visible at a
+glance in Figure~\ref{fig:attribution-disagreement}; no single estimator
 family dominates across the quality criteria---gradient-based estimators, for
 example, are efficient and often faithful yet notoriously unstable under small
 input perturbations, while perturbation-based estimators carry their own
@@ -77,6 +78,21 @@ sampling-induced instability and cost
 single-estimator unreliability is to combine several attribution methods into an
 ensemble whose aggregated map is more stable than any of its constituents, as in
 the NormEnsembleXAI approach \cite{hryniewska2024normensemblexai}.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{figures/attribution_grid.png}
+    \caption{Seven feature-attribution explanations of the same prediction
+    (trained ResNet-18, dermoscopic test image \texttt{ISIC\_0012258},
+    melanoma class) from the ISIC~2017 dataset used in this thesis. The
+    methods visibly disagree about which regions matter: the gradient-based
+    methods (IG, Saliency, DeepLift, Guided Backpropagation, LRP) produce
+    sharp but noisy pixel-level maps, while Grad-CAM and Occlusion yield
+    coarse regional ones. Visual inspection cannot decide which of these is
+    the \emph{better} explanation of the model's decision---quantifying that
+    is the evaluation problem this thesis addresses.}
+    \label{fig:attribution-disagreement}
+\end{figure}
 
 Ensembling, however, only relocates the evaluation problem rather than solving
 it, because one must still decide \emph{which} quality criteria to optimise and

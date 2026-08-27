@@ -159,8 +159,68 @@ def make_ensemble_radar() -> None:
     print(f"wrote {FIG}/ensemble_radar.pdf")
 
 
+def make_ar_schematic() -> None:
+    """AR-estimator illustration for Chapter 3, from measured curves.
+
+    Two real (model, FAE, metric) cells from the extended-AR run: one
+    reacting in the expected direction (both plotted metrics are
+    lower-is-better, so degradation should RAISE the score) and one
+    reacting the unexpected way, which the direction-agnostic
+    AR = |Spearman rho| nonetheless credits. Prefers the v2 (n=64,
+    10-level) artifact when present; falls back to the v1 completion CSV.
+    """
+    v2 = Path(f"{RES}/ar_completion_v2_n64.csv")
+    src = v2 if v2.exists() else Path(f"{RES}/ar_completion_progress.csv")
+    ar = pd.read_csv(src)
+
+    cells = [
+        ("resnet18", "integrated_gradients", "max_sensitivity",
+         "steelblue", "expected direction"),
+        ("resnet18", "guided_backprop", "random_logit",
+         "crimson", "unexpected direction"),
+    ]
+    _FAE_LABEL = {"integrated_gradients": "Integrated Gradients",
+                  "guided_backprop": "Guided Backprop"}
+
+    fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.7))
+    for ax, (model, fae, metric, color, tag) in zip(axes, cells):
+        sel = ar[(ar.model == model) & (ar.fae_method == fae)
+                 & (ar.metric == metric)]
+        if sel.empty:
+            ax.set_axis_off()
+            ax.text(0.5, 0.5, f"({model}, {fae}, {metric})\nnot in {src.name}",
+                    ha="center", va="center", fontsize=8)
+            continue
+        row = sel.iloc[0]
+        scores = [float(s) for s in str(row.scores).split(";")]
+        levels = np.linspace(0.0, 0.9, len(scores))
+        rho = float(row.monotonicity)
+
+        ax.plot(levels, scores, "-o", color=color, lw=1.5, ms=4)
+        ax.set_title(f"{_SHORT.get(metric, metric)} / {_FAE_LABEL[fae]} "
+                     f"(ResNet-18)", fontsize=9)
+        ax.set_xlabel("degradation fraction $f$", fontsize=8)
+        ax.set_ylabel("mean metric score", fontsize=8)
+        ax.tick_params(labelsize=7)
+        ax.grid(alpha=0.25, lw=0.5)
+        # Annotate in whichever top corner is free of the curve's start.
+        left_corner = scores[0] < max(scores)
+        ax.text(0.03 if left_corner else 0.97, 0.95,
+                f"{tag}\n$\\rho_S = {rho:+.1f}$"
+                f"$\\;\\Rightarrow\\;$AR$\\,= {abs(rho):.1f}$",
+                transform=ax.transAxes,
+                ha="left" if left_corner else "right", va="top", fontsize=8,
+                bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="0.7",
+                          lw=0.5))
+    plt.tight_layout()
+    plt.savefig(f"{FIG}/ar_schematic.pdf", bbox_inches="tight")
+    plt.close()
+    print(f"wrote {FIG}/ar_schematic.pdf (source: {src.name})")
+
+
 if __name__ == "__main__":
     os.makedirs(FIG, exist_ok=True)
     report_scalars()
     make_cd_diagram()
     make_ensemble_radar()
+    make_ar_schematic()

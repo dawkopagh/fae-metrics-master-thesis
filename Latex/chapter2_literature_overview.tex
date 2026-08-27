@@ -87,7 +87,53 @@ A seminal study by Adebayo et al., titled "Sanity Checks for Saliency Maps," dem
 \section{Taxonomy of Evaluation Metrics}
 \label{sec:taxonomy}
 
-To rigorously assess FAE models, recent literature proposes a modular taxonomy of metrics. This thesis adopts the framework formalized by Quantus \cite{hedstrom2023quantus}, covering all six of its categories: Faithfulness, Robustness, Localization (Section~\ref{subsec:localization-metrics}), Complexity, Randomization, and Axiomatic correctness.
+To rigorously assess FAE models, recent literature proposes a modular taxonomy of metrics. This thesis adopts the framework formalized by Quantus \cite{hedstrom2023quantus}, covering all six of its categories: Faithfulness, Robustness, Localization (Section~\ref{subsec:localization-metrics}), Complexity, Randomization, and Axiomatic correctness. Figure~\ref{fig:metric-taxonomy} maps the twelve concrete metrics evaluated in this thesis onto these categories; each is defined in the corresponding subsection below, and their configuration is fixed in Chapter~\ref{ch:methodology}.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        card/.style={draw, rounded corners, align=left, inner sep=5pt,
+                     text width=0.28\linewidth, font=\footnotesize},
+        root/.style={draw, rounded corners, align=center, inner sep=5pt,
+                     text width=0.55\linewidth, font=\small\bfseries,
+                     fill=black!5},
+        arr/.style={-{Latex[length=1.6mm]}, semithick}
+    ]
+        \node[root] (root) {XAI evaluation metrics (Quantus taxonomy)};
+
+        \node[card, below left=7mm and 0.32\linewidth of root.south,
+              anchor=north] (faith)
+            {\textbf{Faithfulness}\\[1pt]
+             Faithfulness Corr.\ ($\uparrow$)\\Pixel Flipping ($\downarrow$)};
+        \node[card, below=7mm of root.south, anchor=north] (rob)
+            {\textbf{Robustness}\\[1pt]
+             Max-Sensitivity ($\downarrow$)\\Avg-Sensitivity ($\downarrow$)};
+        \node[card, below right=7mm and 0.32\linewidth of root.south,
+              anchor=north] (loc)
+            {\textbf{Localization}\\[1pt]
+             Pointing Game ($\uparrow$)\\Relevance Mass Acc.\ ($\uparrow$)};
+        \node[card, below=4mm of faith] (comp)
+            {\textbf{Complexity}\\[1pt]
+             Sparseness ($\uparrow$)\\Complexity ($\downarrow$)};
+        \node[card, below=4mm of rob] (rand)
+            {\textbf{Randomization}\\[1pt]
+             Random Logit ($\downarrow$)\\MPRT ($\downarrow$)};
+        \node[card, below=4mm of loc] (axio)
+            {\textbf{Axiomatic}\\[1pt]
+             Completeness\\Non-Sensitivity ($\downarrow$)};
+
+        \foreach \c in {faith, rob, loc}
+            \draw[arr] (root.south) -- (\c.north);
+    \end{tikzpicture}
+    \caption{The six Quantus metric categories \cite{hedstrom2023quantus} and
+    the twelve concrete metrics evaluated in this thesis, two per category.
+    Arrows in parentheses give each metric's score direction
+    ($\uparrow$~higher is better, $\downarrow$~lower is better);
+    Completeness is a binary axiom check. The redundancy analysis of
+    Chapter~\ref{ch:experiments} shows that not all twelve carry independent
+    signal.}
+    \label{fig:metric-taxonomy}
+\end{figure}
 
 \subsection{Faithfulness (Fidelity)}
 Faithfulness quantifies how accurately the explanation reflects the model's internal decision logic, regardless of human intelligibility.
