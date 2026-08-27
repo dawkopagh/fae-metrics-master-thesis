@@ -7,3 +7,11 @@ friedman,squeezenet,uniform,fae_methods,1571.3449999999993,0.0,600,0.43648472222
 friedman,squeezenet,autoweighted,fae_methods,1430.301428571429,6.652283764541758e-306,600,0.39730595238095245,True,k=7;dropped=0
 friedman,squeezenet,mqdiscount,fae_methods,1217.7392857142859,6.929774670099414e-260,600,0.33826091269841274,True,k=7;dropped=0
 friedman,squeezenet,single_fc,fae_methods,1640.328571428572,0.0,600,0.4556468253968256,True,k=7;dropped=0
+wilcoxon,resnet18,pooled_uniform_mstar,ensemble_vs_mean_individual,62587.0,8.666566165027441e-11,600,-0.3057459789240155,True,direction=a<b;n_zero=0
+wilcoxon,resnet18,pooled_uniform_mstar,ensemble_vs_best_fixed,27972.0,1.6262909752326347e-48,600,-0.6897171381031614,True,direction=a<b;n_zero=0
+wilcoxon,resnet18,pooled_uniform_mstar,ensemble_vs_best_fixed_gradient,29873.0,1.06127937143983e-45,600,-0.6686300610094287,True,direction=a<b;n_zero=0
+wilcoxon,resnet18,pooled_uniform_mstar,ensemble_vs_per_image_oracle,562.0,9.881610590459468e-99,600,-0.9937659456461453,True,direction=a<b;n_zero=0
+wilcoxon,squeezenet,pooled_uniform_mstar,ensemble_vs_mean_individual,88718.0,0.7360382867673676,600,0.015884636716583474,False,direction=a>b;n_zero=0
+wilcoxon,squeezenet,pooled_uniform_mstar,ensemble_vs_best_fixed,12004.0,1.4091893411278696e-75,600,-0.8668441486411537,True,direction=a<b;n_zero=0
+wilcoxon,squeezenet,pooled_uniform_mstar,ensemble_vs_best_fixed_gradient,12004.0,1.4091893411278696e-75,600,-0.8668441486411537,True,direction=a<b;n_zero=0
+wilcoxon,squeezenet,pooled_uniform_mstar,ensemble_vs_per_image_oracle,162.0,1.3443759706563794e-99,600,-0.9982029950083194,True,direction=a<b;n_zero=0

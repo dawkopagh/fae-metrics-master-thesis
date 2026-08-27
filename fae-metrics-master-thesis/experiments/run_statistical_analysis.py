@@ -8,8 +8,12 @@ ranking CSV) produced by the full Colab run and runs:
     model and per weighting scheme (uniform / autoweighted / mqdiscount /
     single_fc). Drives Table~\\ref{tab:friedman} and the CD diagram
     (Figure~\\ref{fig:cd-diagram}) of chapter4_state_observers.tex.
-  * Wilcoxon signed-rank test for the paired individual-vs-ensembled
-    comparison, per model. Drives Table~\\ref{tab:wilcoxon}.
+  * Wilcoxon signed-rank tests for the paired individual-vs-ensembled
+    comparison, per model, read from results/individual_vs_ensemble.csv
+    (the pooled-normalization artifact of compare_ensemble.py): ensemble
+    vs. mean individual, vs. best fixed method, vs. best fixed gradient
+    member, and vs. the per-image oracle. Drives (and now matches)
+    Table~\\ref{tab:wilcoxon}.
 
 It uses the new src/comparison/statistical_tests.py helpers exclusively.
 
@@ -36,8 +40,8 @@ Exact command (pilot, defaults point at results/):
 Full run:
 
     .venv/bin/python experiments/run_statistical_analysis.py \\
-        --ranking-csv  ../results/ranking_comparison_FULL.csv \\
-        --ensemble-csv ../results/ensemble_ranking_FULL.csv
+        --ranking-csv  ../results/ranking_comparison.csv \\
+        --ensemble-csv ../results/individual_vs_ensemble.csv
 """
 
 from __future__ import annotations
@@ -150,70 +154,60 @@ def _run_friedman_nemenyi(
 # Wilcoxon: individual vs ensembled (paired per image)
 # ---------------------------------------------------------------------------
 
-def _individual_best_per_image(
-    ranking_df: pd.DataFrame, value_col: str
-) -> pd.DataFrame:
-    """Per (model, image_id) best individual effectiveness under *value_col*."""
-    grp = (
-        ranking_df.groupby(["model", "image_id"])[value_col]
-        .max()
-        .reset_index()
-        .rename(columns={value_col: "individual_best"})
-    )
-    return grp
+# Ensemble-comparison baselines: CSV column -> comparison label.
+# Schema of results/individual_vs_ensemble.csv (compare_ensemble.py).
+_ENSEMBLE_PAIRS: dict[str, str] = {
+    "eff_individual_mean": "ensemble_vs_mean_individual",
+    "eff_best_fixed": "ensemble_vs_best_fixed",
+    "eff_best_fixed_gradient": "ensemble_vs_best_fixed_gradient",
+    "eff_individual_best": "ensemble_vs_per_image_oracle",
+}
 
 
-def _run_wilcoxon_ensemble(
-    ranking_df: pd.DataFrame,
-    ensemble_df: pd.DataFrame | None,
-    value_col: str = "effectiveness_mqdiscount",
-) -> list[dict]:
-    """Wilcoxon ensemble-vs-best-individual, paired per image, per model.
+def _run_wilcoxon_ensemble(ensemble_df: pd.DataFrame | None) -> list[dict]:
+    """Paired Wilcoxon tests from the individual-vs-ensemble comparison CSV.
 
-    The ensemble CSV is expected in the same wide schema as the ranking CSV
-    (model, fae_method='ensemble', image_id, effectiveness_*). When it is
-    absent (pilot has no ensemble run yet) the test is skipped with a note.
+    Reads the pooled-normalization artifact of compare_ensemble.py
+    (results/individual_vs_ensemble.csv: eff_ensemble plus one column per
+    baseline, uniform weights over M*) and emits one row per
+    (model, baseline). When the CSV is absent (pilot has no ensemble run
+    yet) the tests are skipped with a note.
     """
     if ensemble_df is None or ensemble_df.empty:
-        print("  [skip] Wilcoxon ensemble vs individual: no ensemble CSV "
-              "(expected after the full run).")
+        print("  [skip] Wilcoxon ensemble vs individual: no ensemble "
+              "comparison CSV (expected after the full run).")
         return []
 
     rows: list[dict] = []
-    best_ind = _individual_best_per_image(ranking_df, value_col)
+    for model, sub in ensemble_df.groupby("model"):
+        for col, label in _ENSEMBLE_PAIRS.items():
+            if col not in sub.columns:
+                print(f"  [skip] Wilcoxon {model}/{label}: column {col} absent.")
+                continue
+            try:
+                wres = wilcoxon_paired(
+                    sub["eff_ensemble"].to_numpy(),
+                    sub[col].to_numpy(),
+                    alternative="two-sided",
+                )
+            except ValueError as exc:
+                print(f"  [skip] Wilcoxon {model}/{label}: {exc}")
+                continue
 
-    for model in sorted(ensemble_df["model"].unique()):
-        ens = ensemble_df[ensemble_df["model"] == model][
-            ["image_id", value_col]
-        ].rename(columns={value_col: "ensemble"})
-        ind = best_ind[best_ind["model"] == model]
-        merged = ind.merge(ens, on="image_id", how="inner")
-        if merged.empty:
-            print(f"  [skip] Wilcoxon {model}: no matched images.")
-            continue
-        try:
-            wres = wilcoxon_paired(
-                merged["ensemble"].to_numpy(),
-                merged["individual_best"].to_numpy(),
-                alternative="two-sided",
-            )
-        except ValueError as exc:
-            print(f"  [skip] Wilcoxon {model}: {exc}")
-            continue
-
-        sig = bool(wres["p_value"] < _ALPHA) if np.isfinite(wres["p_value"]) else False
-        rows.append({
-            "test": "wilcoxon",
-            "model": model,
-            "scheme": value_col.replace("effectiveness_", ""),
-            "comparison": "ensemble_vs_best_individual",
-            "statistic": wres["statistic"],
-            "p_value": wres["p_value"],
-            "n": wres["n"],
-            "effect_size": wres["effect_size"],
-            "significant_0.05": sig,
-            "extra": f"direction={wres['direction']};n_zero={wres['n_zero']}",
-        })
+            sig = (bool(wres["p_value"] < _ALPHA)
+                   if np.isfinite(wres["p_value"]) else False)
+            rows.append({
+                "test": "wilcoxon",
+                "model": model,
+                "scheme": "pooled_uniform_mstar",
+                "comparison": label,
+                "statistic": wres["statistic"],
+                "p_value": wres["p_value"],
+                "n": wres["n"],
+                "effect_size": wres["effect_size"],
+                "significant_0.05": sig,
+                "extra": f"direction={wres['direction']};n_zero={wres['n_zero']}",
+            })
     return rows
 
 
@@ -233,19 +227,13 @@ def _parse_args() -> argparse.Namespace:
     )
     p.add_argument(
         "--ensemble-csv",
-        default=str(_RESULTS / "ensemble_ranking.csv"),
+        default=str(_RESULTS / "individual_vs_ensemble.csv"),
         metavar="PATH",
         help=(
-            "Ensemble ranking CSV (same wide schema, fae_method='ensemble'). "
-            "Optional — Wilcoxon is skipped if missing "
-            "(default: results/ensemble_ranking.csv)."
+            "Individual-vs-ensemble comparison CSV from compare_ensemble.py "
+            "(pooled normalization). Optional — Wilcoxon is skipped if "
+            "missing (default: results/individual_vs_ensemble.csv)."
         ),
-    )
-    p.add_argument(
-        "--wilcoxon-scheme",
-        default="effectiveness_mqdiscount",
-        metavar="COL",
-        help="Effectiveness column used for the ensemble Wilcoxon test.",
     )
     p.add_argument(
         "--tests-out",
@@ -283,10 +271,8 @@ def main() -> None:
     print("\n=== Friedman + Nemenyi across FAE methods ===")
     friedman_rows, cd_frames = _run_friedman_nemenyi(ranking_df)
 
-    print("\n=== Wilcoxon: ensemble vs best individual ===")
-    wilcoxon_rows = _run_wilcoxon_ensemble(
-        ranking_df, ensemble_df, value_col=args.wilcoxon_scheme
-    )
+    print("\n=== Wilcoxon: ensemble vs individual baselines ===")
+    wilcoxon_rows = _run_wilcoxon_ensemble(ensemble_df)
 
     # --- Write tests CSV ---
     all_rows = friedman_rows + wilcoxon_rows
