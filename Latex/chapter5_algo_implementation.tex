@@ -59,14 +59,15 @@ run returns.
     Yes---moderately, and model-dependently, once the meta-validation is
     complete. With all seven $M^{*}$ metrics carrying a measured combined
     reliability, the MQ-discounted ordering departs from Autoweighted on
-    ResNet-18 ($\rho = 0.79$: LRP rises from fourth into the top three
-    (second at the point estimate) and Grad-CAM
-    falls to fifth) while SqueezeNet moves by a single adjacent swap
-    ($\rho = 0.96$); the mean effectiveness shift is $|\Delta|\approx0.07$.
+    ResNet-18 ($\rho = 0.61$: LRP rises from fourth into a statistical tie
+    with Occlusion at the top, and Grad-CAM
+    falls to last) while SqueezeNet moves by a single adjacent swap
+    ($\rho = 0.96$); the mean effectiveness shift is $|\Delta|\approx0.13$
+    on ResNet-18 and $0.06$ on SqueezeNet.
     Mechanically, the discount redistributes weight toward the
-    high-reliability metrics (max-sensitivity $r_k \approx 0.97$, sparseness
+    high-reliability metrics (max-sensitivity $r_k \approx 0.98$, sparseness
     $0.97$, pixel-flipping $0.88$) and away from the low-reliability ones
-    (random-logit $0.72$, faithfulness-correlation $0.58$, relevance-mass
+    (random-logit $0.64$, faithfulness-correlation $0.58$, relevance-mass
     accuracy $0.55$). The discount is therefore a consequential modelling
     choice on one architecture and nearly inert on the other---the same
     conditional pattern as the uniform-vs-Autoweighted comparison
@@ -142,9 +143,10 @@ moderate, architecture-dependent reweighting of the ranking.
     MQ-discount precisely to let the former attenuate the latter. Empirically,
     the discount is consequential exactly where the two orderings disagree
     most: on ResNet-18 it shifts the per-method effectiveness by
-    $|\Delta|\approx0.07$ on average and reorders the mid-field
-    ($\rho(\text{Autoweighted},\text{MQ-discount}) = 0.79$; LRP fourth
-    $\to$ second), while on SqueezeNet it is nearly inert ($\rho = 0.96$).
+    $|\Delta|\approx0.13$ on average and reorders the field
+    ($\rho(\text{Autoweighted},\text{MQ-discount}) = 0.61$; LRP fourth
+    $\to$ statistical tie for first), while on SqueezeNet it is nearly inert
+    ($\rho = 0.96$).
     Two caveats keep this claim honest. First, the AR leg for the two
     explanation-recomputing metrics required a protocol extension introduced
     by this thesis (degrading the explanation function itself,
@@ -290,13 +292,15 @@ original array-degradation test---and for the sensitivity metrics, whose very
 definition compares repeated explainer invocations, the independently drawn
 degradation masks mechanically induce part of the measured reactivity, so
 max-sensitivity's top reliability rank should be read with particular
-caution. Second, the reliability estimates rest on small samples (64 images;
-12 for the extension, drawn by a different rule than the 64) with a
+caution. Second, the reliability estimates rest on a single 64-image sample
+with a
 coarse-grained AR estimator, as disclosed in
 Section~\ref{sec:exp-meta}; the leave-one-cell-out jackknife reported there
 shows the ResNet-18 reordering is at least not an artefact of any single
-cell. Third, the direction-agnostic $|\rho_S|$ awarded credit to four of the
-42 audited cells that reacted in the unexpected direction. The reliability
+cell, though the Occlusion/LRP order at the top is not resolvable at this
+granularity. Third, the direction-agnostic $|\rho_S|$ awarded credit to one
+of the
+28 audited cells that reacted in the unexpected direction. The reliability
 scores---and therefore the ResNet-18 reordering the MQ-discount
 produces---inherit these caveats, and validating the extension (shared
 degradation masks per level, a direction-rectified AR, larger samples)

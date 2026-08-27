@@ -195,11 +195,11 @@ def _meta_fragment(rel: pd.DataFrame | None) -> str:
 \caption{{Metric reliability (NR, AR, combined $r_k$) estimated with this
 thesis's MetaQuantus-inspired protocol, averaged over the 14 (model, FAE)
 cells; SD is the between-cell standard deviation of $r_k$. NR and AR were
-computed on a fixed 64-image sample of the test split (5 noise seeds, 5
-degradation levels); the extended-AR completion for \emph{{max\_sensitivity}}
-and \emph{{random\_logit}} (degradation injected into the explanation
-function, which those metrics re-invoke internally;
-Section~\ref{{sec:exp-meta}}) used a 12-image sample. Values are reported to
+computed on the same fixed seed-42 64-image sample of the test split (5 noise
+seeds; 5 degradation levels, or 10 for the extended-AR completion of
+\emph{{max\_sensitivity}} and \emph{{random\_logit}}, whose degradation is
+injected into the explanation function those metrics re-invoke internally;
+Section~\ref{{sec:exp-meta}}). Values are reported to
 two decimals to reflect the estimator's granularity. Runtime is the
 meta-evaluation cost per (model, FAE) cell at these sample sizes, not the
 full-run evaluation cost.}}

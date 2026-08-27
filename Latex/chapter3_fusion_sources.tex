@@ -505,14 +505,13 @@ MetaQuantus-\emph{inspired} estimators of the two reliability properties,
 not the published IAC/IEC consistency estimators:
 $\mathrm{NR}_k = 1/(1 + \mathrm{CV})$, where CV is the coefficient of
 variation of the metric's score across five noise seeds, and
-$\mathrm{AR}_k = |\rho_S|$, the absolute Spearman correlation between five
-explanation-degradation levels and the mean metric score at each level.
-Both are computed on a fixed, seed-determined 64-image random sample of the
-test split per
-(model, FAE) cell; the extended-AR completion for the two
-explanation-recomputing metrics used a fixed 12-image split-order sample,
-distinct from the 64-image draw, so the combined $\lambda_k$ for those two
-metrics mixes the two samples. The combined
+$\mathrm{AR}_k = |\rho_S|$, the absolute Spearman correlation between the
+explanation-degradation levels and the mean metric score at each level
+(five levels; ten for the extended-AR completion).
+Both are computed on the same fixed, seed-determined 64-image random sample
+of the test split per
+(model, FAE) cell, so every metric's $\lambda_k$ rests on a single sample.
+The combined
 reliability is their equal-weight mean,
 \begin{equation}
     \lambda_k \;=\; \tfrac{1}{2}\bigl(\mathrm{NR}_k + \mathrm{AR}_k\bigr),
