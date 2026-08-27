@@ -15,6 +15,12 @@ Normalization modes
     mean(x)/RMS(x) = 1/sqrt(1+CV^2) for a positive-valued metric, this
     variant compares dispersion profiles and is blind to uniform level
     differences — reported only to document normalization-conditionality.
+``winsorized-pooled`` (robustness variant):
+    As ``pooled``, but each (model, metric) pool is clipped at its 1st/99th
+    percentile before the RMS is computed and applied. Robust to the
+    heavy-tailed raw scores documented in Chapter 5 (RMA mass fractions > 1,
+    LRP max-sensitivity explosions), which otherwise inflate the pooled RMS.
+    Source of the winsorized numbers cited in Section 4 (exp-ensemble).
 
 Baselines (all per (model, image), uniform weights over the seven M* metrics,
 NaN-aware):
@@ -66,19 +72,28 @@ GRADIENT_METHODS = [
 ]
 
 
-def _sms(df: pd.DataFrame, pooled: bool) -> pd.DataFrame:
+def _sms(df: pd.DataFrame, mode: str) -> pd.DataFrame:
     """NaN-aware Second Moment Scaling + direction rectification.
 
-    ``pooled=True``: RMS per (model, metric) over ALL rows (individual +
-    ensemble). ``pooled=False``: RMS per (model, metric, source) where source
-    distinguishes ensemble rows from individual rows.
+    ``mode='pooled'``: RMS per (model, metric) over ALL rows (individual +
+    ensemble). ``mode='per-source'``: RMS per (model, metric, source) where
+    source distinguishes ensemble rows from individual rows.
+    ``mode='winsorized-pooled'``: as pooled, but the pool is clipped at its
+    1st/99th percentile before the RMS is computed and applied (the clipped
+    values are what get normalized).
     """
     out = df.copy()
     out["_source"] = np.where(out.fae_method == "ensemble", "ens", "ind")
-    keys = ["model", "metric"] if pooled else ["model", "metric", "_source"]
+    keys = (["model", "metric", "_source"] if mode == "per-source"
+            else ["model", "metric"])
     out["norm"] = np.nan
     for _, idx in out.groupby(keys).groups.items():
         raw = out.loc[idx, "score"].values.astype(float)
+        if mode == "winsorized-pooled":
+            finite = raw[~np.isnan(raw)]
+            if len(finite):
+                lo, hi = np.percentile(finite, [1, 99])
+                raw = np.clip(raw, lo, hi)
         valid = raw[~np.isnan(raw)]
         rms = np.sqrt(np.mean(valid**2)) if len(valid) else np.nan
         metric = out.loc[idx, "metric"].iloc[0]
@@ -89,11 +104,11 @@ def _sms(df: pd.DataFrame, pooled: bool) -> pd.DataFrame:
     return out.drop(columns="_source")
 
 
-def build(pooled: bool) -> pd.DataFrame:
+def build(mode: str) -> pd.DataFrame:
     ind = pd.read_csv(_RESULTS / "full_run_7fae_12metrics_600.csv")
     ens = pd.read_csv(_RESULTS / "full_run_ensemble_7fae_12metrics_600.csv")
     df = pd.concat([ind, ens], ignore_index=True)
-    df = _sms(df[df.metric.isin(M_STAR)], pooled=pooled)
+    df = _sms(df[df.metric.isin(M_STAR)], mode=mode)
 
     eff = (df.groupby(["model", "image_id", "fae_method"])["norm"]
            .mean().reset_index())
@@ -122,26 +137,34 @@ def build(pooled: bool) -> pd.DataFrame:
     return pd.concat(rows, ignore_index=True)
 
 
+_DEFAULT_NAMES = {
+    "pooled": "individual_vs_ensemble.csv",
+    "per-source": "individual_vs_ensemble_per_source.csv",
+    "winsorized-pooled": "individual_vs_ensemble_winsorized.csv",
+}
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--normalization", choices=["pooled", "per-source"],
+    p.add_argument("--normalization", choices=sorted(_DEFAULT_NAMES),
                    default="pooled")
     p.add_argument("--output-csv", default=None,
-                   help="Default: individual_vs_ensemble.csv for pooled, "
-                        "individual_vs_ensemble_per_source.csv otherwise.")
+                   help="Default: results/" + ", ".join(
+                       f"{v} ({k})" for k, v in _DEFAULT_NAMES.items()))
     args = p.parse_args()
 
-    pooled = args.normalization == "pooled"
-    default_name = ("individual_vs_ensemble.csv" if pooled
-                    else "individual_vs_ensemble_per_source.csv")
-    out_path = Path(args.output_csv) if args.output_csv else _RESULTS / default_name
+    out_path = (Path(args.output_csv) if args.output_csv
+                else _RESULTS / _DEFAULT_NAMES[args.normalization])
 
-    out = build(pooled)
+    out = build(args.normalization)
     out.to_csv(out_path, index=False)
     print(f"wrote {out_path} ({len(out)} rows, normalization={args.normalization})")
+    from scipy.stats import wilcoxon
     for model, sub in out.groupby("model"):
+        w, p_val = wilcoxon(sub.eff_ensemble, sub.eff_individual_mean)
         print(f"  {model}: ens={sub.eff_ensemble.mean():.3f} "
               f"mean={sub.eff_individual_mean.mean():.3f} "
+              f"(ens-vs-mean W={w:.0f} p={p_val:.2e}) "
               f"oracle={sub.eff_individual_best.mean():.3f} "
               f"best_fixed={sub.eff_best_fixed.mean():.3f} "
               f"({sub.best_fixed_method.iloc[0]}) "

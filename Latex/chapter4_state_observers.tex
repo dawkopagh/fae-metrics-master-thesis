@@ -423,8 +423,11 @@ relevance-mass-accuracy scores are heavy-tailed (Section
 \ref{sec:disc-threats} of Chapter~\ref{ch:discussion} quantifies the
 out-of-range values), so their per-source RMS is inflated and their
 normalized RMA crushed relative to the well-behaved ensemble scores. Under
-a winsorized pooled scale---a third normalizer that trims the tails---the
-SqueezeNet comparison turns significantly \emph{against} the ensemble, so
+a winsorized pooled scale---a third normalizer that clips each (model,
+metric) pool at its 1st/99th percentile before scaling
+(\texttt{results/individual\_vs\_ensemble\_winsorized.csv})---the
+SqueezeNet comparison turns significantly \emph{against} the ensemble
+($-0.038$ vs.\ $-0.017$, $W = 67206$, $p < 10^{-3}$), so
 the ``beats none of the baselines'' verdict holds under all three
 normalizers while the direction of the mean-comparison on SqueezeNet is
 normalizer-dependent. The
