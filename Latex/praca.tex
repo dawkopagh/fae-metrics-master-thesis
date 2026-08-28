@@ -226,9 +226,14 @@ Finally, once ensembled and individual scores are normalised on a common
 scale, NormEnsembleXAI-ensembled attributions beat none of the individual
 baselines: they are significantly worse than the average individual method
 on ResNet-18, statistically indistinguishable from it on SqueezeNet, and
-decisively below the best individual method on both models; the ranking
-differences are statistically significant throughout (Friedman and
-Wilcoxon tests, $p < 10^{-3}$). Together these elements provide a
+decisively below the best individual method on both models---the one
+exception being the SqueezeNet ensemble-versus-mean comparison, which is a
+null result ($p = 0.74$). Method-level ranking differences within each
+weighting scheme are significant (Friedman, $p < 10^{-3}$), as are the
+remaining ensemble comparisons (Wilcoxon); the reordering \emph{between}
+weighting schemes is characterised descriptively rather than tested, and
+the comparisons against post-selected baselines are reported as
+descriptive. Together these elements provide a
 reproducible, meta-validated procedure for comparing explanation methods
 under multiple, potentially conflicting effectiveness criteria.
 
@@ -300,9 +305,14 @@ wyników zespołu i metod indywidualnych na wspólnej skali atrybucje zespolone
 metodą NormEnsembleXAI nie pokonują żadnego z raportowanych punktów
 odniesienia: są istotnie gorsze od przeciętnej metody indywidualnej na
 ResNet-18, statystycznie nieodróżnialne od niej na SqueezeNet i wyraźnie
-gorsze od najlepszej metody indywidualnej na obu modelach; różnice rankingowe
-pozostają istotne statystycznie (testy Friedmana i Wilcoxona,
-$p < 10^{-3}$). Łącznie elementy te dostarczają odtwarzalnej,
+gorsze od najlepszej metody indywidualnej na obu modelach---z jednym
+wyjątkiem: porównanie zespołu ze średnią metodą indywidualną na SqueezeNet
+daje wynik nieistotny ($p = 0{,}74$). Różnice między metodami
+\emph{wewnątrz} każdego schematu ważenia są istotne (Friedman,
+$p < 10^{-3}$), podobnie jak pozostałe porównania zespołowe (Wilcoxon);
+przetasowanie \emph{pomiędzy} schematami ważenia opisano deskryptywnie, bez
+odrębnego testu, a porównania z bazami wybranymi po fakcie raportowane są
+jako deskryptywne. Łącznie elementy te dostarczają odtwarzalnej,
 meta-walidowanej procedury porównywania metod wyjaśniania w warunkach wielu,
 potencjalnie sprzecznych kryteriów skuteczności.
 

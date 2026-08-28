@@ -63,8 +63,17 @@ def main() -> None:
         boots = {}
         for m in models:
             ids = rng.choice(imgs[m], size=len(imgs[m]), replace=True)
-            boot = pd.DataFrame({"image_id": ids}).merge(
-                raw[raw.model == m], on="image_id", how="left")
+            # Each draw needs its own image_id: the redundancy pivot keys on
+            # (image_id, fae_method) with aggfunc="first", so re-drawn images
+            # sharing an id would be collapsed to a single row and the
+            # resample would silently degenerate into a ~63%-unique
+            # subsample instead of a bootstrap.
+            draw = pd.DataFrame({"image_id": ids,
+                                 "_draw": np.arange(len(ids))})
+            boot = draw.merge(raw[raw.model == m], on="image_id", how="left")
+            boot["image_id"] = (boot["image_id"].astype(str) + "#"
+                                + boot["_draw"].astype(str))
+            boot = boot.drop(columns="_draw")
             boots[m] = mstar_for(boot, m)
             if boots[m] == base[m]:
                 same[m] += 1

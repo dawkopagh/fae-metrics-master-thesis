@@ -109,11 +109,16 @@ metric) score table itself
 (\texttt{results/full\_run\_7fae\_12metrics\_600.csv}; the pilot counterpart
 is \texttt{results/vertical\_slice\_7fae\_12metrics.csv}), and the
 post-processing scripts under \texttt{experiments/}, which regenerate every
-table in this chapter deterministically from that score table (the full
-package environment is recorded in \texttt{requirements-lock.txt}). The
-expensive GPU stage is thus re-runnable from the notebooks and auditable
-from the committed scores, but it is not driven by a single declarative
-configuration file.
+table in this chapter deterministically from that score table.
+\texttt{requirements-lock.txt} pins that post-processing environment
+exactly; it does \emph{not} reconstruct the Colab GPU environment in which
+the scores were measured, which installed an unpinned
+\texttt{requirements.txt} with only the Quantus version fixed, and whose
+executed notebooks were committed without their output cells. The
+expensive GPU stage is therefore re-runnable from the notebooks and fully
+auditable from the committed scores, but it is not bit-reproducible from
+the committed inputs alone---a reproducibility limitation of this thesis,
+not a property of the framework.
 
 \begin{table}[H]
 \centering
@@ -359,15 +364,46 @@ noise resilience.
 14 cells positive, mean signed $\rho_S = 0.91$)---a real, if partly
 mechanical, response (see Section~\ref{sec:disc-threats}).
 
+\paragraph{What the NR leg actually measures.}
+A parallel caveat applies to the other leg, and it is the more consequential
+of the two. The NR estimator takes the coefficient of variation across the
+five noise seeds of the metric score \emph{after} that score has been
+averaged over the 64 sampled images (Section~\ref{sec:weighting}). Averaging
+shrinks the seed-to-seed dispersion by ${\approx}\sqrt{64}$ before the CV is
+formed, so NR is driven towards $1$ almost mechanically: simulating scores
+drawn independently per image and per seed---the case of \emph{no} noise
+resilience whatever---still yields a median $\mathrm{NR}$ of $0.945$ for
+uniform scores and $0.884$ for log-normal ones. High NR values are therefore
+not, on their own, evidence of stability.
+A per-metric reference makes the point concrete. Substituting each metric's
+observed across-image dispersion into the same formula gives the NR that
+pure independence would produce: $0.97$ for sparseness, $0.96$ for
+random\_logit, $0.92$ for pixel\_flipping and $0.91$ for pointing\_game,
+against measured values of $0.99$, $0.99$, $0.99$ and $0.96$. For these
+four metrics the measured NR is barely distinguishable from the
+independence reference, and random\_logit's near-perfect $0.99$ in
+particular certifies nothing---which, given that the metric's AR is
+simultaneously at its noise floor, means its $\lambda = 0.63$ rests on two
+uninformative legs, not one. The estimator is genuinely discriminating only
+where a metric's across-image dispersion is large: max\_sensitivity
+(measured $0.96$ against a $0.22$ reference) and
+relevance\_mass\_accuracy ($0.59$ against $0.04$) clear it decisively,
+while faithfulness\_correlation's $0.56$ falls \emph{below} its $0.77$
+reference---genuine seed instability. A per-image NR, taking the CV within
+each image before aggregating, is the correct estimator and is recorded as
+future work; the values reported here should be read as an upper bound on
+noise resilience for the low-dispersion metrics.
+
 The same standard must be applied to the five metrics scored under the
 standard five-level array-degradation protocol, whose noise floor is
 correspondingly higher: the expected $|\rho_S|$ of a random ordering over
 five levels is exactly $0.42$ (mean over all $120$ permutations), not
 $0.27$. Referred to that floor, \emph{sparseness} ($0.94$),
 \emph{pixel\_flipping} ($0.77$) and \emph{pointing\_game} ($0.66$,
-Monte-Carlo $p = 0.0004$) react genuinely;
+$p < 0.001$ by exact enumeration of the $120$-permutation null) react
+genuinely;
 \emph{faithfulness\_correlation} ($0.60$, $p = 0.008$) clears it only
-marginally; and \emph{relevance\_mass\_accuracy} ($0.51$, $p = 0.09$,
+marginally; and \emph{relevance\_mass\_accuracy} ($0.51$, $p = 0.11$,
 with 9 of its 14 cells at or below the floor) does \emph{not}---its
 measured reactivity is, like random\_logit's, indistinguishable from
 chance. Two of the seven $M^{*}$ reliabilities are therefore
@@ -532,11 +568,13 @@ uniform level differences because $\mathrm{mean}(x)/\mathrm{RMS}(x) =
 1/\sqrt{1 + \mathrm{CV}^2}$ for a positive-valued metric; it is retained
 only as a robustness variant below.) Four baselines are reported: the
 \emph{mean} individual method; the \emph{best fixed} method (the single
-strongest method per model); the best fixed \emph{gradient} member (the
-strongest method actually inside the ensemble); and a per-image
-\emph{oracle} that picks the best of all seven methods separately for every
-image---the strongest conceivable baseline, which may switch methods
-image-by-image and includes Occlusion, a non-member.
+strongest method per model); the best fixed \emph{gradient} method (the
+strongest of the six gradient-based members, isolating whether any
+ensemble advantage comes from combining gradient signals rather than from
+including the perturbation-based Occlusion); and a
+per-image \emph{oracle} that picks the best of all seven methods separately
+for every image---the strongest conceivable baseline, which may switch
+methods image-by-image.
 
 \input{tables/ensemble}
 

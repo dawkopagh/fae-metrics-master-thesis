@@ -84,7 +84,11 @@ the NormEnsembleXAI approach \cite{hryniewska2024normensemblexai}.
     \includegraphics[width=\linewidth]{figures/attribution_grid.png}
     \caption{Seven feature-attribution explanations of the same prediction
     (trained ResNet-18, dermoscopic test image \texttt{ISIC\_0012258},
-    melanoma class) from the ISIC~2017 dataset used in this thesis. The
+    ground-truth melanoma) from the ISIC~2017 dataset used in this thesis.
+    Attributions are computed at the model's own predicted class, which for
+    this image is \emph{nevus} ($p = 0.46$)---so the panels explain a
+    misclassification, the case in which an evaluator most needs to know
+    whether the explanation can be trusted. The
     methods visibly disagree about which regions matter: the gradient-based
     methods (IG, Saliency, DeepLift, Guided Backpropagation, LRP) produce
     sharp but noisy pixel-level maps, while Grad-CAM and Occlusion yield

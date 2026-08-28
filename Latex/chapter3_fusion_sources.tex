@@ -509,7 +509,11 @@ an Adversarial Reactivity score $\mathrm{AR}_k$. These are this thesis's
 MetaQuantus-\emph{inspired} estimators of the two reliability properties,
 not the published IAC/IEC consistency estimators:
 $\mathrm{NR}_k = 1/(1 + \mathrm{CV})$, where CV is the coefficient of
-variation of the metric's score across five noise seeds, and
+variation, across five noise seeds, of the metric's score
+\emph{averaged over the 64 sampled images}---an estimand whose
+consequences are analysed in Section~\ref{sec:exp-meta}, since averaging
+before taking the CV compresses the very dispersion NR is meant to
+detect---and
 $\mathrm{AR}_k = |\rho_S|$, the absolute Spearman correlation between the
 explanation-degradation levels and the mean metric score at each level
 (five levels; ten for the extended-AR completion).
@@ -520,6 +524,7 @@ The combined
 reliability is their equal-weight mean,
 \begin{equation}
     \lambda_k \;=\; \tfrac{1}{2}\bigl(\mathrm{NR}_k + \mathrm{AR}_k\bigr),
+    \label{eq:lambda}
 \end{equation}
 reported per (model, FAE, metric) in
 \texttt{results/meta\_evaluation\_reliability.csv} and averaged over the
@@ -533,6 +538,17 @@ five levels has a granularity of ${\sim}0.1$ (finer at the ten levels used
 for the extended-AR completion) and is direction-agnostic,
 reliability values are reported to two decimals and the direction of each
 cell's reactivity is audited in Chapter~\ref{ch:experiments}.
+One further limitation of Equation~\eqref{eq:lambda} follows from the two
+AR protocols coexisting in the same average: a five-level $|\rho_S|$ and a
+ten-level $|\rho_S|$ have different null expectations ($0.42$ against
+$0.27$, Section~\ref{sec:exp-meta}), so raw AR values from the two
+protocols are not on a common scale, yet
+$\lambda_k$ combines them additively with NR as though they were.
+Chapter~\ref{ch:experiments} reports each metric's AR against \emph{its
+own} null rather than against the others', and a null-referenced
+(floor-subtracted) AR is recorded as future work; the values as computed
+are best read as protocol-conditional reliability indices, not as
+calibrated probabilities of reliability.
 Figure~\ref{fig:ar-schematic} illustrates the estimator on two measured
 cells, including one whose reactivity runs opposite to the expected
 direction---exactly the case the audit exists to expose.
