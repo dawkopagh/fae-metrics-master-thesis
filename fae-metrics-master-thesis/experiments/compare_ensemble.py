@@ -22,17 +22,22 @@ Normalization modes
     LRP max-sensitivity explosions), which otherwise inflate the pooled RMS.
     Source of the winsorized numbers cited in Section 4 (exp-ensemble).
 
+The ensemble rows in full_run_ensemble_*.csv aggregate ALL SEVEN methods,
+Occlusion included (colab_full_run.ipynb passes the full FAE_METHODS
+registry to NormEnsembleXAI; an earlier docstring here wrongly described a
+six-gradient ensemble).
+
 Baselines (all per (model, image), uniform weights over the seven M* metrics,
-NaN-aware):
+NaN-aware). The best-fixed/best-gradient/oracle baselines are selected on
+the same 600 images they are compared on — post-selection; treat their
+test statistics as descriptive:
     eff_individual_mean       — mean over the seven individual methods.
     eff_individual_best       — per-image ORACLE: max over the seven methods
-                                (switches methods image-by-image; includes
-                                Occlusion, which is not an ensemble member).
+                                (switches methods image-by-image).
     eff_best_fixed            — the single fixed method with the highest mean
                                 effectiveness on that model (name recorded in
                                 ``best_fixed_method``).
-    eff_best_fixed_gradient   — the best fixed GRADIENT method (an actual
-                                ensemble member; name in
+    eff_best_fixed_gradient   — the best fixed GRADIENT-BASED method (name in
                                 ``best_fixed_gradient_method``).
 
 Usage:

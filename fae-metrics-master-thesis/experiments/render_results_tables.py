@@ -208,10 +208,11 @@ computed on the same fixed seed-42 64-image sample of the test split (5 noise
 seeds; 5 degradation levels, or 10 for the extended-AR completion of
 \emph{{max\_sensitivity}} and \emph{{random\_logit}}, whose degradation is
 injected into the explanation function those metrics re-invoke internally).
-NR is \textit{{n/a}} for those two metrics: their NR-stage metric calls
-failed silently in the meta-evaluation run and the recorded values were an
-artifact of the failure (Section~\ref{{sec:exp-meta}}), so their $r_k$ is
-the measured AR alone. Values are reported to
+For those two metrics both legs come from repaired follow-up runs: their
+original NR-stage calls failed silently and were scored as a spurious
+$\mathrm{{NR}}=1.0$ by a since-fixed estimator defect; NR was subsequently
+re-measured on the same sample with the repaired estimator
+(Section~\ref{{sec:exp-meta}}). Values are reported to
 two decimals to reflect the estimator's granularity. Runtime is the
 meta-evaluation cost per (model, FAE) cell at these sample sizes, not the
 full-run evaluation cost.}}
@@ -402,11 +403,15 @@ attribution against four individual-method baselines, per model (mean over
 {n_label} test images per model; uniform weights over the seven $M^{{*}}$
 metrics; POOLED Second-Moment normalization, i.e.\ ensemble and individual
 scores share one RMS per (model, metric), so level differences are visible).
-The ensemble aggregates the six gradient-based methods; ``oracle'' is the
-per-image best over all seven methods (it may switch methods per image and
-includes Occlusion, which is not an ensemble member); ``best fixed'' is the
+The ensemble aggregates ALL SEVEN methods, Occlusion included (the
+generating notebook passes the full method registry to NormEnsembleXAI);
+``oracle'' is the
+per-image best over the seven methods (it may switch methods per image);
+``best fixed'' is the
 single strongest method per model, and ``best gradient'' the strongest
-actual ensemble member.}}
+gradient-based method. The best-fixed, best-gradient, and oracle baselines
+are selected on the same images they are compared on, so their gaps are
+descriptive; only the mean-individual comparison carries valid inference.}}
 \small
 \begin{{tabularx}}{{\linewidth}}{{lccccc}}
 \toprule
@@ -526,7 +531,10 @@ def _wilcoxon_fragment(ensemble: pd.DataFrame | None) -> str:
 pooled normalization): the NormEnsembleXAI-ensembled attribution against the
 mean individual method, the best fixed method, and the per-image oracle.
 $r$ is the matched-pairs rank-biserial correlation (positive = ensemble
-higher).}}
+higher). The best-fixed and oracle baselines are selected on the same
+images the tests are run on, so their $p$-values are post-selection-biased
+and reported as descriptive only; the mean-individual rows are the valid
+inferential comparisons.}}
 \small
 \begin{{tabularx}}{{\linewidth}}{{llcccc}}
 \toprule

@@ -19,10 +19,19 @@ import numpy as np
 import pandas as pd
 
 # Axiomatic metrics and their expected value when the axiom is satisfied.
-# completeness: sum of attributions equals f(x) - f(baseline) → deviation = 0.
-# non_sensitivity: attribution of constant features = 0 → deviation = 0.
+# completeness: quantus.Completeness returns a BOOLEAN indicator per sample
+#   (1.0 = the attribution sum equals f(x) - f(baseline) under strict float
+#   equality, 0.0 = it does not). The satisfied value is therefore 1.0.
+#   The pre-2026-08 value here was 0.0, which inverted the semantics and
+#   scored the all-False full run as a perfect pass (caught in external
+#   review). Note that strict float equality essentially never holds, so
+#   this indicator is expected to be False everywhere; a tolerance-based
+#   verification of the underlying axiom would require re-computing the
+#   attribution sums and logit differences directly.
+# non_sensitivity: deviation-style score; 0 = no attribution mass on
+#   provably non-contributory features.
 _AXIOMATIC_EXPECTED: dict[str, float] = {
-    "completeness": 0.0,
+    "completeness": 1.0,
     "non_sensitivity": 0.0,
 }
 
