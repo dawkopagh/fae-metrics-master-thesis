@@ -7,11 +7,15 @@ attribution against four individual-method baselines, per model (mean over
 $n=600$ test images per model; uniform weights over the seven $M^{*}$
 metrics; POOLED Second-Moment normalization, i.e.\ ensemble and individual
 scores share one RMS per (model, metric), so level differences are visible).
-The ensemble aggregates the six gradient-based methods; ``oracle'' is the
-per-image best over all seven methods (it may switch methods per image and
-includes Occlusion, which is not an ensemble member); ``best fixed'' is the
+The ensemble aggregates ALL SEVEN methods, Occlusion included (the
+generating notebook passes the full method registry to NormEnsembleXAI);
+``oracle'' is the
+per-image best over the seven methods (it may switch methods per image);
+``best fixed'' is the
 single strongest method per model, and ``best gradient'' the strongest
-actual ensemble member.}
+gradient-based method. The best-fixed, best-gradient, and oracle baselines
+are selected on the same images they are compared on, so their gaps are
+descriptive; only the mean-individual comparison carries valid inference.}
 \small
 \begin{tabularx}{\linewidth}{lccccc}
 \toprule

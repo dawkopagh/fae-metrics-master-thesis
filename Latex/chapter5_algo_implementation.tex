@@ -29,7 +29,8 @@ run returns.
     Correlation alone) against the multi-criteria index
     (Table~\ref{tab:rank-stability}) shows that a one-metric ranking is not a
     safe proxy for the aggregate: the Single-FC and MQ-discounted orderings
-    correlate only weakly on ResNet-18 ($\rho = 0.29$) and imperfectly on
+    are essentially uncorrelated on ResNet-18 ($\rho = -0.14$) and correlate
+    imperfectly on
     SqueezeNet ($\rho = 0.86$). A method that leads on Faithfulness alone is not
     guaranteed to survive once Robustness, Localization, and Randomization enter
     the aggregate. This vindicates the multi-criteria premise of the thesis: the
@@ -57,19 +58,22 @@ run returns.
     assume the weighting always matters.
     \item \textbf{Does the MetaQuantus reliability discount change anything?}
     Yes---moderately, and model-dependently, once the meta-validation is
-    complete. With all seven $M^{*}$ metrics carrying a measured combined
-    reliability, the MQ-discounted ordering largely inverts the Autoweighted
-    order on
-    ResNet-18 ($\rho = -0.14$: LRP rises from fifth to first---stable in
-    every jackknife replicate and under $\pm0.2$ reliability shifts---and
+    complete. With both reliability legs of all seven $M^{*}$ metrics
+    measured, the MQ-discounted ordering departs substantially from
+    Autoweighted on
+    ResNet-18 ($\rho = 0.46$: LRP rises from fifth into a statistical tie
+    with Occlusion at the top---the top-2 \emph{set} is stable in every
+    jackknife replicate and under $\pm0.2$ reliability shifts, their mutual
+    order is not---and
     Grad-CAM
-    falls to last) while SqueezeNet moves only mildly
-    ($\rho = 0.89$); the mean effectiveness shift is $|\Delta|\approx0.33$
-    on ResNet-18 and $0.16$ on SqueezeNet.
+    falls into the bottom cluster) while SqueezeNet moves only mildly
+    ($\rho = 0.96$); the mean effectiveness shift is $|\Delta|\approx0.14$
+    on ResNet-18 and $0.06$ on SqueezeNet.
     Mechanically, the discount redistributes weight toward the
     high-reliability metrics (sparseness $r_k = 0.97$, max-sensitivity
-    $0.95$, pixel-flipping $0.88$) and sharply away from
-    random-logit ($0.27$, an AR-only reliability at the noise floor),
+    $0.96$, pixel-flipping $0.88$) and away from
+    random-logit ($0.63$---near-perfect noise resilience but reactivity at
+    the noise floor, the textbook stable-but-insensitive case),
     faithfulness-correlation ($0.58$), and relevance-mass
     accuracy ($0.55$). The discount is therefore a consequential modelling
     choice on one architecture and nearly inert on the other---the same
@@ -124,8 +128,11 @@ moderate, architecture-dependent reweighting of the ranking.
     quotes ``twelve metrics'' is in effect quoting roughly seven independent
     ones. That the greedy pruning yields an \emph{identical} seven-metric
     $M^{*}$ on two different architectures is the strongest single finding here:
-    the redundancy is a property of the metric battery, not of the classifier,
-    and it transfers. A practitioner can therefore halve the costly Robustness
+    the redundancy structure is shared across the two studied classifiers
+    rather than idiosyncratic to either---though with two CNNs on one
+    dataset this is evidence of consistency, not proof of
+    classifier-independence. A practitioner can therefore halve the costly
+    Robustness
     leg (avg-sensitivity pruned---the sensitivity metrics are among the most
     expensive in the battery, as each score re-invokes the explanation
     function ten times per image) and
@@ -148,10 +155,11 @@ moderate, architecture-dependent reweighting of the ranking.
     MQ-discount precisely to let the former attenuate the latter. Empirically,
     the discount is consequential exactly where the two orderings disagree
     most: on ResNet-18 it shifts the per-method effectiveness by
-    $|\Delta|\approx0.33$ on average and largely inverts the field
-    ($\rho(\text{Autoweighted},\text{MQ-discount}) = -0.14$; LRP fifth
-    $\to$ first, Grad-CAM $\to$ last), while on SqueezeNet it is mild
-    ($\rho = 0.89$).
+    $|\Delta|\approx0.14$ on average and reorders much of the field
+    ($\rho(\text{Autoweighted},\text{MQ-discount}) = 0.46$; LRP fifth
+    $\to$ statistical tie for first, Grad-CAM $\to$ bottom cluster), while
+    on SqueezeNet it is mild
+    ($\rho = 0.96$).
     Two caveats keep this claim honest. First, the AR leg for the two
     explanation-recomputing metrics required a protocol extension introduced
     by this thesis (degrading the explanation function itself,
@@ -257,8 +265,12 @@ inapplicable axis.
 A second internal threat is the \textbf{quality of the predictors being
 explained}. The two classifiers are only modestly accurate: ResNet-18 reaches
 $75.3\%$ best validation accuracy and SqueezeNet $74.0\%$, while ISIC~2017 is
-dominated by the nevus class, so the majority-class baseline is already around
-$65\%$---the predictors clear it by only a narrow margin. ResNet-18 moreover
+dominated by the nevus class; the validation split's majority-class
+baseline is $52\%$ ($78/150$ nevus images), so the predictors clear their
+own split's baseline by roughly twenty points---respectable but far from
+strong---while the test split, on which no classification accuracy is
+reported, has a higher majority baseline of $65.5\%$
+($393/600$). ResNet-18 moreover
 shows clear overfitting ($98\%$ train accuracy against $75.3\%$ validation;
 SqueezeNet is better balanced at $78.5\%$ train / $74.0\%$ validation). The
 attributions therefore explain imperfect, partly over-fitted classifiers. This
@@ -301,25 +313,28 @@ caution. Second, the reliability estimates rest on a single 64-image sample
 with a
 coarse-grained AR estimator, as disclosed in
 Section~\ref{sec:exp-meta}; the leave-one-cell-out jackknife reported there
-shows the ResNet-18 reordering is at least not an artefact of any single
-cell (LRP first and Grad-CAM last in all seven replicates), though the
-middle of the MQ-discounted order is not resolvable at this
+shows the top-2 set of the ResNet-18 reordering is not an artefact of any
+single cell ($\{$LRP, Occlusion$\}$ in all seven replicates), though
+neither their mutual order nor the
+middle of the MQ-discounted field is resolvable at this
 granularity. Third, the direction-agnostic $|\rho_S|$ awarded credit to one
 of the
 28 audited cells that reacted in the unexpected direction, and
-random-logit's AR-only reliability ($0.27$) is indistinguishable from the
+random-logit's measured reactivity ($\mathrm{AR} = 0.27$) is
+indistinguishable from the
 noise floor
 of a ten-level $|\rho_S|$ estimate---it may be a fully unreactive metric,
-in which case even its residual $0.10$ weight overstates it. Fourth, the
-silent NR failure disclosed in Section~\ref{sec:exp-meta} means the
-Noise-Resilience leg for the two extension metrics is currently
-\emph{unmeasured}, not merely coarse; since $\lambda_k = \tfrac12
-(\mathrm{NR}_k + \mathrm{AR}_k)$ once NR exists, re-measuring a high NR
-would raise random-logit's $\lambda_k$ above its AR-only value and shift
-the MQ-discounted ordering back toward the Autoweighted one. The reliability
+in which case even its discounted $0.23$ weight overstates it. Fourth, the
+NR leg of the two extension metrics had to be re-measured after the silent
+failure disclosed in Section~\ref{sec:exp-meta}, and the meta-evaluation's
+targets were ResNet-18's predictions for both models (the two models
+disagree on 25 of the 64 sampled images); the reliability estimand is
+plausibly target-robust, but the SqueezeNet meta-evaluation has not been
+repeated with its own targets. The reliability
 scores---and therefore the ResNet-18 reordering the MQ-discount
 produces---inherit these caveats, and validating the extension (shared
-degradation masks per level, a direction-rectified AR, larger samples)
+degradation masks per level, a direction-rectified AR, own-target
+re-measurement, larger samples)
 is listed as future work.
 
 A fifth internal threat is \textbf{post-selection inference}. The same 600

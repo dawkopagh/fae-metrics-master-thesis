@@ -199,15 +199,17 @@ Empirically, over two classifiers (ResNet-18 and SqueezeNet~1.1), seven
 attribution methods, and the 600-image ISIC~2017 test split, the framework
 yields four findings. A structural pre-screen and correlation-based
 redundancy pruning together reduce the twelve-metric battery
-to the \emph{same} seven-metric non-redundant subset on both architectures,
-indicating that the redundancy structure is a property of the metric battery
-rather than of the classifier. The meta-evaluation identifies
-Sparseness, Max-Sensitivity, and Pixel-Flipping as the most reliable metrics
-and Random-Logit---whose measured reactivity is indistinguishable from
-noise---alongside Faithfulness Correlation and Relevance Mass Accuracy as
-the least; the
-reliability-discounted weighting built on these measurements largely inverts
-the ranking
+to the \emph{same} seven-metric non-redundant subset on both architectures
+(stable in 200 of 200 image-bootstrap replicates),
+indicating that the redundancy structure is shared across the studied
+classifiers rather than idiosyncratic to either. The meta-evaluation
+identifies
+Sparseness, Max-Sensitivity, and Pixel-Flipping as the most reliable
+metrics, and Faithfulness Correlation and Relevance Mass Accuracy as the
+least, with Random-Logit's measured reactivity indistinguishable from
+noise; the
+reliability-discounted weighting built on these measurements substantially
+reorders the ranking
 on one architecture and only mildly alters the other. The aggregated
 rankings prove
 weighting-sensitive in a model-dependent way: on ResNet-18 the mid-field
@@ -270,13 +272,15 @@ przynosi cztery ustalenia. Wstępna selekcja strukturalna wraz z przycinaniem
 redundancji opartym na korelacji redukują dwunastometrykową baterię
 do \emph{tego samego} siedmioelementowego, nieredundantnego
 podzbioru na obu architekturach, co wskazuje, że struktura redundancji jest
-własnością baterii metryk, a nie klasyfikatora. Meta-ewaluacja wskazuje
+wspólną cechą obu badanych klasyfikatorów, a nie idiosynkrazją któregoś z
+nich (zbiór jest stabilny w 200 z 200 replik bootstrapu obrazowego).
+Meta-ewaluacja wskazuje
 Sparseness, Max-Sensitivity i Pixel-Flipping jako metryki najbardziej
-wiarygodne, a Random-Logit---którego zmierzona reaktywność jest
-nieodróżnialna od szumu---oraz Faithfulness Correlation i Relevance Mass
-Accuracy jako
-najmniej wiarygodne; oparte na tych pomiarach ważenie z dyskontem
-wiarygodności w dużej mierze odwraca ranking na jednej architekturze, a na
+wiarygodne, a Faithfulness Correlation i Relevance Mass
+Accuracy jako najmniej wiarygodne, przy czym zmierzona reaktywność
+Random-Logit jest nieodróżnialna od szumu; oparte na tych pomiarach ważenie
+z dyskontem
+wiarygodności istotnie przetasowuje ranking na jednej architekturze, a na
 drugiej zmienia go tylko nieznacznie. Zagregowane rankingi okazują się
 wrażliwe na schemat
 ważenia w sposób zależny od modelu: na ResNet-18 środek stawki istotnie się

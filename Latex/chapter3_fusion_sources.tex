@@ -384,7 +384,10 @@ adopted from the NormEnsembleXAI framework (Decision~D1)
 \end{equation}
 where the expectation is computed within each (model, metric) group
 independently. This transformation does not require knowledge of global
-extremes, is robust to outliers (unlike min--max normalization), and
+extremes, avoids min--max normalization's total dependence on the two most
+extreme values (though its squared term remains sensitive to heavy tails,
+as Chapter~\ref{ch:discussion} documents for the raw score
+distributions), and
 preserves the sign structure of the rectified scores.
 
 Two alternative normalizations are implemented for ablation studies:
@@ -519,10 +522,11 @@ reliability is their equal-weight mean,
 reported per (model, FAE, metric) in
 \texttt{results/meta\_evaluation\_reliability.csv} and averaged over the
 (model, FAE) cells in which the metric is defined. For the two
-explanation-recomputing metrics, whose NR-stage measurements failed in the
-meta-evaluation run and are discarded as artifacts
-(Section~\ref{sec:exp-meta}), $\lambda_k$ is the measured Adversarial
-Reactivity alone. Because $|\rho_S|$ over
+explanation-recomputing metrics, the original NR-stage measurements failed
+silently and were discarded as artifacts; their NR was re-measured with a
+repaired estimator on the same sample
+(Section~\ref{sec:exp-meta}), so both legs of every $M^{*}$ metric's
+$\lambda_k$ are measured. Because $|\rho_S|$ over
 five levels has a granularity of ${\sim}0.1$ (finer at the ten levels used
 for the extended-AR completion) and is direction-agnostic,
 reliability values are reported to two decimals and the direction of each
@@ -694,10 +698,13 @@ Section~\ref{sec:celePracy}:
     \item \texttt{src/pipeline.py} --- End-to-end orchestrator.
 \end{itemize}
 
-All experiments are configured via YAML files under \texttt{configs/}, with
-one configuration per experiment variant. Random seeds, model paths, metric
-hyperparameters, and normalization choices are specified declaratively to
-ensure full reproducibility.
+Reproducibility is anchored in three committed artifact classes rather
+than declarative configuration files: the Colab notebooks that run the GPU
+stages (seeds, metric hyperparameters, and the Quantus version fixed in
+code), the raw result CSVs they produce, and the deterministic
+post-processing scripts under \texttt{experiments/} that regenerate every
+reported table from those CSVs; the exact package environment is recorded
+in \texttt{requirements-lock.txt}.
 
 \paragraph{Design decision register.} For ease of reference, the design
 decisions cited as D1--D6 throughout Chapters~\ref{ch:experiments}

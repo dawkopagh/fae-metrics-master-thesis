@@ -51,8 +51,11 @@ correlated pairs reduced the twelve-metric battery to an
 \emph{identical} seven-metric set $M^{*}$ on \emph{both} models
 (faithfulness\_correlation, max\_sensitivity, pixel\_flipping, pointing\_game,
 random\_logit, relevance\_mass\_accuracy, sparseness). That two different
-architectures yield the same $M^{*}$ shows the redundancy is a property of the
-metric battery rather than of the classifier, so an evaluator quoting ``twelve
+architectures yield the same $M^{*}$---stable in $200/200$ image-bootstrap
+replicates, cross-model identity included---shows the redundancy structure
+is shared across the studied classifiers rather than idiosyncratic to
+either (with two CNNs on one dataset, evidence of consistency rather than
+proof of classifier-independence), so an evaluator quoting ``twelve
 metrics'' is in effect quoting roughly seven---and can prune the rest with no
 loss of discriminative signal: the per-method ranking over the full computed
 battery and over $M^{*}$ are identical on both models
@@ -82,19 +85,20 @@ Second, the proposed MQ-discount itself proves consequential in the same
 model-dependent way. Measuring it required extending the MetaQuantus
 Adversarial-Reactivity test to the two metrics that re-compute attributions
 internally (the degradation is injected into the explanation function
-itself, Section~\ref{sec:exp-meta}); with the extension, all seven $M^{*}$
-metrics carry a measured reliability---after an audit-discovered silent
-failure in the Noise-Resilience stage was corrected, that reliability is the
-measured Adversarial Reactivity alone for those two metrics. The completed
-discount largely inverts the
-ResNet-18 ordering relative to plain Autoweighted
-($\rho = -0.14$; LRP rises from fifth to first and Grad-CAM falls to last,
-both stable under a leave-one-cell-out jackknife and $\pm0.2$ reliability
-shifts, driven by the near-zero measured
-reactivity of random-logit and the dominance of the
-sparseness/pixel-flipping weights) while altering SqueezeNet
-only mildly ($\rho = 0.89$; mean shift $|\Delta|\approx0.33$ on
-ResNet-18, $0.16$ on SqueezeNet). The
+itself, Section~\ref{sec:exp-meta}); measuring it also required catching
+and repairing an estimator defect that had silently scored failed
+Noise-Resilience runs as perfect stability, after which NR was re-measured.
+With both repairs, all seven $M^{*}$
+metrics carry fully measured reliability. The completed
+discount reorders the
+ResNet-18 field substantially relative to plain Autoweighted
+($\rho = 0.46$; LRP rises from fifth into a statistical tie with Occlusion
+at the top---the top-2 set is jackknife-stable, its internal order is
+not---and Grad-CAM falls into the bottom cluster, driven by
+random-logit's noise-floor reactivity and the dominance of the
+sparseness weight) while altering SqueezeNet
+only mildly ($\rho = 0.96$; mean shift $|\Delta|\approx0.14$ on
+ResNet-18, $0.06$ on SqueezeNet). The
 contribution is the measured answer itself: a reliability-discounted
 aggregation \emph{can} change the FAE verdict, whether it does is
 architecture-dependent, and no ground truth certifies the discounted ranking
@@ -111,7 +115,8 @@ aggregation, and of attribution ensembling, on method ordering.
 \emph{Verdict.} Both halves of this analysis return cautionary results. On the
 metric-aggregation side, a single-metric ranking (Faithfulness Correlation
 alone) is not a safe proxy for the multi-criteria index---the two correlate at
-only $\rho = 0.29$ on ResNet-18 and $0.86$ on SqueezeNet---confirming that the
+only $\rho = -0.14$ on ResNet-18---no correlation at all---and $0.86$ on
+SqueezeNet---confirming that the
 metric family chosen, and how it is weighted, can change which method wins. On
 the attribution-ensembling side, the result is \emph{negative}. Over all
 seven $M^{*}$ metrics and the full 600 images, with ensemble and individual
@@ -145,9 +150,13 @@ are significant at $p < 10^{-3}$; the sixth---ensemble vs.\ the mean
 individual method on SqueezeNet---is reported as a null
 ($p = 0.74$), which is itself informative. The statistics therefore
 establish that the negative ensemble result and the weighting-driven
-ranking divergence are genuine effects of the framework's configuration rather
-than artefacts of the particular draw of images---which is precisely what makes
-the cautionary findings above defensible.
+ranking differences \emph{within each weighting scheme} are genuine rather
+than sampling noise. The \emph{between-scheme} reordering itself is
+established descriptively (Spearman correlations between induced
+orderings), not by a dedicated significance test, and the same 600 images
+serve metric selection, weighting, and testing---both qualifications are
+stated in Chapter~\ref{ch:discussion}. Within those bounds, the cautionary
+findings above rest on tested ground.
 
 Taken together, the four contributions answer the thesis objective not with a
 single ``best'' FAE method---which would be dataset- and configuration-specific
@@ -176,9 +185,9 @@ broaden the framework's reach.
 The redundancy and reliability estimates rest on finite samples from a single
 challenge distribution---the redundancy analysis on the full 600-image test
 set, the meta-evaluation on a 64-image sample. The immediate next steps are
-to re-measure the Noise-Resilience leg of the two explanation-recomputing
-metrics (whose recorded NR proved to be a silent-failure artifact and is
-currently discarded), to enlarge the meta-evaluation
+to repeat the SqueezeNet meta-evaluation with its own predicted targets
+(Section~\ref{sec:exp-meta} discloses that ResNet-18's predictions were
+used for both models), to enlarge the meta-evaluation
 sample and the number of degradation levels further; to
 repeat both analyses on repeated
 subsamples, reporting confidence intervals on the correlation and reliability

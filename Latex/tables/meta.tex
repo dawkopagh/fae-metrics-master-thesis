@@ -9,10 +9,11 @@ computed on the same fixed seed-42 64-image sample of the test split (5 noise
 seeds; 5 degradation levels, or 10 for the extended-AR completion of
 \emph{max\_sensitivity} and \emph{random\_logit}, whose degradation is
 injected into the explanation function those metrics re-invoke internally).
-NR is \textit{n/a} for those two metrics: their NR-stage metric calls
-failed silently in the meta-evaluation run and the recorded values were an
-artifact of the failure (Section~\ref{sec:exp-meta}), so their $r_k$ is
-the measured AR alone. Values are reported to
+For those two metrics both legs come from repaired follow-up runs: their
+original NR-stage calls failed silently and were scored as a spurious
+$\mathrm{NR}=1.0$ by a since-fixed estimator defect; NR was subsequently
+re-measured on the same sample with the repaired estimator
+(Section~\ref{sec:exp-meta}). Values are reported to
 two decimals to reflect the estimator's granularity. Runtime is the
 meta-evaluation cost per (model, FAE) cell at these sample sizes, not the
 full-run evaluation cost.}
@@ -22,10 +23,10 @@ full-run evaluation cost.}
 Metric & NR & AR & Combined $r_k$ & SD($r_k$) & Runtime (s) \\
 \midrule
 faithfulness\_correlation & 0.56 & 0.60 & 0.58 & 0.28 & 151.5 \\
-max\_sensitivity & \textit{n/a} & 0.95 & 0.95 & 0.18 & 2820.7 \\
+max\_sensitivity & 0.96 & 0.95 & 0.96 & 0.15 & 2820.7 \\
 pixel\_flipping & 0.99 & 0.77 & 0.88 & 0.15 & 186.7 \\
 pointing\_game & 0.96 & 0.66 & 0.81 & 0.15 & 40.7 \\
-random\_logit & \textit{n/a} & 0.27 & 0.27 & 0.24 & 306.7 \\
+random\_logit & 0.99 & 0.27 & 0.63 & 0.12 & 306.7 \\
 relevance\_mass\_accuracy & 0.59 & 0.51 & 0.55 & 0.22 & 40.5 \\
 sparseness & 0.99 & 0.94 & 0.97 & 0.09 & 40.4 \\
 \bottomrule
