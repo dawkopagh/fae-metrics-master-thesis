@@ -93,8 +93,10 @@ metrics carry fully measured reliability. The completed
 discount reorders the
 ResNet-18 field substantially relative to plain Autoweighted
 ($\rho = 0.46$; LRP rises from fifth into a statistical tie with Occlusion
-at the top---the top-2 set is jackknife-stable, its internal order is
-not---and Grad-CAM falls into the bottom cluster, driven by
+at the top---the top-2 set is jackknife-stable, its internal order is not,
+and LRP's place in it is contingent on random-logit's reliability, which
+the reactivity measurement leaves uncertain---and Grad-CAM falls into the
+bottom cluster, driven by
 random-logit's noise-floor reactivity and the dominance of the
 sparseness weight) while altering SqueezeNet
 only mildly ($\rho = 0.96$; mean shift $|\Delta|\approx0.14$ on
@@ -142,9 +144,9 @@ the framework on a real, mask-annotated medical task.
 \emph{Verdict.} The differences the framework reports are statistically real,
 not sampling noise. The Friedman omnibus test over the seven methods and 600
 image-blocks rejects equal mean ranks for every scheme and model at
-$p < 10^{-3}$ (ResNet-18 $\chi^2 = 760$ Autoweighted / $864$ MQ-discount;
-SqueezeNet $\chi^2 = 1430$ / $1081$; Kendall's $W$ between $0.11$ and
-$0.46$), with a Nemenyi critical difference of
+$p < 10^{-3}$ (ResNet-18 $\chi^2 = 759.6$ Autoweighted / $370.6$
+MQ-discount; SqueezeNet $\chi^2 = 1430.3$ / $1181.9$; Kendall's $W$ between
+$0.10$ and $0.46$), with a Nemenyi critical difference of
 $\mathrm{CD} = 0.368$. Five of the six paired Wilcoxon ensemble comparisons
 are significant at $p < 10^{-3}$; the sixth---ensemble vs.\ the mean
 individual method on SqueezeNet---is reported as a null
@@ -185,7 +187,13 @@ broaden the framework's reach.
 The redundancy and reliability estimates rest on finite samples from a single
 challenge distribution---the redundancy analysis on the full 600-image test
 set, the meta-evaluation on a 64-image sample. The immediate next steps are
-to repeat the SqueezeNet meta-evaluation with its own predicted targets
+to re-run the Adversarial-Reactivity stage on a finer degradation grid, so
+that the two metrics whose reactivity currently sits at the noise floor
+(random\_logit and relevance\_mass\_accuracy) receive resolved rather than
+upper-bounded reliabilities---on which, as
+Section~\ref{sec:exp-ranking} shows, the leading pair of the
+MQ-discounted ResNet-18 ranking depends---to repeat the SqueezeNet
+meta-evaluation with its own predicted targets
 (Section~\ref{sec:exp-meta} discloses that ResNet-18's predictions were
 used for both models), to enlarge the meta-evaluation
 sample and the number of degradation levels further; to

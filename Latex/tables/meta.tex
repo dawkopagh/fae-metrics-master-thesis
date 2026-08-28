@@ -16,7 +16,11 @@ re-measured on the same sample with the repaired estimator
 (Section~\ref{sec:exp-meta}). Values are reported to
 two decimals to reflect the estimator's granularity. Runtime is the
 meta-evaluation cost per (model, FAE) cell at these sample sizes, not the
-full-run evaluation cost.}
+full-run evaluation cost; for the two extension-measured metrics it is the
+cost of the extended-AR run
+(\texttt{results/ar\_completion\_v2\_n64.csv}), the only stage timed
+after the estimator repair, whereas the remaining rows are timed from the
+main meta-evaluation run.}
 \small
 \begin{tabularx}{\linewidth}{lccccc}
 \toprule

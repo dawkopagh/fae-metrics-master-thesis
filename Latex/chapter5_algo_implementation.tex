@@ -63,8 +63,8 @@ run returns.
     Autoweighted on
     ResNet-18 ($\rho = 0.46$: LRP rises from fifth into a statistical tie
     with Occlusion at the top---the top-2 \emph{set} is stable in every
-    jackknife replicate and under $\pm0.2$ reliability shifts, their mutual
-    order is not---and
+    jackknife replicate but not under every $\pm0.2$ reliability shift,
+    and their mutual order is unresolved throughout---and
     Grad-CAM
     falls into the bottom cluster) while SqueezeNet moves only mildly
     ($\rho = 0.96$); the mean effectiveness shift is $|\Delta|\approx0.14$
@@ -160,11 +160,16 @@ moderate, architecture-dependent reweighting of the ranking.
     $\to$ statistical tie for first, Grad-CAM $\to$ bottom cluster), while
     on SqueezeNet it is mild
     ($\rho = 0.96$).
-    Two caveats keep this claim honest. First, the AR leg for the two
+    Three caveats keep this claim honest. First, the AR leg for the two
     explanation-recomputing metrics required a protocol extension introduced
     by this thesis (degrading the explanation function itself,
     Section~\ref{sec:exp-meta}), so their reliability scores are measured
-    under an extended, not the original, MetaQuantus protocol. Second, no
+    under an extended, not the original, MetaQuantus protocol. Second,
+    \emph{which} method leads the reordered field is not resolved: raising
+    random-logit's reliability by $0.2$---well within the uncertainty of a
+    reactivity measurement that sits at its noise floor---drops LRP from the
+    leading pair to third (Section~\ref{sec:exp-meta}). The robust claim is
+    that the discount reorders the field, not that it crowns LRP. Third, no
     ground truth says the MQ-discounted ranking is \emph{better}---the
     framework establishes that reliability weighting changes the verdict, not
     that the changed verdict is correct. The contribution is the measured
@@ -381,9 +386,13 @@ A related construct risk is that \textbf{metric implementations can emit
 out-of-range or heavy-tailed raw scores}. Relevance Mass Accuracy is
 nominally a mass fraction in $[0, 1]$, yet with signed attributions
 (\texttt{abs=False}) its denominator---the total signed relevance---can
-approach zero, and $26\%$ of the valid full-run RMA values exceed $1$
-(maximum ${\approx}2 \times 10^{3}$, concentrated in Integrated Gradients,
-DeepLift, Guided Backpropagation, and LRP). Max-Sensitivity similarly
+approach zero or change sign: $26\%$ of the valid full-run RMA values
+exceed $1$ (maximum ${\approx}2 \times 10^{3}$, concentrated in Integrated
+Gradients, DeepLift, Guided Backpropagation, and LRP) and a further
+$18\%$ are \emph{negative}, so roughly $44\%$ of a nominal mass fraction
+falls outside its own range---the negative values being the more troubling,
+since a negative relevance mass has no interpretation as a fraction at
+all. Max-Sensitivity similarly
 explodes where the re-attributed explanations are unstable (for LRP on
 ResNet-18 the median is ${\approx}52$ and the maximum ${\approx}1.9 \times
 10^{5}$). Second Moment Scaling dampens but does not remove such heavy

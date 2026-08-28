@@ -224,7 +224,7 @@ The Completeness axiom, formalized by Sundararajan et al.\ \cite{sundararajan201
 \begin{equation}
     \left|\sum_{i} E_i - \bigl(f(x) - f(x')\bigr)\right| \approx 0.
 \end{equation}
-The metric measures the absolute deviation from this axiom; lower is better. Completeness is only meaningful for methods that explicitly satisfy or approximate the completeness property by construction---specifically Integrated Gradients, DeepLift, and LRP. For other methods, the metric returns NaN and is excluded from aggregation.
+The Quantus implementation used here does not score the magnitude of the deviation: it returns a per-sample Boolean, $1$ where the summed attribution equals $f(x) - f(x')$ under strict floating-point equality and $0$ otherwise (higher is better). As Section~\ref{sec:exp-redundancy} reports, that equality never holds in practice, so the metric is constant at $0$ and carries no ranking signal. Completeness is only meaningful for methods that explicitly satisfy or approximate the completeness property by construction---specifically Integrated Gradients, DeepLift, and LRP. For other methods, the metric returns NaN and is excluded from aggregation.
 
 \subsubsection{Non-Sensitivity}
 Non-Sensitivity measures how much attribution a method assigns to features that are provably non-contributory (i.e., features whose removal does not change the model output). A faithful attribution should assign zero relevance to such features. The metric evaluates this by performing a forward pass for each feature (or a downsampled subset thereof) to identify non-contributory features, then measuring the attribution mass on those features. Lower is better.

@@ -77,9 +77,10 @@ M_STAR: list[str] = [
 _CATEGORY_MAP: dict[str, str] = {
     "faithfulness_correlation": "faithfulness",
     "pixel_flipping": "faithfulness",
-    "pointing_game": "faithfulness",
-    "relevance_mass_accuracy": "faithfulness",
+    "pointing_game": "localisation",
+    "relevance_mass_accuracy": "localisation",
     "max_sensitivity": "robustness",
+    "sparseness": "complexity",
     "model_parameter_randomisation": "randomisation",
     "random_logit": "randomisation",
 }

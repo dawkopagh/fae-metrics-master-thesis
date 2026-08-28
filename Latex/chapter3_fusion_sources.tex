@@ -316,8 +316,10 @@ is disabled on ISIC~2017 because of a Quantus~0.6.0 incompatibility, leaving
 RandomLogit as the operative Randomization metric.
 
 \paragraph{Axiomatic.}
-Completeness measures the absolute deviation from the completeness axiom
-($|\sum_i E_i - \Delta f| \approx 0$). It returns NaN for methods outside
+Completeness tests the completeness axiom
+($\sum_i E_i = \Delta f$) as a strict floating-point equality, returning a
+Boolean per sample (satisfied~$=1$, higher is better) rather than the
+magnitude of the deviation. It returns NaN for methods outside
 \{Integrated Gradients, DeepLift, LRP\}; these NaN values are excluded
 from aggregation rather than imputed. NonSensitivity measures attribution
 mass on provably non-contributory features. Due to its $O(d)$ forward-pass
@@ -674,7 +676,17 @@ output is a long-format CSV file with columns \texttt{model},
 The schema retains one row per (model, image, FAE method, metric~slot),
 including the slots recorded as NaN (the excluded metrics and Completeness on
 non-completeness methods), so that the table shape is independent of which
-metrics happen to be defined for a given triple. For the 12-image vertical
+metrics happen to be defined for a given triple. A third, unintended source
+of NaN survives in the full run: 70 of the 100{,}800 score slots---all in
+the (ResNet-18, Grad-CAM) cell, split across avg\_sensitivity~(17),
+max\_sensitivity~(18), and random\_logit~(35), i.e.\ up to $5.8\%$ of that
+metric's scores for that cell---record a failed metric call rather than a
+designed exclusion. All three are explanation-recomputing metrics, and the
+failures are confined to the one FAE method whose attributions are
+computed at reduced spatial resolution. They are dropped pairwise by the
+NaN-aware aggregation of Section~\ref{sec:normalization} rather than
+imputed, so they cannot propagate into the index, but they do mean that
+cell's statistics rest on marginally fewer images than the rest. For the 12-image vertical
 slice this is $2 \times 7 \times 12 \times 12 = 2{,}016$ rows (2~models
 $\times$ 7~FAE methods $\times$ 12~images $\times$ 12~metric slots); scaling
 the identical schema to all 600 test images yields

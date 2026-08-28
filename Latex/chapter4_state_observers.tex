@@ -86,7 +86,7 @@ SqueezeNet 1.1 & Conv2d(512, 3, 1, 1)  & 74.0\% & \textit{n/a} \\
 \bottomrule
 \end{tabularx}
 \label{tab:model-summary}
-% Source: results/training_log_{resnet18,squeezenet}.csv (full ISIC 2017,
+% Source: fae-metrics-master-thesis/results/training_log_{resnet18,squeezenet}.csv (full ISIC 2017,
 % 25 epochs, 2026-04-22) and weights/README.md — final weights, not pilot.
 \end{table}
 
@@ -327,7 +327,9 @@ measured reactivity sits at the noise floor
 ($0.58$) and
 \emph{relevance\_mass\_accuracy} ($0.55$) also score low: both are
 noise-resilient only moderately (NR $\approx 0.56$--$0.59$) and react
-comparatively weakly to deliberate degradation (AR $\approx 0.51$--$0.60$).
+comparatively weakly to deliberate degradation (AR $\approx 0.51$--$0.60$)
+---weakly enough, in the case of relevance\_mass\_accuracy, that its
+reactivity does not clear its own noise floor either (below).
 The dispersion column tempers these point estimates: the least reliable
 metrics are also the least consistently estimated
 ($\mathrm{SD}(r_k) = 0.28$ for faithfulness\_correlation, whose per-cell
@@ -338,8 +340,12 @@ most stable across cells ($\mathrm{SD} \approx 0.09$--$0.15$).
 Two audits qualify the AR leg. First, because AR is the \emph{absolute}
 Spearman correlation, a metric reacting in the unexpected direction would
 still earn credit; auditing the signed monotonicity of the 28 extended-AR
-cells finds one such cell (\emph{random\_logit} on
-guided-backprop/ResNet-18, $|\rho_S| = 0.59$) --- its contribution is
+cells finds six with a negative signed $\rho_S$, of which one is large
+enough to materially inflate its cell's AR
+(\emph{random\_logit} on guided-backprop/ResNet-18, $\rho_S = -0.59$; the
+other five lie between $-0.32$ and $-0.04$, i.e.\ within the
+$\pm0.42$ noise band of a five-level estimate and hence not distinguishable
+from an unsystematic response). Their contribution is
 disclosed rather than re-scored, and a direction-rectified AR is noted as
 future work. Relatedly, \emph{random\_logit}'s mean AR of $0.27$ sits at
 the noise floor of a ten-point $|\rho_S|$ estimate (the expected
@@ -351,21 +357,50 @@ its combined $r_k = 0.63$ is carried almost entirely by its
 noise resilience.
 \emph{Max\_sensitivity}, by contrast, is overwhelmingly directional (13 of
 14 cells positive, mean signed $\rho_S = 0.91$)---a real, if partly
-mechanical, response (see Section~\ref{sec:disc-threats}). Second, a
+mechanical, response (see Section~\ref{sec:disc-threats}).
+
+The same standard must be applied to the five metrics scored under the
+standard five-level array-degradation protocol, whose noise floor is
+correspondingly higher: the expected $|\rho_S|$ of a random ordering over
+five levels is exactly $0.42$ (mean over all $120$ permutations), not
+$0.27$. Referred to that floor, \emph{sparseness} ($0.94$),
+\emph{pixel\_flipping} ($0.77$) and \emph{pointing\_game} ($0.66$,
+Monte-Carlo $p = 0.0004$) react genuinely;
+\emph{faithfulness\_correlation} ($0.60$, $p = 0.008$) clears it only
+marginally; and \emph{relevance\_mass\_accuracy} ($0.51$, $p = 0.09$,
+with 9 of its 14 cells at or below the floor) does \emph{not}---its
+measured reactivity is, like random\_logit's, indistinguishable from
+chance. Two of the seven $M^{*}$ reliabilities are therefore
+upper-bounded rather than resolved, and both belong to metrics the
+discount penalises most heavily; a finer degradation grid is required to
+separate genuinely weak reactivity from an unresolved measurement, and is
+listed as future work in Section~\ref{sec:concl-future}. Second, a
 leave-one-cell-out jackknife of the per-metric
 $\lambda_k$ (recomputing the MQ-discounted ResNet-18 ranking with each of
 the seven FAE cells removed from the reliability average) preserves the
 top-2 \emph{set} in all seven replicates: LRP and Occlusion occupy the top
 two places in every replicate, but their mutual order flips (the two sit
-within $0.001$ at the point estimate), and shifting the two
-extension-measured reliabilities by $\pm 0.2$ likewise preserves LRP in
-the top two while reshuffling its companion. At the bottom, Grad-CAM is
+within $0.001$ at the point estimate; under the Friedman mean-rank view of
+the same scheme the order is in fact reversed---Occlusion $3.08$ against
+LRP $3.23$---well inside the Nemenyi critical difference of $0.368$, which
+is why the pair is reported as tied rather than ranked). The $\pm 0.2$ reliability shift is
+less forgiving, and asymmetrically so: lowering either extension-measured
+reliability by $0.2$, or raising max-sensitivity's, leaves LRP first, but
+\emph{raising} random-logit's $\lambda$ from $0.63$ to $0.83$ drops LRP to
+third behind Occlusion and Saliency. The top placement of LRP is thus
+conditional on random-logit's reliability not being materially higher than
+measured---and since that metric's Adversarial Reactivity is itself
+indistinguishable from the noise floor (below), its true $\lambda$ is
+uncertain by more than $0.2$. The tie at the top should accordingly be read
+as unresolved rather than as a robust finding. At the bottom, Grad-CAM is
 last at the point estimate but within $0.003$ of DeepLift and Guided
 Backpropagation---a cluster, not a resolved order. The robust statement
 is therefore that the discount lifts LRP from fifth under Autoweighted
-into a statistical tie with Occlusion at the top, and drops Grad-CAM from
+into the leading pair, and drops Grad-CAM from
 the uniform-weighting podium into the bottom cluster, while neither the
-exact winner nor the bottom-three order should be over-read.
+exact winner nor the bottom-three order should be over-read---and that
+LRP's presence in that pair is itself contingent on random-logit's
+uncertain reliability.
 
 \paragraph{Extending AR to explanation-recomputing metrics.}
 The MetaQuantus AR protocol degrades the explanation by zeroing a growing
@@ -556,7 +591,8 @@ code and is corrected here---the reported ensemble scores are valid, they
 were merely mislabeled. The comparison uses the full 600 test
 images and all seven $M^{*}$ metrics, so it is a full-scale verdict.
 
-Per-axis effectiveness (one effectiveness value per metric category for the
+Per-axis effectiveness (one axis per $M^{*}$ metric, min--max normalised
+per metric, for the
 ensembled vs.\ individual attributions) is reported in
 Figure~\ref{fig:ensemble-radar} so that trade-offs---e.g.\ a gain in Robustness
 purchased at the cost of Localization---are visible rather than hidden by the

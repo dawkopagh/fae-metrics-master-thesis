@@ -5,7 +5,7 @@ Outputs (into Latex/figures/):
     cd_diagram.pdf      - Nemenyi critical-difference diagram (per model,
                           Autoweighted scheme) from results/cd_summary.csv.
     ensemble_radar.pdf  - ensemble vs. mean-individual per-metric radar over
-                          the five non-Robustness M* metrics, min-max
+                          all seven M* metrics, min-max
                           normalised per metric for comparability.
 
 Also prints the best validation accuracies (from the training logs) and the
