@@ -1,0 +1,3 @@
+model,split,n,correct,accuracy,balanced_accuracy,macro_f1,recall_melanoma,recall_nevus,recall_seborrheic_keratosis,precision_melanoma,precision_nevus,precision_seborrheic_keratosis,f1_melanoma,f1_nevus,f1_seborrheic_keratosis,confusion_row_true
+resnet18,test,600,445,0.741667,0.683369,0.663553,0.452991,0.819338,0.777778,0.540816,0.842932,0.583333,0.493023,0.830968,0.666667,"53,46,18;39,322,32;6,14,70"
+squeezenet,test,600,330,0.55,0.637268,0.533316,0.623932,0.465649,0.822222,0.339535,0.892683,0.411111,0.439759,0.61204,0.548148,"73,17,27;131,183,79;11,5,74"
