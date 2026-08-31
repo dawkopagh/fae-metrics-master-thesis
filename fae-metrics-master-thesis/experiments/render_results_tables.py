@@ -138,7 +138,7 @@ def _redundancy_fragment(matrix: pd.DataFrame | None, model_label: str,
     body = "\n".join(rows_tex)
     return rf"""\begin{{table}}[H]
 \centering
-\caption{{Redundancy summary --- {model_label}: within-category mean $|\rho|$ at
+\caption{{Redundancy summary -- {model_label}: within-category mean $|\rho|$ at
 the $|\rho| > 0.85$ pruning threshold ({n_images}).}}
 \begin{{tabular}}{{lcc}}
 \toprule
@@ -396,8 +396,8 @@ def _ensemble_fragment(ensemble: pd.DataFrame | None) -> str:
 \caption{{Effectiveness index $E(\Phi)$ of the NormEnsembleXAI-ensembled
 attribution against four individual-method baselines, per model (mean over
 {n_label} test images per model; uniform weights over the seven $M^{{*}}$
-metrics). Normalization is pooled Second-Moment---ensemble and individual
-scores share one RMS per (model, metric)---so level differences between the
+metrics). Normalization is pooled Second-Moment -- ensemble and individual
+scores share one RMS per (model, metric) -- so level differences between the
 two populations are visible. The baselines are defined, and the
 post-selection caveat qualifying three of them stated, in the surrounding
 text.}}

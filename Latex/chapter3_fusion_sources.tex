@@ -41,7 +41,7 @@ correct \cite{hedstrom2023quantus}.
 \section{Dataset}
 \label{sec:dataset}
 
-The experiments use the ISIC 2017 Challenge dataset (Task~1 --- Lesion
+The experiments use the ISIC 2017 Challenge dataset (Task~1 -- Lesion
 Segmentation), publicly available under a CC-BY-NC license from
 \texttt{challenge.isic-archive.com}. The dataset comprises dermoscopic
 images distributed across three diagnostic categories: melanoma, nevus, and
@@ -53,7 +53,7 @@ seborrheic keratosis.
     \item \textbf{Segmentation masks:} Each image is accompanied by an
     expert-annotated binary mask delineating the lesion boundary. These masks
     enable the computation of Localization metrics (Pointing Game, Relevance
-    Mass Accuracy) without additional labeling effort---a key advantage over
+    Mass Accuracy) without additional labeling effort -- a key advantage over
     datasets that provide only image-level labels.
     \item \textbf{Preprocessing:} All images are resized to $224 \times 224$
     pixels and normalized using ImageNet channel-wise mean and standard
@@ -202,8 +202,8 @@ avoids redundant recomputation when the same attribution is needed by
 multiple metrics or across repeated pipeline runs.
 
 The cache is \textbf{bypassed} for inner re-computations performed by
-robustness and randomization metrics---specifically Max-Sensitivity,
-Avg-Sensitivity, and MPRT---because these metrics intentionally perturb
+robustness and randomization metrics -- specifically Max-Sensitivity,
+Avg-Sensitivity, and MPRT -- because these metrics intentionally perturb
 inputs or model weights and therefore produce legitimately different
 attributions on each invocation. Caching such perturbed attributions would
 violate the metric's operational semantics.
@@ -343,7 +343,7 @@ correlation estimates).
 
 \emph{Correlation matrix.} For the surviving metrics, the Spearman
 rank-correlation matrix is computed on the wide table whose observations
-are (image, FAE-method) pairs --- i.e.\ correlations are pooled across
+are (image, FAE-method) pairs -- i.e.\ correlations are pooled across
 attribution methods as well as images, so ``redundant'' means that two
 metrics order the full population of explanations alike, not merely that
 they agree for one method. Spearman is used rather than Pearson because
@@ -477,8 +477,8 @@ removes the mean the CV depends on).
 
 Two structural caveats of inverse-CV weighting are acknowledged as
 modelling assumptions rather than hidden. First, the CV is
-\emph{location-sensitive}: for a metric whose scores straddle zero ---
-FaithfulnessCorrelation, with range $[-1, 1]$, is the case in point ---
+\emph{location-sensitive}: for a metric whose scores straddle zero --
+FaithfulnessCorrelation, with range $[-1, 1]$, is the case in point --
 $|\mathrm{mean}(M_k)|$ can be small for reasons unrelated to noise, which
 inflates the CV and suppresses the weight as an artefact of where the
 scale's zero sits. Second, consistency is not discriminative power: a
@@ -499,11 +499,11 @@ metric's scores are (the Autoweighted signal above), and how reliable that
 metric is when probed by meta-evaluation. The derivation proceeds in three
 steps.
 
-\paragraph{Step 1 --- Autoweighted agreement weight.}
+\paragraph{Step 1 -- Autoweighted agreement weight.}
 For each retained metric $k \in M^{*}$, the Autoweighted coefficient
 $w_k^{\mathrm{AW}}$ is computed per Equation~\eqref{eq:autoweighted}.
 
-\paragraph{Step 2 --- Reliability discount.}
+\paragraph{Step 2 -- Reliability discount.}
 Each metric is assigned a reliability coefficient $\lambda_k \in [0, 1]$
 obtained from the meta-evaluation stage
 (Section~\ref{subsec:meta-evaluation} of Chapter~\ref{ch:sota}). MetaQuantus
@@ -513,10 +513,10 @@ MetaQuantus-\emph{inspired} estimators of the two reliability properties,
 not the published IAC/IEC consistency estimators:
 $\mathrm{NR}_k = 1/(1 + \mathrm{CV})$, where CV is the coefficient of
 variation, across five noise seeds, of the metric's score
-\emph{averaged over the 64 sampled images}---an estimand whose
+\emph{averaged over the 64 sampled images} -- an estimand whose
 consequences are analysed in Section~\ref{sec:exp-meta}, since averaging
 before taking the CV compresses the very dispersion NR is meant to
-detect---and
+detect -- and
 $\mathrm{AR}_k = |\rho_S|$, the absolute Spearman correlation between the
 explanation-degradation levels and the mean metric score at each level
 (five levels; ten for the extended-AR completion).
@@ -554,7 +554,7 @@ are best read as protocol-conditional reliability indices, not as
 calibrated probabilities of reliability.
 Figure~\ref{fig:ar-schematic} illustrates the estimator on two measured
 cells, including one whose reactivity runs opposite to the expected
-direction---exactly the case the audit exists to expose.
+direction -- exactly the case the audit exists to expose.
 
 \begin{figure}[htbp]
     \centering
@@ -567,7 +567,7 @@ direction---exactly the case the audit exists to expose.
     reacts monotonically in the expected direction. Right: Random Logit
     under Guided Backpropagation \emph{falls} as the explanation degrades,
     yet the direction-agnostic estimator still awards
-    $\mathrm{AR} = |\rho_S|$---the pathology the direction audit of
+    $\mathrm{AR} = |\rho_S|$ -- the pathology the direction audit of
     Chapter~\ref{ch:experiments} quantifies.}
     \label{fig:ar-schematic}
 \end{figure}
@@ -587,9 +587,9 @@ metric implementations. With this extension, every computable metric carries
 a measured combined reliability.
 
 Where \texttt{combined\_reliability} is undefined for a metric that
-nonetheless enters an aggregation --- a configuration safeguard: in the
+nonetheless enters an aggregation -- a configuration safeguard: in the
 reported run every $M^{*}$ metric carries a measured reliability, so the
-hierarchy is not exercised --- $\lambda_k$ is resolved by an
+hierarchy is not exercised -- $\lambda_k$ is resolved by an
 explicit fallback hierarchy: (i)~the Noise-Resilience-only score, where NR
 alone is available;
 (ii)~the mean reliability of the other valid metrics in the same
@@ -597,7 +597,7 @@ Quantus category; (iii)~the global mean reliability across the group; and, as
 a last resort, (iv)~no discount ($\lambda_k = 1$). This fallback never zeroes a
 metric out, which would silently drop it from the ensemble.
 
-\paragraph{Step 3 --- Discounted normalisation.}
+\paragraph{Step 3 -- Discounted normalisation.}
 The Autoweighted coefficient is attenuated by the reliability factor and
 renormalised to a convex combination:
 \begin{equation}
@@ -616,8 +616,8 @@ meta-evaluation (small
 $\lambda_k$); being multiplicative, however, it can only rescale the
 Autoweighted allocation, so a metric with a large agreement weight retains
 substantial influence unless its $\lambda_k$ is itself small.
-The three weighting schemes---uniform, Autoweighted, and
-MQ-discounted---are reported side by side in Chapter~\ref{ch:experiments} so
+The three weighting schemes -- uniform, Autoweighted, and
+MQ-discounted -- are reported side by side in Chapter~\ref{ch:experiments} so
 that their effect on the final method ranking can be assessed directly.
 
 %% ========================================================================
@@ -696,10 +696,10 @@ The schema retains one row per (model, image, FAE method, metric~slot),
 including the slots recorded as NaN (the excluded metrics and Completeness on
 non-completeness methods), so that the table shape is independent of which
 metrics happen to be defined for a given triple. A third, unintended source
-of NaN survives in the full run: 70 of the 100{,}800 score slots---all in
+of NaN survives in the full run: 70 of the 100{,}800 score slots -- all in
 the (ResNet-18, Grad-CAM) cell, split across avg\_sensitivity~(17),
 max\_sensitivity~(18), and random\_logit~(35), i.e.\ up to $5.8\%$ of that
-metric's scores for that cell---record a failed metric call rather than a
+metric's scores for that cell -- record a failed metric call rather than a
 designed exclusion. All three are explanation-recomputing metrics, and the
 failures are confined to the one FAE method whose attributions are
 computed at reduced spatial resolution. They are dropped pairwise by the
@@ -714,19 +714,19 @@ $2 \times 7 \times 600 \times 12 = 100{,}800$ rows.
 The software architecture follows the modular layout described in
 Section~\ref{sec:celePracy}:
 \begin{itemize}
-    \item \texttt{src/data/} --- ISIC 2017 dataset class and download script.
-    \item \texttt{src/models/} --- Classifier definitions and training loop.
-    \item \texttt{src/attributions/} --- Attribution generation, disk cache,
+    \item \texttt{src/data/} -- ISIC 2017 dataset class and download script.
+    \item \texttt{src/models/} -- Classifier definitions and training loop.
+    \item \texttt{src/attributions/} -- Attribution generation, disk cache,
     NormEnsembleXAI wrapper.
-    \item \texttt{src/metrics/} --- Quantus wrapper, custom metrics,
+    \item \texttt{src/metrics/} -- Quantus wrapper, custom metrics,
     redundancy analysis.
-    \item \texttt{src/meta\_evaluation/} --- MetaQuantus wrapper and metric
+    \item \texttt{src/meta\_evaluation/} -- MetaQuantus wrapper and metric
     selection.
-    \item \texttt{src/aggregation/} --- Normalization, aggregation operators,
+    \item \texttt{src/aggregation/} -- Normalization, aggregation operators,
     weighting schemes.
-    \item \texttt{src/comparison/} --- Wilcoxon, Friedman, and Nemenyi
+    \item \texttt{src/comparison/} -- Wilcoxon, Friedman, and Nemenyi
     statistical tests.
-    \item \texttt{src/pipeline.py} --- End-to-end orchestrator.
+    \item \texttt{src/pipeline.py} -- End-to-end orchestrator.
 \end{itemize}
 
 Reproducibility is anchored in three committed artifact classes rather
@@ -744,8 +744,8 @@ and~\ref{ch:discussion} are collected here:
 \begin{description}
     \item[D1] Second Moment Scaling as the score normalisation, adopted from
     NormEnsembleXAI (Section~\ref{sec:normalization}).
-    \item[D2] Three aggregation operators---weighted mean, minimum, and
-    geometric mean---with the weighted mean as the default
+    \item[D2] Three aggregation operators -- weighted mean, minimum, and
+    geometric mean -- with the weighted mean as the default
     (Section~\ref{sec:aggregation}).
     \item[D3] The MetaQuantus-discounted Autoweighted weighting as the novel
     weighting scheme under test (Section~\ref{subsec:mq-discount}).

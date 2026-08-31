@@ -70,7 +70,7 @@ this, different methods frequently attribute importance to different features
 for the same prediction, a phenomenon documented as systematic disagreement
 across explanation methods \cite{krishna2024disagreement} and visible at a
 glance in Figure~\ref{fig:attribution-disagreement}; no single estimator
-family dominates across the quality criteria---gradient-based estimators, for
+family dominates across the quality criteria -- gradient-based estimators, for
 example, are efficient and often faithful yet notoriously unstable under small
 input perturbations, while perturbation-based estimators carry their own
 sampling-induced instability and cost
@@ -86,14 +86,14 @@ the NormEnsembleXAI approach \cite{hryniewska2024normensemblexai}.
     (trained ResNet-18, dermoscopic test image \texttt{ISIC\_0012258},
     ground-truth melanoma) from the ISIC~2017 dataset used in this thesis.
     Attributions are computed at the model's own predicted class, which for
-    this image is \emph{nevus} ($p = 0.46$)---so the panels explain a
+    this image is \emph{nevus} ($p = 0.46$) -- so the panels explain a
     misclassification, the case in which an evaluator most needs to know
     whether the explanation can be trusted. The
     methods visibly disagree about which regions matter: the gradient-based
     methods (IG, Saliency, DeepLift, Guided Backpropagation, LRP) produce
     sharp but noisy pixel-level maps, while Grad-CAM and Occlusion yield
     coarse regional ones. Visual inspection cannot decide which of these is
-    the \emph{better} explanation of the model's decision---quantifying that
+    the \emph{better} explanation of the model's decision -- quantifying that
     is the evaluation problem this thesis addresses.}
     \label{fig:attribution-disagreement}
 \end{figure}
@@ -140,24 +140,24 @@ evaluation framework a concrete, auditable, and ethically motivated testbed.
 \section{Research contributions}
 \label{sec:celePracy}
 
-The unit of novelty in this thesis is the evaluation pipeline---the procedure by
-which feature attribution methods are scored, validated, and ranked---rather
+The unit of novelty in this thesis is the evaluation pipeline -- the procedure by
+which feature attribution methods are scored, validated, and ranked -- rather
 than any new explanation method or predictive architecture. Against the
 background outlined above, the contributions of this work are as follows.
 
 \begin{enumerate}
     \item \textbf{Non-redundancy analysis of FAE evaluation metrics.} An
     empirical correlation study across the six Quantus metric categories that
-    identifies highly correlated metrics---pooled across categories, so that
-    cross-category duplication is caught as well---and derives a
+    identifies highly correlated metrics -- pooled across categories, so that
+    cross-category duplication is caught as well -- and derives a
     compact, non-redundant representative subset, so that subsequent evaluation
     measures distinct quality dimensions rather than re-measuring the same
     property \cite{hedstrom2023quantus, bommer2024finding}.
 
     \item \textbf{A multi-criteria evaluation framework, and a test of
     reliability-discounted aggregation.} A methodological framework that
-    integrates MetaQuantus-style meta-validation---quantifying each metric's
-    Noise Resilience and Adversarial Reactivity---with an Autoweighted
+    integrates MetaQuantus-style meta-validation -- quantifying each metric's
+    Noise Resilience and Adversarial Reactivity -- with an Autoweighted
     aggregation scheme inspired by NormEnsembleXAI, and that formulates and
     empirically tests a MetaQuantus-discounted extension of Autoweighted
     aggregation in which the influence of a metric is attenuated in proportion
@@ -175,8 +175,8 @@ background outlined above, the contributions of this work are as follows.
     \item \textbf{Empirical validation on ISIC 2017 with statistical testing.}
     A practical assessment of the framework on the ISIC 2017 skin-lesion
     classification task, whose expert-annotated masks enable Localization
-    metrics, comparing individual FAE methods---and individual versus
-    NormEnsembleXAI-ensembled attributions---under the proposed aggregation, with
+    metrics, comparing individual FAE methods -- and individual versus
+    NormEnsembleXAI-ensembled attributions -- under the proposed aggregation, with
     statistical significance established through Friedman and Nemenyi tests
     across methods and Wilcoxon tests for paired comparisons
     \cite{codella2018isic, hryniewska2024normensemblexai}.
@@ -196,8 +196,8 @@ The remainder of this thesis is structured as follows.
     crisis of evaluation \cite{hedstrom2023quantus} by discussing the failure of
     common saliency maps to pass model-sensitivity sanity checks
     \cite{adebayo2018sanity}, and it defines the mathematical foundations of the
-    atomic metrics---Faithfulness, Robustness, Localization, Complexity, and
-    related families---that serve as the building blocks for modular evaluation
+    atomic metrics -- Faithfulness, Robustness, Localization, Complexity, and
+    related families -- that serve as the building blocks for modular evaluation
     \cite{hedstrom2023quantus, alvarez2018robustness}.
 
     \item \textbf{Chapter~\ref{ch:methodology}: Methodology} introduces the
@@ -222,8 +222,8 @@ The remainder of this thesis is structured as follows.
     resulting rankings via Friedman, Nemenyi, and Wilcoxon testing.
 
     \item \textbf{Chapter~\ref{ch:discussion}: Discussion} interprets the
-    rankings, examines the threats to validity---notably the sample-size
-    limitation of the redundancy and reliability estimates---and delimits the
+    rankings, examines the threats to validity -- notably the sample-size
+    limitation of the redundancy and reliability estimates -- and delimits the
     scope within which the conclusions generalise.
 
     \item \textbf{Chapter~\ref{ch:conclusions}: Conclusions and Future Work}

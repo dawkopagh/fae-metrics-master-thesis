@@ -25,7 +25,7 @@ run returns.
 
 \begin{itemize}
     \item \textbf{Does multi-criteria aggregation change the verdict?}
-    Yes---but conditionally. Comparing the single-metric baseline (Faithfulness
+    Yes -- but conditionally. Comparing the single-metric baseline (Faithfulness
     Correlation alone) against the multi-criteria index
     (Table~\ref{tab:rank-stability}) shows that a one-metric ranking is not a
     safe proxy for the aggregate: the Single-FC and MQ-discounted orderings
@@ -36,8 +36,8 @@ run returns.
     the aggregate. This vindicates the multi-criteria premise of the thesis: the
     scalar leaderboard one reads off a single faithfulness metric can differ
     materially from the one a balanced index returns.
-    \item \textbf{Effect of the weighting scheme.} The headline---and the most
-    important cautionary finding---is that \emph{how much the FAE ranking
+    \item \textbf{Effect of the weighting scheme.} The headline -- and the most
+    important cautionary finding -- is that \emph{how much the FAE ranking
     changes with the weighting scheme is itself model-dependent}. On ResNet-18
     the uniform and Autoweighted method-rankings agree only moderately
     (Spearman $\rho = 0.75$, five discordant method-pairs): Occlusion stays
@@ -53,18 +53,18 @@ run returns.
     redistribute weight across $M^{*}$ differently, and only where that
     redistribution is large does the ranking move. This is evidence that
     aggregation \emph{can} reorder rankings materially, not that it reliably
-    does---a warning
+    does -- a warning
     against trusting any single-number FAE leaderboard, but not a licence to
     assume the weighting always matters.
     \item \textbf{Does the MetaQuantus reliability discount change anything?}
-    Yes---moderately, and model-dependently, once the meta-validation is
+    Yes -- moderately, and model-dependently, once the meta-validation is
     complete. With both reliability legs of all seven $M^{*}$ metrics
     measured, the MQ-discounted ordering departs substantially from
     Autoweighted on
     ResNet-18 ($\rho = 0.46$: LRP rises from fifth into a statistical tie
-    with Occlusion at the top---the top-2 \emph{set} is stable in every
+    with Occlusion at the top -- the top-2 \emph{set} is stable in every
     jackknife replicate but not under every $\pm0.2$ reliability shift,
-    and their mutual order is unresolved throughout---and
+    and their mutual order is unresolved throughout -- and
     Grad-CAM
     falls into the bottom cluster) while SqueezeNet moves only mildly
     ($\rho = 0.96$); the mean effectiveness shift is $|\Delta|\approx0.14$
@@ -72,11 +72,11 @@ run returns.
     Mechanically, the discount redistributes weight toward the
     high-reliability metrics (sparseness $r_k = 0.97$, max-sensitivity
     $0.96$, pixel-flipping $0.88$) and away from
-    random-logit ($0.63$---near-perfect noise resilience but reactivity at
+    random-logit ($0.63$ -- near-perfect noise resilience but reactivity at
     the noise floor, the textbook stable-but-insensitive case),
     faithfulness-correlation ($0.58$), and relevance-mass
     accuracy ($0.55$). The discount is therefore a consequential modelling
-    choice on one architecture and nearly inert on the other---the same
+    choice on one architecture and nearly inert on the other -- the same
     conditional pattern as the uniform-vs-Autoweighted comparison
     (Section~\ref{sec:disc-redundancy}).
     \item \textbf{Per-category trade-offs.} The ensembling comparison
@@ -85,7 +85,7 @@ run returns.
     some metric
     categories for losses on others rather than dominating, and once ensemble
     and individual scores are placed on a common scale its scalar
-    effectiveness beats none of the reported baselines---significantly worse
+    effectiveness beats none of the reported baselines -- significantly worse
     than the mean individual method on ResNet-18, indistinguishable from it
     on SqueezeNet, and decisively below the best fixed method on both. A
     nominal SqueezeNet advantage under the earlier per-source normalization
@@ -93,8 +93,8 @@ run returns.
     why the per-category profiles and the normalization protocol are reported
     alongside the scalar.
     \item \textbf{Cross-model consistency.} The two architectures agree on the
-    one result that matters most for Contribution~1---the reduced metric set
-    $M^{*}$ is \emph{identical} across ResNet-18 and SqueezeNet---but disagree on
+    one result that matters most for Contribution~1 -- the reduced metric set
+    $M^{*}$ is \emph{identical} across ResNet-18 and SqueezeNet -- but disagree on
     almost everything downstream: the ranking divergence is large on ResNet-18
     and negligible on SqueezeNet, and the ensemble is significantly worse than
     the average method on ResNet-18 yet indistinguishable from it
@@ -112,7 +112,7 @@ The redundancy and reliability analyses are complementary filters acting on the
 same metric set, and their interaction is the point of methodological interest.
 On the full 600-image run the two filters give different yields: the
 redundancy filter is the strongest and cleanest result of the thesis, while
-the reliability filter---once turned into the MQ-discount---produces a
+the reliability filter -- once turned into the MQ-discount -- produces a
 moderate, architecture-dependent reweighting of the ranking.
 
 \begin{itemize}
@@ -124,16 +124,16 @@ moderate, architecture-dependent reweighting of the ranking.
     $0.98$ respectively), whereas the Faithfulness and Localization pairs remain
     nearly orthogonal ($|\rho| < 0.25$). The practical implication is concrete:
     reporting both members of a near-collinear pair overstates the evidence,
-    because the two metrics constitute one vote, not two---an evaluator who
+    because the two metrics constitute one vote, not two -- an evaluator who
     quotes ``twelve metrics'' is in effect quoting roughly seven independent
     ones. That the greedy pruning yields an \emph{identical} seven-metric
     $M^{*}$ on two different architectures is the strongest single finding here:
     the redundancy structure is shared across the two studied classifiers
-    rather than idiosyncratic to either---though with two CNNs on one
+    rather than idiosyncratic to either -- though with two CNNs on one
     dataset this is evidence of consistency, not proof of
     classifier-independence. A practitioner can therefore halve the costly
     Robustness
-    leg (avg-sensitivity pruned---the sensitivity metrics are among the most
+    leg (avg-sensitivity pruned -- the sensitivity metrics are among the most
     expensive in the battery, as each score re-invokes the explanation
     function ten times per image) and
     drop Complexity's duplicate, with no loss of discriminative signal; the two
@@ -141,7 +141,7 @@ moderate, architecture-dependent reweighting of the ranking.
     signal.
     \item \textbf{Greedy cross-category pruning.} The current pruning is greedy
     and can in principle drop a metric because it correlates with a metric in a
-    \emph{different} category. On this data the consequence is benign---both
+    \emph{different} category. On this data the consequence is benign -- both
     pruned pairs are \emph{within} a single category (Complexity; Robustness),
     so the greedy policy implemented as Decision~D4 and a strictly
     within-category alternative coincide
@@ -166,11 +166,11 @@ moderate, architecture-dependent reweighting of the ranking.
     Section~\ref{sec:exp-meta}), so their reliability scores are measured
     under an extended, not the original, MetaQuantus protocol. Second,
     \emph{which} method leads the reordered field is not resolved: raising
-    random-logit's reliability by $0.2$---well within the uncertainty of a
-    reactivity measurement that sits at its noise floor---drops LRP from the
+    random-logit's reliability by $0.2$ -- well within the uncertainty of a
+    reactivity measurement that sits at its noise floor -- drops LRP from the
     leading pair to third (Section~\ref{sec:exp-meta}). The robust claim is
     that the discount reorders the field, not that it crowns LRP. Third, no
-    ground truth says the MQ-discounted ranking is \emph{better}---the
+    ground truth says the MQ-discounted ranking is \emph{better} -- the
     framework establishes that reliability weighting changes the verdict, not
     that the changed verdict is correct. The contribution is the measured
     answer to a question the literature had left assumed: a
@@ -188,9 +188,9 @@ to rank highest on ISIC~2017. Three arguments support reading the framework's
 value independently of the specific rankings it produces.
 
 First, the pipeline makes the configuration of an evaluation \emph{explicit and
-reproducible}. The four-stage decomposition---redundancy-aware metric
+reproducible}. The four-stage decomposition -- redundancy-aware metric
 selection, meta-validation, direction-rectified normalisation, and weighted
-aggregation---separates the choices that an evaluator must make (which metrics,
+aggregation -- separates the choices that an evaluator must make (which metrics,
 which normalisation, which aggregator, which weighting) from the method under
 test. Two researchers who disagree about the conclusion can now locate the
 disagreement in a named configuration decision rather than in an opaque,
@@ -205,18 +205,18 @@ disagreement documented in the literature. \citet{krishna2024disagreement} and
 the apparent rigour of reporting ``many'' metrics is illusory when those
 metrics are correlated. The redundancy stage answers this by collapsing
 correlated metrics to representatives; the meta-validation stage answers the
-companion concern---that some metrics are simply unreliable
-\citep{hedstrom2024metaquantus}---by discounting metrics that fail Noise
+companion concern -- that some metrics are simply unreliable
+\citep{hedstrom2024metaquantus} -- by discounting metrics that fail Noise
 Resilience or Adversarial Reactivity. The MQ-discounted Autoweighted operator
 fuses both filters into a single, data-adaptive weight derivation; whether
 that fusion measurably changes the ranking is an empirical question, and on
-this data the answer is architecture-dependent---material on ResNet-18,
+this data the answer is architecture-dependent -- material on ResNet-18,
 marginal on SqueezeNet (Section~\ref{sec:disc-redundancy}). The value of the
 framework here is that it let the question be \emph{asked and answered}
 rather than assumed, and that the answer comes with its conditionality
 attached. The
-methodological claim---that aggregation should be preceded by redundancy pruning
-and that reliability weighting is worth testing---is itself testable and
+methodological claim -- that aggregation should be preceded by redundancy pruning
+and that reliability weighting is worth testing -- is itself testable and
 transferable whatever the leaderboard outcome on a particular dataset.
 
 Third, the framework yields a \emph{stable apparatus for asking conditional
@@ -243,8 +243,8 @@ itself, independently of how far they generalise.
 The most consequential internal threat concerns \textbf{metric
 failures and missing-value handling}. The Model Parameter Randomisation Test
 (MPRT) proved incompatible with this dataset under Quantus~0.6.0: during the
-pilot it yielded large numbers of \texttt{NaN} values---most acutely for
-SqueezeNet and for Grad-CAM on the randomised ResNet---and on ISIC~2017 its
+pilot it yielded large numbers of \texttt{NaN} values -- most acutely for
+SqueezeNet and for Grad-CAM on the randomised ResNet -- and on ISIC~2017 its
 implementation ultimately failed on every (model, image) sample, so it was
 disabled outright for the full run (Section~\ref{sec:metrics}). The decision
 has since been vindicated by the metric's own authors, who document
@@ -272,7 +272,7 @@ explained}. The two classifiers are only modestly accurate: ResNet-18 reaches
 $75.3\%$ best validation accuracy and SqueezeNet $74.0\%$, while ISIC~2017 is
 dominated by the nevus class; the validation split's majority-class
 baseline is $52\%$ ($78/150$ nevus images), so both predictors clear their
-own split's baseline by roughly twenty points---respectable but far from
+own split's baseline by roughly twenty points -- respectable but far from
 strong. On the 600-image test split, where the majority baseline rises to
 $65.5\%$ ($393/600$), the two diverge sharply on the plain-accuracy view
 of the same predictions (\texttt{results/test\_set\_accuracy.csv}; the
@@ -287,8 +287,8 @@ out-score on plain accuracy. ResNet-18 moreover
 shows clear overfitting ($98\%$ train accuracy against $75.3\%$ validation;
 SqueezeNet is better balanced at $78.5\%$ train / $74.0\%$ validation). The
 attributions therefore explain imperfect, partly over-fitted classifiers. This
-is a genuine validity consideration---an explanation of a flawed model inherits
-that model's flaws---but it is not fatal to the thesis, because the predictive
+is a genuine validity consideration -- an explanation of a flawed model inherits
+that model's flaws -- but it is not fatal to the thesis, because the predictive
 models are explicitly \emph{not} the contribution: the unit of novelty is the
 evaluation pipeline, which is exercised identically whatever the classifier's
 accuracy. The finding to carry forward is simply that the rankings reported here
@@ -296,8 +296,8 @@ characterise these two specific, imperfect models, not an idealised classifier.
 
 A third internal threat is the \textbf{target-class convention}. Attributions
 are computed for the model's predicted class rather than the ground-truth label.
-This is the correct choice for a faithfulness study---the explanation should
-describe the decision the model actually made---but it interacts with
+This is the correct choice for a faithfulness study -- the explanation should
+describe the decision the model actually made -- but it interacts with
 misclassified images, where the explained logit corresponds to a wrong class and
 the Localization metrics are scored against a mask that need not align with what
 the model attended to. The measured error rates put a figure on this: $155$ of the
@@ -321,7 +321,7 @@ this thesis's
 own construction rather than part of the published MetaQuantus suite: the
 degraded-explainer AR measures reaction to a \emph{stochastically corrupted
 explanation process}, which is analogous to, but not identical with, the
-original array-degradation test---and for the sensitivity metrics, whose very
+original array-degradation test -- and for the sensitivity metrics, whose very
 definition compares repeated explainer invocations, the independently drawn
 degradation masks mechanically induce part of the measured reactivity, so
 max-sensitivity's top reliability rank should be read with particular
@@ -339,7 +339,7 @@ of the
 random-logit's measured reactivity ($\mathrm{AR} = 0.27$) is
 indistinguishable from the
 noise floor
-of a ten-level $|\rho_S|$ estimate---it may be a fully unreactive metric,
+of a ten-level $|\rho_S|$ estimate -- it may be a fully unreactive metric,
 in which case even its discounted $0.23$ weight overstates it. Fourth, the
 NR leg of the two extension metrics had to be re-measured after the silent
 failure disclosed in Section~\ref{sec:exp-meta}, and the meta-evaluation's
@@ -347,8 +347,8 @@ targets were ResNet-18's predictions for both models (the two models
 disagree on 25 of the 64 sampled images); the reliability estimand is
 plausibly target-robust, but the SqueezeNet meta-evaluation has not been
 repeated with its own targets. The reliability
-scores---and therefore the ResNet-18 reordering the MQ-discount
-produces---inherit these caveats, and validating the extension (shared
+scores -- and therefore the ResNet-18 reordering the MQ-discount
+produces -- inherit these caveats, and validating the extension (shared
 degradation masks per level, a direction-rectified AR, own-target
 re-measurement, larger samples)
 is listed as future work.
@@ -363,16 +363,16 @@ $p$-values should be read in that light. Two mitigations apply: the
 selection and weighting steps do not optimise for any particular method
 ordering (they see only metric-level statistics, never the method
 labels being ranked), and the observed $p$-values ($<10^{-10}$) leave a wide
-margin. A held-out-split protocol---selecting $M^{*}$ and the weights on one
-half of the test set and testing on the other---is the clean remedy and is
+margin. A held-out-split protocol -- selecting $M^{*}$ and the weights on one
+half of the test set and testing on the other -- is the clean remedy and is
 listed as future work.
 
 \subsection{Construct Validity}
 
 Construct validity asks whether the chosen metrics actually capture the quality
 dimensions they are named for. The framework's premise is that the six Quantus
-categories---Faithfulness, Robustness, Localization, Complexity, Randomization,
-and Axiomatic correctness---together span the relevant notion of explanation
+categories -- Faithfulness, Robustness, Localization, Complexity, Randomization,
+and Axiomatic correctness -- together span the relevant notion of explanation
 ``effectiveness.'' Two residual risks remain even after redundancy pruning and
 meta-validation.
 
@@ -383,12 +383,12 @@ metric can be stable under noise and reactive to explanation degradation while
 still failing to track any human-meaningful sense of explanation quality.
 Independent meta-evaluations sharpen the point: using transparent models with
 ground-truth explanations, \citet{miro2024stability} find that Max- and
-Avg-Sensitivity fail to flag randomly generated explanations---a more
+Avg-Sensitivity fail to flag randomly generated explanations -- a more
 critical verdict on the same Robustness metrics than the NR/AR tests reach
 here, and a reminder that a metric's measured reliability depends on which
 meta-evaluation lens is applied.
-Because the entire study is functionally grounded---no clinician judgements
-enter the loop---there is an irreducible gap between ``passes the
+Because the entire study is functionally grounded -- no clinician judgements
+enter the loop -- there is an irreducible gap between ``passes the
 meta-evaluation stress tests'' and ``measures what a domain expert would call a
 good explanation.'' The framework narrows this gap but cannot close it without
 the human-grounded validation that is explicitly out of scope.
@@ -396,19 +396,19 @@ the human-grounded validation that is explicitly out of scope.
 A related construct risk is that \textbf{metric implementations can emit
 out-of-range or heavy-tailed raw scores}. Relevance Mass Accuracy is
 nominally a mass fraction in $[0, 1]$, yet with signed attributions
-(\texttt{abs=False}) its denominator---the total signed relevance---can
+(\texttt{abs=False}) its denominator -- the total signed relevance -- can
 approach zero or change sign: $26\%$ of the valid full-run RMA values
 exceed $1$ (maximum ${\approx}2 \times 10^{3}$, concentrated in Integrated
 Gradients, DeepLift, Guided Backpropagation, and LRP) and a further
 $18\%$ are \emph{negative}, so roughly $44\%$ of a nominal mass fraction
-falls outside its own range---the negative values being the more troubling,
+falls outside its own range -- the negative values being the more troubling,
 since a negative relevance mass has no interpretation as a fraction at
 all. Max-Sensitivity similarly
 explodes where the re-attributed explanations are unstable (for LRP on
 ResNet-18 the median is ${\approx}52$ and the maximum ${\approx}1.9 \times
 10^{5}$). Second Moment Scaling dampens but does not remove such heavy
-tails---an outlier-inflated RMS deflates every other score in its
-group---and this mechanism is precisely what produced the per-source
+tails -- an outlier-inflated RMS deflates every other score in its
+group -- and this mechanism is precisely what produced the per-source
 ensemble artefact of Section~\ref{sec:exp-ensemble}. Robust or winsorized
 scaling, and an absolute-value RMA variant, are natural hardening steps for
 future work.
@@ -423,7 +423,7 @@ stable across normalisers must be stated as normaliser-conditional. This is
 not a hypothetical caveat: the individual-vs-ensemble verdict on SqueezeNet
 changes from a nominally significant ensemble win to statistical
 indistinguishability when the per-source scaling is replaced by a pooled
-scale (Section~\ref{sec:exp-ensemble})---the clearest demonstration in this
+scale (Section~\ref{sec:exp-ensemble}) -- the clearest demonstration in this
 thesis that a normalisation choice can manufacture or dissolve a finding.
 Conversely, the per-(model, metric) grouping used here has independent
 support: \citet{edin2025naopc} show that raw faithfulness scores are not
@@ -438,8 +438,8 @@ Under the Autoweighted scheme it ranges roughly $-0.49$ to $0.61$ across
 per-image evaluations,
 and under the single-metric baseline it spans $-2.65$ to $4.02$; the sign and
 magnitude depend on the chosen normaliser and on the set of methods being
-compared. The index is therefore a \emph{ranking device}---it orders methods
-within a fixed configuration---and must not be read as an absolute measure of
+compared. The index is therefore a \emph{ranking device} -- it orders methods
+within a fixed configuration -- and must not be read as an absolute measure of
 explanation quality, nor compared across configurations as though it lived on a
 common scale. Every numerical effectiveness value reported in this thesis should
 be interpreted in that relative sense.
@@ -451,9 +451,9 @@ conditions of the experiment, and it is where the study is most deliberately
 bounded.
 
 All evidence comes from a \textbf{single dataset and domain}: ISIC~2017
-dermoscopy. The medical domain was chosen deliberately---it supplies the
+dermoscopy. The medical domain was chosen deliberately -- it supplies the
 expert-annotated lesion masks that make the Localization category measurable at
-all, and it grounds the regulatory motivation of the thesis---but a single
+all, and it grounds the regulatory motivation of the thesis -- but a single
 domain limits how far the redundancy and reliability \emph{structure} can be
 assumed to transfer. The correlation between two faithfulness metrics, or the
 reliability of MPRT, may differ on natural images or on a different imaging
@@ -469,8 +469,8 @@ consistency check, and it earns its keep: the identical $M^{*}$ across the two
 models is the thesis's strongest transfer claim. But the same two-model design
 sharply limits the reach of the \emph{divergence} findings. The headline result
 that aggregation can reorder the FAE ranking rests substantially on a single
-model---ResNet-18, where the uniform/Autoweighted correlation is $\rho = 0.75$,
-against $\rho = 0.96$ on SqueezeNet---and the ensemble's standing likewise
+model -- ResNet-18, where the uniform/Autoweighted correlation is $\rho = 0.75$,
+against $\rho = 0.96$ on SqueezeNet -- and the ensemble's standing likewise
 differs between the two (significantly below the mean on ResNet-18,
 indistinguishable from it on SqueezeNet).
 A finding that is large on one of two architectures and negligible on the other
@@ -483,7 +483,7 @@ Finally, the redundancy and reliability structure is estimated from a
 $600$ images, confidence intervals on the correlation and reliability estimates
 and a repeated-subsample stability analysis would be needed before the metric
 structure reported here is treated as a property of the domain rather than of
-this particular draw of images---and the reliability estimates for the two
+this particular draw of images -- and the reliability estimates for the two
 explanation-recomputing metrics, obtained under the extended AR protocol,
 should be read with the internal-validity caveat above attached.
 
@@ -498,9 +498,9 @@ Chapter~\ref{ch:conclusions} are read in context.
 \begin{itemize}
     \item \textbf{Restricted method panel.} The computational cost of fitting
     per-instance surrogate models (LIME) and sampling Shapley coalitions
-    (KernelSHAP)---a cost the Robustness metrics multiply, since they re-invoke
+    (KernelSHAP) -- a cost the Robustness metrics multiply, since they re-invoke
     the explanation function for every perturbation
-    sample---constrained the evaluated panel to the seven methods
+    sample -- constrained the evaluated panel to the seven methods
     retained in Chapter~\ref{ch:methodology} (Integrated Gradients, Saliency,
     Grad-CAM, DeepLift, Guided Backpropagation, LRP, and Occlusion). The two
     perturbation-based surrogate methods are therefore deferred rather than
@@ -510,8 +510,8 @@ Chapter~\ref{ch:conclusions} are read in context.
     or counterfactual explanations, whose quality criteria differ and would
     require a separate metric taxonomy.
     \item \textbf{Functionally grounded evaluation only.} Human-grounded
-    validation---clinician studies of whether the highlighted regions are
-    clinically sensible---is explicitly out of scope. The effectiveness index is
+    validation -- clinician studies of whether the highlighted regions are
+    clinically sensible -- is explicitly out of scope. The effectiveness index is
     a functional measure, and its alignment with expert judgement is an open
     question rather than an established result.
     \item \textbf{Aggregation to a scalar.} Collapsing a multi-criteria profile
