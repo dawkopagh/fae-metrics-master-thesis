@@ -7,7 +7,7 @@ weighting scheme (blocks are the 600 test images). $W$ is Kendall's
 coefficient of concordance, $\chi^2 / (N(k-1))$, the standardized effect
 size.}
 \small
-\begin{tabularx}{\linewidth}{llcccc}
+\begin{tabular}{llcccc}
 \toprule
 Model & Weighting & Friedman $\chi^2$ & $p$-value & Kendall's $W$ & Sig.\ ($\alpha{=}0.05$) \\
 \midrule
@@ -18,6 +18,6 @@ SqueezeNet  & Uniform & 1571.34 & $<10^{-3}$ & 0.44 & Yes \\
 SqueezeNet  & Autoweighted & 1430.30 & $<10^{-3}$ & 0.40 & Yes \\
 SqueezeNet  & MQ-discount & 1181.85 & $<10^{-3}$ & 0.33 & Yes \\
 \bottomrule
-\end{tabularx}
+\end{tabular}
 \label{tab:friedman}
 \end{table}

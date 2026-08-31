@@ -2,7 +2,7 @@ r"""render_results_tables.py — Emit LaTeX table fragments for Chapter 4 (local
 
 LOCAL post-processing script (venv, NOT Colab). Reads the result CSVs under
 results/ and writes booktabs-style \input-able LaTeX fragments into
-Latex/tables/. Each fragment is a complete float (table/tabularx) carrying the
+Latex/tables/. Each fragment is a complete float (table environment) carrying the
 SAME \caption and \label that chapter4_state_observers.tex already defines, so
 Chapter 4 can replace its inline [pending full run] tables with a single
 \input{tables/<name>}.
@@ -140,13 +140,13 @@ def _redundancy_fragment(matrix: pd.DataFrame | None, model_label: str,
 \centering
 \caption{{Redundancy summary --- {model_label}: within-category mean $|\rho|$ at
 the $|\rho| > 0.85$ pruning threshold ({n_images}).}}
-\begin{{tabularx}}{{\linewidth}}{{lcc}}
+\begin{{tabular}}{{lcc}}
 \toprule
 Category & $n$ metrics & Mean $|\rho|$ \\
 \midrule
 {body}
 \bottomrule
-\end{{tabularx}}
+\end{{tabular}}
 \label{{{label}}}
 \end{{table}}"""
 
@@ -208,26 +208,17 @@ computed on the same fixed seed-42 64-image sample of the test split (5 noise
 seeds; 5 degradation levels, or 10 for the extended-AR completion of
 \emph{{max\_sensitivity}} and \emph{{random\_logit}}, whose degradation is
 injected into the explanation function those metrics re-invoke internally).
-For those two metrics both legs come from repaired follow-up runs: their
-original NR-stage calls failed silently and were scored as a spurious
-$\mathrm{{NR}}=1.0$ by a since-fixed estimator defect; NR was subsequently
-re-measured on the same sample with the repaired estimator
+For those two metrics both legs come from repaired follow-up runs
 (Section~\ref{{sec:exp-meta}}). Values are reported to
-two decimals to reflect the estimator's granularity. Runtime is the
-meta-evaluation cost per (model, FAE) cell at these sample sizes, not the
-full-run evaluation cost; for the two extension-measured metrics it is the
-cost of the extended-AR run
-(\texttt{{results/ar\_completion\_v2\_n64.csv}}), the only stage timed
-after the estimator repair, whereas the remaining rows are timed from the
-main meta-evaluation run.}}
+two decimals to reflect the estimator's granularity.}}
 \small
-\begin{{tabularx}}{{\linewidth}}{{lccccc}}
+\begin{{tabular}}{{lccccc}}
 \toprule
 Metric & NR & AR & Combined $r_k$ & SD($r_k$) & Runtime (s) \\
 \midrule
 {body}
 \bottomrule
-\end{{tabularx}}
+\end{{tabular}}
 \label{{tab:meta}}
 \end{{table}}"""
 
@@ -262,13 +253,13 @@ def _ranking_fragment(ranking: pd.DataFrame | None, model: str,
 \centering
 \caption{{Mean effectiveness index $E(\Phi)$ per FAE method under each weighting
 scheme ({model_label}, averaged over test images).}}
-\begin{{tabularx}}{{\linewidth}}{{lcccc}}
+\begin{{tabular}}{{lcccc}}
 \toprule
 FAE method & Uniform & Autoweighted & MQ-discount & Single-FC \\
 \midrule
 {body}
 \bottomrule
-\end{{tabularx}}
+\end{{tabular}}
 \label{{{label}}}
 \end{{table}}"""
 
@@ -405,25 +396,19 @@ def _ensemble_fragment(ensemble: pd.DataFrame | None) -> str:
 \caption{{Effectiveness index $E(\Phi)$ of the NormEnsembleXAI-ensembled
 attribution against four individual-method baselines, per model (mean over
 {n_label} test images per model; uniform weights over the seven $M^{{*}}$
-metrics; POOLED Second-Moment normalization, i.e.\ ensemble and individual
-scores share one RMS per (model, metric), so level differences are visible).
-The ensemble aggregates ALL SEVEN methods, Occlusion included (the
-generating notebook passes the full method registry to NormEnsembleXAI);
-``oracle'' is the
-per-image best over the seven methods (it may switch methods per image);
-``best fixed'' is the
-single strongest method per model, and ``best gradient'' the strongest
-gradient-based method. The best-fixed, best-gradient, and oracle baselines
-are selected on the same images they are compared on, so their gaps are
-descriptive; only the mean-individual comparison carries valid inference.}}
+metrics). Normalization is pooled Second-Moment---ensemble and individual
+scores share one RMS per (model, metric)---so level differences between the
+two populations are visible. The baselines are defined, and the
+post-selection caveat qualifying three of them stated, in the surrounding
+text.}}
 \small
-\begin{{tabularx}}{{\linewidth}}{{lccccc}}
+\begin{{tabular}}{{lccccc}}
 \toprule
 Model & Ensembled & Mean ind. & Best fixed & Best gradient & Oracle \\
 \midrule
 {body}
 \bottomrule
-\end{{tabularx}}
+\end{{tabular}}
 \label{{tab:ensemble}}
 \end{{table}}"""
 
@@ -474,13 +459,13 @@ weighting scheme (blocks are the 600 test images). $W$ is Kendall's
 coefficient of concordance, $\chi^2 / (N(k-1))$, the standardized effect
 size.}}
 \small
-\begin{{tabularx}}{{\linewidth}}{{llcccc}}
+\begin{{tabular}}{{llcccc}}
 \toprule
 Model & Weighting & Friedman $\chi^2$ & $p$-value & Kendall's $W$ & Sig.\ ($\alpha{{=}}0.05$) \\
 \midrule
 {body}
 \bottomrule
-\end{{tabularx}}
+\end{{tabular}}
 \label{{tab:friedman}}
 \end{{table}}"""
 
@@ -535,18 +520,16 @@ def _wilcoxon_fragment(ensemble: pd.DataFrame | None) -> str:
 pooled normalization): the NormEnsembleXAI-ensembled attribution against the
 mean individual method, the best fixed method, and the per-image oracle.
 $r$ is the matched-pairs rank-biserial correlation (positive = ensemble
-higher). The best-fixed and oracle baselines are selected on the same
-images the tests are run on, so their $p$-values are post-selection-biased
-and reported as descriptive only; the mean-individual rows are the valid
-inferential comparisons.}}
+higher). Only the mean-individual rows carry valid inference; see the
+text for the post-selection caveat on the other four.}}
 \small
-\begin{{tabularx}}{{\linewidth}}{{llcccc}}
+\begin{{tabular}}{{llcccc}}
 \toprule
 Model & Pair & $W$ & $p$-value & $r$ & Significant \\
 \midrule
 {body}
 \bottomrule
-\end{{tabularx}}
+\end{{tabular}}
 \label{{tab:wilcoxon}}
 \end{{table}}"""
 

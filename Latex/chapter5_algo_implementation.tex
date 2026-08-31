@@ -271,11 +271,19 @@ A second internal threat is the \textbf{quality of the predictors being
 explained}. The two classifiers are only modestly accurate: ResNet-18 reaches
 $75.3\%$ best validation accuracy and SqueezeNet $74.0\%$, while ISIC~2017 is
 dominated by the nevus class; the validation split's majority-class
-baseline is $52\%$ ($78/150$ nevus images), so the predictors clear their
+baseline is $52\%$ ($78/150$ nevus images), so both predictors clear their
 own split's baseline by roughly twenty points---respectable but far from
-strong---while the test split, on which no classification accuracy is
-reported, has a higher majority baseline of $65.5\%$
-($393/600$). ResNet-18 moreover
+strong. On the 600-image test split, where the majority baseline rises to
+$65.5\%$ ($393/600$), the two diverge sharply on the plain-accuracy view
+of the same predictions (\texttt{results/test\_set\_accuracy.csv}; the
+balanced-accuracy summary is the one tabulated in
+Table~\ref{tab:model-summary}): ResNet-18 holds at $74.2\%$, whereas
+SqueezeNet drops to $55.0\%$ and therefore scores \emph{below} the
+majority-class baseline, clearing it only on balanced accuracy
+($63.7\%$, against $33.3\%$ for a constant-class predictor). For
+SqueezeNet the attributions evaluated in Chapter~\ref{ch:experiments} are thus
+explanations of a classifier that a trivial always-nevus rule would
+out-score on plain accuracy. ResNet-18 moreover
 shows clear overfitting ($98\%$ train accuracy against $75.3\%$ validation;
 SqueezeNet is better balanced at $78.5\%$ train / $74.0\%$ validation). The
 attributions therefore explain imperfect, partly over-fitted classifiers. This
@@ -292,9 +300,12 @@ This is the correct choice for a faithfulness study---the explanation should
 describe the decision the model actually made---but it interacts with
 misclassified images, where the explained logit corresponds to a wrong class and
 the Localization metrics are scored against a mask that need not align with what
-the model attended to. Given the modest accuracy above, a non-trivial fraction
-of test images are misclassified, which bounds the interpretability of the
-Localization results accordingly.
+the model attended to. The measured error rates put a figure on this: $155$ of the
+$600$ test images are misclassified by ResNet-18 ($25.8\%$) and $270$ by
+SqueezeNet ($45.0\%$), so for nearly half the SqueezeNet evaluation the
+explained logit belongs to a class the lesion mask does not depict. This
+bounds the interpretability of the Localization results accordingly, and
+does so far more tightly for SqueezeNet than for ResNet-18.
 
 A fourth internal threat is the \textbf{extended AR protocol}, and it bears
 directly on the foundation of the MQ-discount. The Adversarial Reactivity of

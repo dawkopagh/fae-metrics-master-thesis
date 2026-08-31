@@ -108,7 +108,10 @@ Both models are trained with the following configuration:
 \end{itemize}
 
 Best validation accuracies: ResNet-18 achieves 75.3\%, SqueezeNet achieves
-74.0\%. Trained weights are saved to disk with SHA-256 checksums documented
+74.0\%; corrected for the class imbalance these are $68.9\%$ and $74.7\%$
+balanced accuracy, and the corresponding values on the held-out 600-image
+test split are $68.3\%$ and $63.7\%$ (Table~\ref{tab:model-summary}).
+Trained weights are saved to disk with SHA-256 checksums documented
 in \texttt{weights/README.md}.
 
 %% ========================================================================

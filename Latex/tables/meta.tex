@@ -9,20 +9,11 @@ computed on the same fixed seed-42 64-image sample of the test split (5 noise
 seeds; 5 degradation levels, or 10 for the extended-AR completion of
 \emph{max\_sensitivity} and \emph{random\_logit}, whose degradation is
 injected into the explanation function those metrics re-invoke internally).
-For those two metrics both legs come from repaired follow-up runs: their
-original NR-stage calls failed silently and were scored as a spurious
-$\mathrm{NR}=1.0$ by a since-fixed estimator defect; NR was subsequently
-re-measured on the same sample with the repaired estimator
+For those two metrics both legs come from repaired follow-up runs
 (Section~\ref{sec:exp-meta}). Values are reported to
-two decimals to reflect the estimator's granularity. Runtime is the
-meta-evaluation cost per (model, FAE) cell at these sample sizes, not the
-full-run evaluation cost; for the two extension-measured metrics it is the
-cost of the extended-AR run
-(\texttt{results/ar\_completion\_v2\_n64.csv}), the only stage timed
-after the estimator repair, whereas the remaining rows are timed from the
-main meta-evaluation run.}
+two decimals to reflect the estimator's granularity.}
 \small
-\begin{tabularx}{\linewidth}{lccccc}
+\begin{tabular}{lccccc}
 \toprule
 Metric & NR & AR & Combined $r_k$ & SD($r_k$) & Runtime (s) \\
 \midrule
@@ -34,6 +25,6 @@ random\_logit & 0.99 & 0.27 & 0.63 & 0.12 & 306.7 \\
 relevance\_mass\_accuracy & 0.59 & 0.51 & 0.55 & 0.22 & 40.5 \\
 sparseness & 0.99 & 0.94 & 0.97 & 0.09 & 40.4 \\
 \bottomrule
-\end{tabularx}
+\end{tabular}
 \label{tab:meta}
 \end{table}

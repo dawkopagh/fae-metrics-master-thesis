@@ -21,8 +21,8 @@ input}-ed here. The scores, rankings, ensemble comparison, and statistical
 tests are computed over the full 600-image ISIC~2017 test split; the
 meta-evaluation (Section~\ref{sec:exp-meta}) is the deliberate exception,
 running on a fixed 64-image sample, as disclosed where its numbers are used.
-Two further
-limitations are stated up front and revisited at the
+One further
+limitation and one point of scope are stated up front and revisited at the
 point of use: (i)~both reliability legs of the two $M^{*}$
 metrics that internally re-compute attributions (\emph{max\_sensitivity},
 \emph{random\_logit}) come from repaired follow-up runs: their original
@@ -37,8 +37,7 @@ SqueezeNet relative to Autoweighted,
 with a model-dependent effect on the ranking); and (ii)~the attribution-ensembling
 experiment of Section~\ref{sec:exp-ensemble} ensembles \emph{all seven}
 methods, Occlusion included---the generating notebook passes the full
-method registry to NormEnsembleXAI (an earlier draft of this chapter
-mis-stated a six-gradient ensemble)---and uses the full 600 images and all
+method registry to NormEnsembleXAI---and uses the full 600 images and all
 seven $M^{*}$ metrics.
 Cells reading \textit{n/a} denote a value
 that is genuinely undefined (e.g.\ a single-metric category has no
@@ -70,24 +69,44 @@ protocol of Section~\ref{sec:models} (25 epochs, SGD with momentum,
 class-weighted cross-entropy, StepLR, fixed seed~42). Validation accuracy and
 trained-weight checksums are reported in Table~\ref{tab:model-summary}.
 
+The two classifiers transfer to the test split differently. ResNet-18 is
+essentially unchanged ($68.9\% \to 68.3\%$ balanced accuracy), whereas
+SqueezeNet loses eleven points ($74.7\% \to 63.7\%$), driven by its recall
+on the majority class falling from $0.68$ to $0.47$ between the splits.
+Neither figure qualifies the explanation-evaluation results that
+follow---attributions are computed for each model's own predicted class
+(Section~\ref{sec:models}), so the metrics score the explanation of whatever
+the classifier decided, not whether it decided correctly---but the two
+models do span a wide performance range, which makes the identical reduced
+set $M^{*}$ recovered on both (Section~\ref{sec:exp-redundancy}) a
+comparison across genuinely unequal classifiers rather than across two
+equally strong ones.
+
 \begin{table}[H]
 \centering
 \caption{Predictive models under evaluation and their training outcome.
-Best validation accuracy is taken from the 25-epoch training logs; test-set
-accuracy is marked \textit{n/a} as the 600-image test split was used for
-explanation evaluation (with the model's own prediction as the attribution
-target), not for separate classification scoring.}
-\begin{tabularx}{\linewidth}{llcc}
+Both columns report \emph{balanced accuracy}---the unweighted mean of the
+per-class recalls---which is the appropriate summary here because ISIC~2017
+is dominated by the nevus class and training used class-weighted
+cross-entropy. Values are measured under the evaluation-time transform and
+without augmentation, the test column on the same 600-image split later used
+for explanation evaluation. The plain-accuracy view of the same predictions,
+which is less favourable to SqueezeNet, is discussed among the threats to
+validity in Section~\ref{sec:disc-threats}.}
+\begin{tabular}{llcc}
 \toprule
-Model & Head & Best val.\ accuracy & Test accuracy \\
+Model & Head & Validation & Test \\
 \midrule
-ResNet-18      & Linear(512, 3)        & 75.3\% & \textit{n/a} \\
-SqueezeNet 1.1 & Conv2d(512, 3, 1, 1)  & 74.0\% & \textit{n/a} \\
+ResNet-18      & Linear(512, 3)        & 68.9\% & 68.3\% \\
+SqueezeNet 1.1 & Conv2d(512, 3, 1, 1)  & 74.7\% & 63.7\% \\
 \bottomrule
-\end{tabularx}
+\end{tabular}
 \label{tab:model-summary}
-% Source: fae-metrics-master-thesis/results/training_log_{resnet18,squeezenet}.csv (full ISIC 2017,
-% 25 epochs, 2026-04-22) and weights/README.md — final weights, not pilot.
+% Source: validation from fae-metrics-master-thesis/results/training_log_{resnet18,squeezenet}.csv
+% (full ISIC 2017, 25 epochs, 2026-04-22) and weights/README.md; test measured by
+% experiments/eval_test_accuracy.py -> results/test_set_accuracy.csv. Running that
+% script with --split validation reproduces 0.7533 / 0.7400 exactly, which is the
+% check that the scoring pipeline matches the one used during training.
 \end{table}
 
 \subsection{Attribution Methods}
@@ -123,7 +142,7 @@ not a property of the framework.
 \begin{table}[H]
 \centering
 \caption{Experiment scale: pilot vs.\ full run.}
-\begin{tabularx}{\linewidth}{lcc}
+\begin{tabular}{lcc}
 \toprule
 Quantity & Pilot & Full run \\
 \midrule
@@ -133,7 +152,7 @@ FAE methods        & 7   & 7 \\
 Metrics            & 12  & 12 \\
 Score rows         & 2{,}016 & 100{,}800 \\
 \bottomrule
-\end{tabularx}
+\end{tabular}
 \label{tab:exp-scale}
 % Full-run row count verified: 2 models x 7 FAE x 600 images x 12 metrics
 % = 100,800 rows in results/full_run_7fae_12metrics_600.csv.
@@ -231,12 +250,10 @@ Intersection (7)  & f\_corr, max\_sens, pixel\_flip, point\_game, rand\_logit, R
 $n = 600$ per cell). Quantus returns a per-sample Boolean --- $1$ if the
 attribution sum equals $f(x) - f(x')$ \emph{exactly} --- and that strict
 equality never holds in floating point, so the indicator is uniformly
-$0$ (False). An earlier draft of this table inverted the Boolean's
-semantics and reported the constant $0$ as a perfect pass; the corrected
-reading is that the strict-equality indicator can neither confirm nor
-refute the axiom at machine precision, and a tolerance-based verification
-of the underlying sums was not performed. Either way the column is
-constant, which is what the pre-screen acts on.}
+$0$ (False). The indicator can therefore neither confirm nor refute the
+axiom at machine precision, and a tolerance-based verification of the
+underlying sums was not performed; either way the column is constant,
+which is what the pre-screen acts on.}
 \begin{tabularx}{\linewidth}{llcc}
 \toprule
 Model & FAE method & Indicator (all samples) & Strict-equality pass \\
@@ -291,31 +308,34 @@ robustness of the downstream MQ-discount finding to these estimates is
 checked below.
 
 \paragraph{A silent failure in the NR stage, and its correction.}
-An independent audit of the reliability data found that the Noise-Resilience
-values originally recorded for the explanation-recomputing metrics
-(\emph{max\_sensitivity}, \emph{avg\_sensitivity}, \emph{random\_logit})
-were $1.00$ \emph{bitwise-identically} in all 14 (model, FAE) cells---while
-every metric that demonstrably computed shows between-cell variation. The
-cause was a defect in the NR implementation: when every seeded metric call
-fails (as those metrics' calls did in the original meta-evaluation run,
-consistent
-with their near-uniform per-cell runtimes and their simultaneously
-unmeasurable AR), the empty score set produced a coefficient of variation of
-zero and thus a ``perfect'' $\mathrm{NR}=1.0$---total failure scored as
-total stability. The defect was fixed (failed measurements now
-yield NaN), the artifact values were discarded, and NR for the two $M^{*}$
-metrics was \emph{re-measured} on the same 64-image sample with the
-repaired estimator; the values in Table~\ref{tab:meta} are those
-re-measurements, with genuine between-cell variation
-($\mathrm{NR} \in [0.56, 1.00]$ for max\_sensitivity). Every reliability
-number that enters the discount is therefore a real measurement.
+An audit found the Noise-Resilience values originally recorded for the
+explanation-recomputing metrics (\emph{max\_sensitivity},
+\emph{avg\_sensitivity}, \emph{random\_logit}) to be $1.00$
+\emph{bitwise-identically} in all 14 (model, FAE) cells, whereas every
+metric that demonstrably computed varies from cell to cell. The cause was a
+defect in the NR estimator: when every seeded metric call fails---as those
+metrics' calls did in the original run, consistent with their near-uniform
+per-cell runtimes and their simultaneously unmeasurable AR---the empty score
+set yields a coefficient of variation of zero, scoring complete failure as
+perfect stability. The estimator was fixed to return NaN for failed
+measurements, the artifact values were discarded, and NR for the two
+affected metrics that survive into $M^{*}$ was \emph{re-measured} on the
+same 64-image sample. Those re-measurements carry the between-cell variation
+the artifact lacked---all 14 cells distinct for both metrics, and for
+\emph{max\_sensitivity} 13 of them within $[0.98, 1.00]$ with the
+ResNet-18/LRP cell at $0.56$ accounting for the spread---so every
+reliability number entering the discount is a measured value.
 
 Table~\ref{tab:meta} reports NR, AR, and combined reliability per metric,
 averaged over the (model, FAE) cells in which each metric is defined, read from
 \texttt{results/meta\_evaluation\_reliability.csv}. The runtime
 column documents the meta-evaluation cost per cell at these sample sizes
 (the full-run evaluation cost per metric is substantially larger and scales
-with the 600-image split).
+with the 600-image split); for \emph{max\_sensitivity} and
+\emph{random\_logit} it is the cost of the extended-AR run
+(\texttt{results/ar\_completion\_v2\_n64.csv}), the only stage timed after
+the estimator repair, whereas the remaining rows are timed from the main
+meta-evaluation run.
 
 \input{tables/meta}
 
@@ -501,6 +521,26 @@ multiplicative discount can only rescale the large Autoweighted allocation
 it starts from. The comparison against the Single-FC baseline below
 should be read with FC's near-zero weight in the index in mind.
 
+\paragraph{How to read the index values.}
+Second Moment Scaling fixes each metric's scale but not its origin: it
+divides by the RMS within each (model, metric) group without centring, and
+three of the seven $M^{*}$ metrics (\emph{max\_sensitivity},
+\emph{pixel\_flipping}, \emph{random\_logit}) are direction-rectified by
+multiplication by $-1$. Those three contribute normalised values near $-1$
+against $+1$ for the other four, so $E(\Phi)$---their weighted mean---lies
+close to zero and its sign is settled by that near-cancellation. The sign
+therefore reports the composition of $M^{*}$, not explanation quality: had
+the Complexity pair been resolved in favour of \emph{complexity}
+(lower-is-better) rather than \emph{sparseness}, every entry in
+Tables~\ref{tab:ranking-resnet} and~\ref{tab:ranking-squeeze} would change
+sign for unchanged attributions. Accordingly $E = 0$ marks neither average
+nor neutral quality, and only differences and orderings \emph{within} a
+single column are interpretable. The columns are not mutually
+comparable---the Single-FC baseline is one metric of unit RMS and spans $0.84$--$1.52$
+across the two models, against $0.29$--$0.35$ for the uniform seven-metric
+column---and neither are the two models, each (model, metric) group
+carrying its own RMS.
+
 \input{tables/ranking_resnet}
 
 \input{tables/ranking_squeeze}
@@ -618,15 +658,12 @@ practical reading is that NormEnsembleXAI's Mean ensemble is not an
 improvement on this task under any reported baseline, and never a
 substitute for identifying the per-model best method.
 
-\paragraph{Ensemble composition (corrected).}
+\paragraph{Ensemble composition.}
 The ensemble aggregates \emph{all seven} attribution methods, Occlusion
 included: the generating notebook passes the full method registry to
 NormEnsembleXAI's Mean combinator, both for the pre-computed maps and
 inside the \texttt{explain\_func} that the Robustness metrics re-invoke.
-An earlier draft of this chapter described a six-gradient ensemble with
-Occlusion excluded; that description was contradicted by the generating
-code and is corrected here---the reported ensemble scores are valid, they
-were merely mislabeled. The comparison uses the full 600 test
+The comparison uses the full 600 test
 images and all seven $M^{*}$ metrics, so it is a full-scale verdict.
 
 Per-axis effectiveness (one axis per $M^{*}$ metric, min--max normalised

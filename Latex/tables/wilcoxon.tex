@@ -6,12 +6,10 @@
 pooled normalization): the NormEnsembleXAI-ensembled attribution against the
 mean individual method, the best fixed method, and the per-image oracle.
 $r$ is the matched-pairs rank-biserial correlation (positive = ensemble
-higher). The best-fixed and oracle baselines are selected on the same
-images the tests are run on, so their $p$-values are post-selection-biased
-and reported as descriptive only; the mean-individual rows are the valid
-inferential comparisons.}
+higher). Only the mean-individual rows carry valid inference; see the
+text for the post-selection caveat on the other four.}
 \small
-\begin{tabularx}{\linewidth}{llcccc}
+\begin{tabular}{llcccc}
 \toprule
 Model & Pair & $W$ & $p$-value & $r$ & Significant \\
 \midrule
@@ -22,6 +20,6 @@ SqueezeNet & vs.\ mean individual & 88718.0 & 0.736 & 0.02 & No \\
 SqueezeNet & vs.\ best fixed method & 12004.0 & $<10^{-3}$ & -0.87 & Yes \\
 SqueezeNet & vs.\ per-image oracle & 162.0 & $<10^{-3}$ & -1.00 & Yes \\
 \bottomrule
-\end{tabularx}
+\end{tabular}
 \label{tab:wilcoxon}
 \end{table}

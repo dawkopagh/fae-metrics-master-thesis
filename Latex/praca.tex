@@ -156,13 +156,18 @@ backend=bibtex
 \setlength{\cftsecnumwidth}{10mm}
 
 %---------------------------------------------------------------------------
-\setcounter{secnumdepth}{4}
+\setcounter{secnumdepth}{3}
 \brokenpenalty=10000\relax
 
 % rubber: bibtex.path ./
 \AtBeginDocument{
     \addto\captionsenglish{\renewcommand{\contentsname}{Contents}}
 }
+
+% Klasa aghdpl ustawia \flushbottom (report/twoside), co przy sztywnych
+% floatach [H] rozpycha klej miedzyakapitowy i zostawia luki w srodku strony.
+% \raggedbottom pozwala stronie skonczyc sie wyzej zamiast rozciagac odstepy.
+\raggedbottom
 
 \begin{document}
 
