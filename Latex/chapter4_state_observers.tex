@@ -64,9 +64,11 @@ scales.
 
 Two classifiers act as the predictors whose decisions are explained: ResNet-18
 (final \texttt{fc}~$\to$~\texttt{Linear(512, 3)}) and SqueezeNet~1.1 (final
-classifier~$\to$~\texttt{Conv2d(512, 3, 1, 1)}). Both are trained with the
-protocol of Section~\ref{sec:models} (25 epochs, SGD with momentum,
-class-weighted cross-entropy, StepLR, fixed seed~42). Validation accuracy and
+classifier~$\to$~\texttt{Conv2d(512, 3, 1, 1)}). Both architectures and their
+modified classification heads are described in Section~\ref{sec:models},
+which also fixes the training protocol (25 epochs, SGD with momentum,
+class-weighted cross-entropy, StepLR, fixed seed~42); this section restates
+only what is needed to read the results that follow. Validation accuracy and
 trained-weight checksums are reported in Table~\ref{tab:model-summary}.
 
 The two classifiers transfer to the test split differently. ResNet-18 is
@@ -114,8 +116,13 @@ SqueezeNet 1.1 & Conv2d(512, 3, 1, 1)  & 74.7\% & 63.7\% \\
 Seven FAE methods are evaluated (Section~\ref{sec:fae-methods}): Saliency,
 Integrated Gradients, Grad-CAM, Guided Backpropagation, DeepLift, LRP
 (gradient-based), and Occlusion (perturbation-based). LIME and KernelSHAP were
-excluded from the experiment for runtime reasons, as discussed in
-Section~\ref{subsec:excluded-fae}.
+excluded on technical grounds rather than by preference: the Robustness
+metrics re-invoke the explanation function for every perturbation sample,
+which multiplies the surrogate-fitting cost of both estimators and -- because
+that fitting is stochastic -- leaves the resulting sensitivity scores unstable
+and uninterpretable, so the measurement would not mean what the metric claims.
+Section~\ref{subsec:excluded-fae} states the argument in full; their
+reintroduction is recorded as future work in Section~\ref{sec:concl-future}.
 
 \subsection{Metrics, Hardware, and Reproducibility}
 
@@ -128,7 +135,8 @@ metric) score table itself
 (\texttt{results/full\_run\_7fae\_12metrics\_600.csv}; the pilot counterpart
 is \texttt{results/vertical\_slice\_7fae\_12metrics.csv}), and the
 post-processing scripts under \texttt{experiments/}, which regenerate every
-table in this chapter deterministically from that score table.
+table in this chapter deterministically from that score table (all three
+are in the project repository, \url{https://github.com/dawkopagh/fae-metrics-master-thesis}).
 \texttt{requirements-lock.txt} pins that post-processing environment
 exactly; it does \emph{not} reconstruct the Colab GPU environment in which
 the scores were measured, which installed an unpinned
@@ -193,6 +201,24 @@ pairs are shown here for legibility.
 
 \input{tables/redundancy_squeeze}
 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{figures/redundancy_bars.pdf}
+    \caption{All 36 pairwise Spearman $|\rho|$ values of the nine metrics
+    that enter the correlation analysis, sorted, per model, against the
+    $|\rho| > 0.85$ pruning threshold (Decision~D4). Hatched bars are the
+    two pairs pruned on each model; the four largest values are named. The
+    threshold sits in a gap: no pair falls between $0.79$ and $0.93$ on
+    ResNet-18 or between $0.76$ and $0.98$ on SqueezeNet, so any threshold
+    from $0.80$ to $0.93$ yields the identical $M^{*}$ of
+    Table~\ref{tab:mstar}. The nearest survivors are cross-category
+    (random\_logit with sparseness and complexity) -- the case the pooled
+    pruning of Section~\ref{subsec:redundancy-pruning} exists to catch; what
+    a lower threshold would do to them is discussed in
+    Section~\ref{sec:disc-redundancy}.}
+    \label{fig:redundancy-bars}
+\end{figure}
+
 \paragraph{Pruning outcome and $M^{*}$.}
 On the full 600-image run the Complexity pair (complexity / sparseness,
 $|\rho| \approx 0.99$ on both models) and the Robustness pair
@@ -201,7 +227,8 @@ SqueezeNet) are strongly redundant, whereas the Faithfulness and Localization
 pairs are nearly orthogonal ($|\rho| < 0.25$ in every case). The greedy
 $|\rho| > 0.85$ pruning therefore drops one metric from each redundant pair
 in both models (complexity in favour of sparseness; avg-sensitivity in favour
-of max-sensitivity). The resulting reduced set $M^{*}$ is \emph{identical} for
+of max-sensitivity; Figure~\ref{fig:redundancy-bars} shows the two pruned
+pairs against the 34 that survive). The resulting reduced set $M^{*}$ is \emph{identical} for
 the two models and comprises the same seven metrics:
 \emph{faithfulness\_correlation}, \emph{max\_sensitivity},
 \emph{pixel\_flipping}, \emph{pointing\_game}, \emph{random\_logit},
@@ -361,6 +388,28 @@ metrics are also the least consistently estimated
 values span $0.05$--$0.98$), whereas the most
 reliable metrics are also the
 most stable across cells ($\mathrm{SD} \approx 0.09$--$0.15$).
+Figure~\ref{fig:reliability-bars} shows the two legs side by side, each AR
+bar against the noise floor of its own protocol.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{figures/reliability_bars.pdf}
+    \caption{Noise Resilience and Adversarial Reactivity of the seven $M^{*}$
+    metrics (mean over the 14 (model, FAE) cells; the between-cell dispersion
+    is tabulated in Table~\ref{tab:meta}), ordered by combined reliability
+    $r_k$. The short black
+    bar over each AR column is the expected $|\rho_S|$ of a random ordering
+    under that metric's degradation protocol -- exactly $0.42$ for the
+    five-level protocol, ${\approx}0.27$ for the ten-level extended-AR
+    protocol of max\_sensitivity and random\_logit. The two patterns the
+    text relies on are visible at once: random\_logit's near-perfect NR
+    paired with an AR at its floor (stable but insensitive), and
+    relevance\_mass\_accuracy's AR below its floor. The NR values of
+    sparseness, pixel\_flipping, pointing\_game, and random\_logit are
+    additionally bounded by the independence reference discussed below and
+    should be read as upper bounds.}
+    \label{fig:reliability-bars}
+\end{figure}
 
 Two audits qualify the AR leg. First, because AR is the \emph{absolute}
 Spearman correlation, a metric reacting in the unexpected direction would

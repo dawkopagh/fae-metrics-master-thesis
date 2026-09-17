@@ -46,14 +46,15 @@ framework (Chapters~\ref{ch:sota} and~\ref{ch:methodology}).
 \addcontentsline{toc}{section}{Mathematical Symbols}
 
 \begin{description}[leftmargin=3.4cm]
-    \item[$f$] Predictive model (classifier) whose decisions are explained
-    \item[$x$] Input image (instance) presented to the model
+    \item[$f$] Predictive model (classifier) whose decisions are explained; $f(x)$ is the vector of class scores
+    \item[$f_c$] Model output (class score) for the target class $c$, $f_c(x) = f(x)_c$; written $S_c$ (Saliency) and $y^c$ (Grad-CAM) in the notation of the respective source papers
+    \item[$x$] Input image (instance) presented to the model; written $I$ in the Saliency formula of the source paper
     \item[$x'$] Baseline input used by attribution methods (e.g.\ a black image)
     \item[$c$] Target class index for which an explanation is produced
     \item[$\hat{y}$] Model's top-1 prediction, $\hat{y} = \operatorname{argmax}_c f(x)_c$, used as attribution target
     \item[$\Phi$] Feature attribution explanation method (estimator)
-    \item[$\Phi(f, x)$] Attribution map produced by method $\Phi$ for model $f$ and input $x$
-    \item[$E$] Explanation (attribution) map, $E = \Phi(f, x)$, $E \in \mathbb{R}^{d}$
+    \item[$\Phi(f, x, c)$] Attribution map produced by method $\Phi$ for model $f$, input $x$, and target class $c$; arguments fixed or clear from context are dropped ($\Phi(f, x)$, $\Phi(x)$)
+    \item[$E$] Explanation (attribution) map, $E = \Phi(f, x)$, $E \in \mathbb{R}^{d}$ (distinct from the scalar effectiveness index $E(\Phi)$ below)
     \item[$E_i$, $R_i$] Relevance score assigned to input feature $x_i$
     \item[$d$] Dimensionality of the input (number of features / pixels)
     \item[$C, H, W$] Channel, height, and width dimensions of an attribution map $\Phi(f,x) \in \mathbb{R}^{C \times H \times W}$
@@ -78,13 +79,19 @@ framework (Chapters~\ref{ch:sota} and~\ref{ch:methodology}).
     \item[$\mathrm{NR}_k$] Noise Resilience score of metric $k$ from meta-evaluation
     \item[$\mathrm{AR}_k$] Adversarial Reactivity score of metric $k$ from meta-evaluation
     \item[$\lambda_k$] Combined-reliability coefficient of metric $k$, $\lambda_k \in [0,1]$ (meta-evaluation discount)
-    \item[$\rho$] Correlation measure (Spearman/Pearson) used in MPRT and Random Logit
+    \item[$\rho$] Spearman rank-correlation coefficient: between metrics (redundancy analysis), between induced rankings, and inside MPRT
+    \item[$\mathrm{SSIM}$] Structural similarity index, the comparison function of the Random Logit test
+    \item[$\|\cdot\|_F$] Frobenius norm (Max-/Avg-Sensitivity)
     \item[$\rho_{ij}$] Empirical correlation between metrics $M_i$ and $M_j$ over $\mathcal{D}$
     \item[$r(\cdot,\cdot)$] Pearson correlation coefficient
     \item[$\mu_k, \sigma_k$] Group mean and standard deviation of metric $k$ ($z$-score normalization)
-    \item[$\varepsilon$] Small positive constant (geometric-mean stabiliser / perturbation bound)
+    \item[$\varepsilon$] Small positive constant (geometric-mean stabiliser; Autoweighted denominator, $10^{-8}$)
+    \item[$b$] Perturbation-magnitude bound of the sensitivity metrics (\texttt{lower\_bound})
     \item[$\delta_j$] Random input perturbation (uniform noise of bounded magnitude) in robustness metrics
-    \item[$\alpha_k^c$] Grad-CAM neuron-importance weight for feature map $k$ and class $c$
+    \item[$\alpha_m^c$] Grad-CAM neuron-importance weight for feature map $m$ and class $c$
+    \item[$Z$] Number of spatial positions of a convolutional feature map (Grad-CAM normaliser)
+    \item[$G$] Class of interpretable surrogate models (LIME)
+    \item[$f_x(z')$] Model output with only the features in coalition $z'$ present (SHAP)
     \item[{$\mathbb{E}[\cdot]$}] Expectation operator
     \item[$\mathbb{R}$] Set of real numbers
 \end{description}

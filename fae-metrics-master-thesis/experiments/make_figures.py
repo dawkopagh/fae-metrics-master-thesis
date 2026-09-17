@@ -7,6 +7,12 @@ Outputs (into Latex/figures/):
     ensemble_radar.pdf  - ensemble vs. mean-individual per-metric radar over
                           all seven M* metrics, min-max
                           normalised per metric for comparability.
+    reliability_bars.pdf - NR and AR per M* metric (mean over the 14 cells,
+                          SD whiskers) against each metric's own AR noise
+                          floor, from results/meta_evaluation_reliability.csv.
+    redundancy_bars.pdf - all 36 pairwise Spearman |rho| per model, sorted,
+                          against the |rho| > 0.85 pruning threshold, from
+                          results/redundancy_matrix_*.csv.
 
 Also prints the best validation accuracies (from the training logs) and the
 full-run score-row count used in the Chapter 4 tables.
@@ -218,9 +224,123 @@ def make_ar_schematic() -> None:
     print(f"wrote {FIG}/ar_schematic.pdf (source: {src.name})")
 
 
+
+# Colours: dataviz reference palette, categorical slots 1-2 (a validated
+# adjacent pair on a light surface); text and grid never wear the data colour.
+_BLUE, _ORANGE = "#2a78d6", "#eb6834"
+_INK, _INK2, _GRID = "#0b0b0b", "#52514e", "#dcdbd7"
+_SHORT_ALL = {**_SHORT, "avg_sensitivity": "AvgSens", "complexity": "Complex"}
+# Expected |rho_S| of a random ordering of the degradation levels: exactly
+# 0.42 for the five-level protocol (mean over all 120 permutations), ~0.27
+# for the ten-level extended-AR protocol of the two explain_func metrics.
+_AR_FLOOR = {m: 0.42 for m in COMMON}
+_AR_FLOOR.update({"max_sensitivity": 0.27, "random_logit": 0.27})
+
+
+def _style(ax) -> None:
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    for side in ("left", "bottom"):
+        ax.spines[side].set_color(_GRID)
+    ax.tick_params(colors=_INK2, labelsize=8, length=0)
+    ax.yaxis.grid(True, color=_GRID, lw=0.8)
+    ax.set_axisbelow(True)
+
+
+def make_reliability_bars() -> None:
+    rel = pd.read_csv(f"{RES}/meta_evaluation_reliability.csv")
+    rel = rel[rel["metric"].isin(COMMON)]
+    g = (rel.groupby("metric")
+            .agg(nr=("nr_score", "mean"), nr_sd=("nr_score", "std"),
+                 ar=("ar_score", "mean"), ar_sd=("ar_score", "std"),
+                 r=("combined_reliability", "mean"))
+            .sort_values("r", ascending=False))
+    x = np.arange(len(g))
+    w = 0.36
+    fig, ax = plt.subplots(figsize=(7.2, 3.3))
+    ax.bar(x - w / 2, g["nr"], w * 0.92, color=_BLUE, zorder=3,
+           label="Noise Resilience (NR)")
+    ax.bar(x + w / 2, g["ar"], w * 0.92, color=_ORANGE, hatch="////",
+           edgecolor="white", lw=0, zorder=3, label="Adversarial Reactivity (AR)")
+    for i, m in enumerate(g.index):
+        f = _AR_FLOOR[m]
+        ax.plot([i + w / 2 - w * 0.6, i + w / 2 + w * 0.6], [f, f],
+                color=_INK, lw=1.6, zorder=5,
+                label="AR noise floor (random ordering)" if i == 0 else None)
+    ax.set_xticks(x)
+    ax.set_xticklabels([_SHORT[m] for m in g.index])
+    ax.set_ylim(0, 1.05)
+    ax.set_yticks([0, 0.25, 0.5, 0.75, 1.0])
+    ax.set_ylabel("score (mean over 14 model x method cells)", fontsize=8, color=_INK2)
+    _style(ax)
+    ax.legend(fontsize=7.5, frameon=False, loc="lower left", ncol=3,
+              bbox_to_anchor=(0.0, 1.0), handlelength=1.6, columnspacing=1.4)
+    idx = list(g.index)
+    for m, txt, dy in (("random_logit", "AR at its floor", 22),
+                       ("relevance_mass_accuracy", "AR below its floor", 22)):
+        i = idx.index(m)
+        ax.annotate(txt, xy=(i + w / 2, g.loc[m, "ar"]),
+                    xytext=(0, dy), textcoords="offset points", ha="center",
+                    fontsize=7.5, color=_INK2,
+                    arrowprops=dict(arrowstyle="-", color=_INK2, lw=0.6))
+    plt.tight_layout()
+    plt.savefig(f"{FIG}/reliability_bars.pdf", bbox_inches="tight")
+    plt.close()
+    print(f"wrote {FIG}/reliability_bars.pdf")
+
+
+def make_redundancy_bars(threshold: float = 0.85) -> None:
+    fig, axes = plt.subplots(1, 2, figsize=(11, 3.3), sharey=True)
+    for ax, model, lab in [(axes[0], "resnet18", "ResNet-18"),
+                           (axes[1], "squeezenet", "SqueezeNet")]:
+        r = pd.read_csv(f"{RES}/redundancy_matrix_{model}.csv", index_col=0)
+        a = np.abs(r.values)
+        iu = np.triu_indices_from(a, k=1)
+        pairs = sorted([(a[i, j], r.index[i], r.columns[j]) for i, j in zip(*iu)],
+                       reverse=True)
+        vals = np.array([p[0] for p in pairs])
+        n = len(vals)
+        x = np.arange(n)
+        pruned = vals > threshold
+        ax.bar(x[~pruned], vals[~pruned], 0.8, color=_BLUE, zorder=3,
+               label="retained pair")
+        ax.bar(x[pruned], vals[pruned], 0.8, color=_ORANGE, hatch="////",
+               edgecolor="white", lw=0, zorder=3, label="pruned pair")
+        ax.axhline(threshold, color=_INK, lw=1.0, ls=(0, (4, 3)), zorder=4)
+        ax.text(n - 0.5, threshold + 0.015, f"pruning threshold |ρ| > {threshold:.2f}",
+                ha="right", va="bottom", fontsize=7.5, color=_INK2)
+        # Call out the two pruned pairs and the two nearest survivors with
+        # leader lines into the empty upper-right area.
+        ys = (1.06, 0.97, 0.76, 0.66)  # pruned above the line, survivors below
+        for k in range(4):
+            v, m1, m2 = pairs[k]
+            ax.annotate(f"{_SHORT_ALL[m1]}–{_SHORT_ALL[m2]}  {v:.2f}",
+                        xy=(k, v), xytext=(7.5, ys[k]),
+                        textcoords="data", ha="left", va="center", fontsize=7.5,
+                        color=_INK2,
+                        arrowprops=dict(arrowstyle="-", color=_INK2, lw=0.6,
+                                        shrinkA=0, shrinkB=2))
+        ax.set_xticks([])
+        ax.set_xlabel(f"{n} metric pairs, sorted by |ρ|", fontsize=8, color=_INK2)
+        ax.set_title(lab, fontsize=9)
+        ax.set_ylim(0, 1.12)
+        ax.set_yticks([0, 0.25, 0.5, 0.75, 1.0])
+        _style(ax)
+        ax.spines["bottom"].set_visible(False)
+    axes[0].set_ylabel("Spearman |ρ| over (image, method) pairs", fontsize=8, color=_INK2)
+    axes[0].legend(fontsize=7.5, frameon=False, loc="upper right",
+                   bbox_to_anchor=(1.0, 0.72), handlelength=1.6)
+    plt.tight_layout()
+    plt.savefig(f"{FIG}/redundancy_bars.pdf", bbox_inches="tight")
+    plt.close()
+    print(f"wrote {FIG}/redundancy_bars.pdf")
+
+
 if __name__ == "__main__":
     os.makedirs(FIG, exist_ok=True)
     report_scalars()
     make_cd_diagram()
     make_ensemble_radar()
     make_ar_schematic()
+    make_reliability_bars()
+    make_redundancy_bars()

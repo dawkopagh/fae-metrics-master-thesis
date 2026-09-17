@@ -149,6 +149,17 @@ moderate, architecture-dependent reweighting of the ranking.
     choice is reassuring, but it is a property of this dataset's correlation
     structure and not a guarantee; a strictly within-category policy remains the
     more defensible default and is recommended for transfer to other domains.
+    The threshold itself is neither knife-edge nor arbitrary:
+    Figure~\ref{fig:redundancy-bars} shows no metric pair between
+    $|\rho| = 0.79$ and $0.93$ on ResNet-18 (none between $0.76$ and $0.98$
+    on SqueezeNet), so any threshold from $0.80$ to $0.93$ yields the
+    identical $M^{*}$ on both models. Below that band the pruning
+    \emph{diverges} between the models: the cross-category
+    sparseness--random\_logit pair ($|\rho| = 0.79$ / $0.74$) would be
+    pruned too, removing sparseness on ResNet-18 but random\_logit on
+    SqueezeNet, and the shared $M^{*}$ of Contribution~1 would no longer
+    hold -- a further reason to report the threshold and the full pairwise
+    picture rather than the within-category summaries alone.
     \item \textbf{Reliability vs.\ agreement, and what the MQ-discount does.}
     The MetaQuantus reliability ordering and the dispersion-based Autoweighted
     ordering are conceptually distinct, and the thesis proposed the

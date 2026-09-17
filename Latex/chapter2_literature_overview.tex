@@ -5,7 +5,7 @@ The field of Explainable Artificial Intelligence (XAI) has expanded rapidly in r
 
 \section{Feature Attribution Explanation (FAE) Methods}
 
-Feature attribution methods, often referred to as saliency maps in computer vision, aim to assign a scalar relevance score $R_i$ to each input feature $x_i$ (e.g., a pixel), representing its contribution to the model's output $f(x)$ for a specific target class $c$. Formally, an explanation method $\Phi$ takes a model $f$ and an input $x$ to produce a map $E = \Phi(f, x)$, where $E \in \mathbb{R}^{d}$ and $d$ is the dimensionality of the input.
+Feature attribution methods, often referred to as saliency maps in computer vision, aim to assign a scalar relevance score $R_i$ to each input feature $x_i$ (e.g., a pixel), representing its contribution to the model's output $f(x)$ for a specific target class $c$. Formally, an explanation method $\Phi$ takes a model $f$ and an input $x$ to produce a map $E = \Phi(f, x)$, where $E \in \mathbb{R}^{d}$ and $d$ is the dimensionality of the input. The map also depends on the target class $c$; the full signature is $\Phi(f, x, c)$, and arguments that are fixed or clear from context are dropped below, so $\Phi(x)$, $\Phi(f, x)$, and $\Phi(f, x, c)$ denote the same map.
 
 Current literature broadly categorizes these methods based on their access to the model's internal parameters: Gradient-based (White-box) and Perturbation-based (Black-box) approaches \cite{hedstrom2023quantus}.
 
@@ -16,23 +16,25 @@ Gradient-based methods exploit the differentiable nature of neural networks. The
 \subsubsection{Saliency Maps}
 The foundational approach, proposed by Simonyan et al., computes the gradient of the class score $S_c$ with respect to the input image $I$ \cite{simonyan2014deep}. The relevance map is defined as:
 \begin{equation}
-    E_{Vanilla} = \left| \frac{\partial S_c}{\partial I} \right|
+    E_{\mathrm{Vanilla}} = \left| \frac{\partial S_c}{\partial I} \right|
 \end{equation}
 While computationally efficient, vanilla gradients often suffer from "shattered gradients," resulting in noisy visualizations that lack class-discriminativeness. Furthermore, they are susceptible to the "saturation problem," where a feature may strongly contribute to a prediction, but its gradient is zero because the activation is saturated (e.g., in a ReLU function) \cite{sundararajan2017axiomatic}.
 
 \subsubsection{Integrated Gradients (IG)}
 To address gradient saturation, Sundararajan et al. introduced Integrated Gradients, which fundamentally relies on the \textit{Axiom of Completeness}. IG accumulates gradients along a linear path from a baseline input $x'$ (usually a black image) to the actual input $x$ \cite{sundararajan2017axiomatic}. The attribution for the $i$-th feature is given by:
 \begin{equation}
-    IG_i(x) = (x_i - x'_i) \times \int_{\alpha=0}^{1} \frac{\partial f(x' + \alpha(x - x'))}{\partial x_i} d\alpha
+    IG_i(x) = (x_i - x'_i)\int_{0}^{1}
+    \left.\frac{\partial f_c(\tilde{x})}{\partial \tilde{x}_i}
+    \right|_{\tilde{x} = x' + \alpha(x - x')}\,d\alpha
 \end{equation}
-This method ensures that the sum of attributions equals the difference between the model output at the input and the baseline, providing a theoretical guarantee missing in vanilla gradients.
+where $f_c(\cdot) = f(\cdot)_c$ is the model output for the target class $c$ and the derivative is evaluated at the interpolated point $\tilde{x}$; the product is a plain scalar product of the $i$-th coordinate difference with the integral. This method ensures that the sum of attributions equals the difference between the model output at the input and the baseline, providing a theoretical guarantee missing in vanilla gradients.
 
 \subsubsection{Grad-CAM}
-Gradient-weighted Class Activation Mapping (Grad-CAM) moves away from pixel-space gradients to feature-space gradients. It utilizes the gradients flowing into the final convolutional layer of a CNN to produce a coarse localization map \cite{selvaraju2017grad}. Global Average Pooling is applied to the gradients to obtain neuron importance weights $\alpha_k^c$:
+Gradient-weighted Class Activation Mapping (Grad-CAM) moves away from pixel-space gradients to feature-space gradients. It utilizes the gradients flowing into the final convolutional layer of a CNN to produce a coarse localization map \cite{selvaraju2017grad}. Global Average Pooling is applied to the gradients to obtain neuron importance weights $\alpha_m^c$:
 \begin{equation}
-    \alpha_k^c = \frac{1}{Z} \sum_i \sum_j \frac{\partial y^c}{\partial A_{ij}^k}
+    \alpha_m^c = \frac{1}{Z} \sum_i \sum_j \frac{\partial y^c}{\partial A_{ij}^m}
 \end{equation}
-where $A^k$ is the $k$-th feature map. The final map is a ReLU-activated linear combination of these maps. Grad-CAM is highly effective for localization but lacks fine-grained pixel detail, often necessitating combination with Guided Backpropagation (Guided Grad-CAM).
+where $A^m$ is the $m$-th feature map of the final convolutional layer, $Z$ is its number of spatial positions (the normaliser of the global average pool), and $y^c$ is the class score -- the source paper's symbol for $f_c$. The final map is a ReLU-activated linear combination of these maps. Grad-CAM is highly effective for localization but lacks fine-grained pixel detail, often necessitating combination with Guided Backpropagation (Guided Grad-CAM).
 
 \subsection{Perturbation-based Methods (Black-box)}
 Perturbation-based methods operate under a model-agnostic paradigm. They estimate feature importance by systematically modifying (perturbing) the input and observing the resulting changes in the model's output prediction. Because they treat the model as a black box, they apply uniformly across architectures, but their reliance on sampling makes them both computationally expensive and, as noted below, susceptible to estimation noise. The thesis surveys LIME and SHAP here for completeness, but -- as Chapter~\ref{ch:methodology} details -- the final evaluation panel retains only the gradient-based methods together with Occlusion, since the Robustness metrics re-invoke the explanation function for every perturbation sample, multiplying the already-substantial surrogate-fitting cost of LIME and KernelSHAP beyond what the scale of the full study permits.
@@ -42,14 +44,14 @@ LIME creates a surrogate model $g$ (e.g., a linear regression) that is locally f
 \begin{equation}
     \xi(x) = \operatorname*{argmin}_{g \in G} \mathcal{L}(f, g, \pi_x) + \Omega(g)
 \end{equation}
-where $\Omega(g)$ penalizes the complexity of the explanation. While LIME is versatile, its reliance on random sampling introduces instability, where repeated runs on the same input can yield different explanations \cite{hryniewska2024normensemblexai}.
+where $G$ is the class of interpretable surrogate models and $\Omega(g)$ penalizes the complexity of the explanation. While LIME is versatile, its reliance on random sampling introduces instability, where repeated runs on the same input can yield different explanations \cite{hryniewska2024normensemblexai}.
 
 \subsubsection{SHAP (SHapley Additive exPlanations)}
 SHAP adapts cooperative game theory to XAI, treating features as players in a coalition. The attribution of a feature is its Shapley value - the average marginal contribution of the feature value across all possible feature coalitions \cite{lundberg2017unified}. The SHAP value $\phi_i$ is defined as:
 \begin{equation}
-    \phi_i(f, x) = \sum_{z' \subseteq x' \setminus \{i\}} \frac{|z'|! \, (M - |z'| - 1)!}{M!} \bigl[f_x(z' \cup \{i\}) - f_x(z')\bigr]
+    \phi_i(f, x) = \sum_{z' \subseteq \{1,\dots,d\} \setminus \{i\}} \frac{|z'|! \, (d - |z'| - 1)!}{d!} \bigl[f_x(z' \cup \{i\}) - f_x(z')\bigr]
 \end{equation}
-SHAP values are the unique additive attribution satisfying \textit{Local Accuracy}, \textit{Missingness}, and \textit{Consistency} \cite{lundberg2017unified}, thereby inheriting the classical Shapley axioms of Efficiency, Symmetry, Dummy, and Additivity. However, exact computation is exponential in the number of features, leading to approximation methods like GradientSHAP or KernelSHAP, which reintroduce estimation noise.
+where $z'$ ranges over coalitions of the $d$ input features and $f_x(z')$ denotes the model output with only the features in $z'$ present, the remaining features marginalised out -- in practice, replaced by a baseline value \cite{lundberg2017unified}. SHAP values are the unique additive attribution satisfying \textit{Local Accuracy}, \textit{Missingness}, and \textit{Consistency} \cite{lundberg2017unified}, thereby inheriting the classical Shapley axioms of Efficiency, Symmetry, Dummy, and Additivity. However, exact computation is exponential in the number of features, leading to approximation methods like GradientSHAP or KernelSHAP, which reintroduce estimation noise.
 
 \subsection{Localization Metrics}
 \label{subsec:localization-metrics}
@@ -66,9 +68,9 @@ The metric is typically averaged across the test set to produce a hit rate. Its 
 \subsubsection{Relevance Mass Accuracy}
 Relevance Mass Accuracy (RMA) captures the fraction of total positive attribution mass that falls within the segmentation mask:
 \begin{equation}
-    \text{RMA} = \frac{\sum_{i \in \mathcal{M}} \max(E_i, 0)}{\sum_{i} \max(E_i, 0)}.
+    \text{RMA} = \frac{\sum_{i \in \mathcal{M}} E_i}{\sum_{i} E_i}.
 \end{equation}
-RMA ranges from $0$ (no positive attribution inside the mask) to $1$ (all positive attribution is localized). Unlike the Pointing Game, RMA evaluates the entire attribution distribution rather than a single pixel, providing a smoother and more discriminative signal \cite{hedstrom2023quantus}.
+The metric is nominally a mass fraction: defined over positive relevance only, i.e.\ with $\max(E_i, 0)$ in place of $E_i$, it ranges from $0$ (no positive attribution inside the mask) to $1$ (all of it localized). The Quantus implementation used in this thesis (\texttt{abs=False}) sums \emph{signed} relevance as written above, so the denominator can shrink towards zero or change sign and the score is not confined to $[0, 1]$ -- the source of the out-of-range values quantified in Section~\ref{sec:disc-threats}. Unlike the Pointing Game, RMA evaluates the entire attribution distribution rather than a single pixel, providing a smoother and more discriminative signal \cite{hedstrom2023quantus}.
 
 \subsubsection{Role of Segmentation Masks}
 Both Pointing Game and RMA require a binary segmentation mask aligned with the input image. This requirement limits Localization evaluation to datasets that provide pixel-level annotations. The ISIC 2017 dataset (Task~1) includes expert-annotated lesion boundaries for every image, enabling Localization assessment without any additional labeling effort. Many commonly used benchmarks lack such masks, which is one reason Localization metrics are underreported in the literature despite their intuitive appeal.
@@ -146,9 +148,9 @@ ranked by the attribution map) and measuring the resulting degradation in the
 model's output.
 Pixels are replaced in descending order of attribution magnitude with a baseline value (e.g., black), producing a curve of model outputs as ever more of the highest-ranked features are removed. The metric summarizes this degradation curve by its area under the curve:
 \begin{equation}
-    \text{PixelFlipping}(x) = \frac{1}{N} \sum_{k=1}^{N} f\bigl(x^{(k)}\bigr),
+    \text{PixelFlipping}(x) = \frac{1}{N} \sum_{t=1}^{N} f_c\bigl(x^{(t)}\bigr),
 \end{equation}
-where $x^{(k)}$ is the image with the top $k$ most important features replaced. A faithful attribution identifies the truly critical features first, so the prediction collapses early and the area under the degradation curve is small: \emph{lower} scores are better. The Quantus implementation groups features into steps of configurable size (\texttt{features\_in\_step}), making the metric tractable for high-resolution inputs \cite{hedstrom2023quantus}.
+where $x^{(t)}$ is the image after the $t$-th removal step and $N$ is the number of steps. A faithful attribution identifies the truly critical features first, so the prediction collapses early and the area under the degradation curve is small: \emph{lower} scores are better. The Quantus implementation groups features into steps of configurable size (\texttt{features\_in\_step}), making the metric tractable for high-resolution inputs, and integrates the degradation curve by the composite trapezoidal rule without the $1/N$ factor; the trapezoidal rule differs from the plain mean above only in the weight of the two endpoints, and the omitted constant factor is absorbed by the per-group normalisation of Section~\ref{sec:normalization} \cite{hedstrom2023quantus}.
 
 This formulation generalizes Deletion and Insertion curves \cite{petsiuk2018rise}: Deletion corresponds to removal in descending attribution order, while Insertion reverses the process by adding features to a blank canvas.
 
@@ -157,7 +159,7 @@ A structural caveat applies to this whole family of perturbation-based metrics: 
 \subsubsection{Faithfulness Correlation}
 Faithfulness Correlation, as implemented in Quantus, measures the Pearson correlation between attribution magnitude and the change in model output when features are masked in random subsets \cite{hedstrom2023quantus}. Given \texttt{nr\_runs} randomly sampled subsets $S_1, \dots, S_R$ of features:
 \begin{equation}
-    \text{FC} = r\!\left(\left\{\sum_{i \in S_j} E_i\right\}_{j=1}^{R},\; \left\{f(x) - f(x_{\setminus S_j})\right\}_{j=1}^{R}\right),
+    \text{FC} = r\!\left(\left\{\sum_{i \in S_j} E_i\right\}_{j=1}^{R},\; \left\{f_c(x) - f_c(x_{\setminus S_j})\right\}_{j=1}^{R}\right),
 \end{equation}
 where $r(\cdot, \cdot)$ denotes the Pearson correlation coefficient and $x_{\setminus S_j}$ is the input with features in $S_j$ replaced by a baseline. A high positive correlation ($\text{FC} \to +1$) indicates that regions with large attribution values are indeed the regions whose removal most degrades the model's prediction.
 
@@ -167,11 +169,11 @@ A related measure, Infidelity \citep{yeh2019}, computes the expected squared err
 \label{subsec:robustness}
 Robustness ensures that slight, non-semantic changes to the input (e.g., Gaussian noise) do not cause disproportionate changes in the explanation. This is crucial for user trust and defense against adversarial attacks.
 
-The theoretical foundation for explanation robustness is Lipschitz continuity: a method $\Phi$ is robust if the ratio $\|\Phi(x) - \Phi(x')\| / \|x - x'\|$ remains bounded for inputs $x'$ in a neighborhood of $x$ \cite{alvarez2018robustness}. The metrics adopted in this thesis operationalize this principle via sensitivity analysis under random perturbations.
+The theoretical foundation for explanation robustness is Lipschitz continuity: a method $\Phi$ is robust if the ratio $\|\Phi(x) - \Phi(x + \delta)\| / \|\delta\|$ remains bounded for perturbations $\delta$ in a neighborhood of $x$ \cite{alvarez2018robustness}. The metrics adopted in this thesis operationalize this principle via sensitivity analysis under random perturbations.
 
 \subsubsection{Max-Sensitivity}
 Max-Sensitivity, proposed by \citet{yeh2019} in ``On the (In)fidelity and Sensitivity of Explanations,'' measures the worst-case explanation change under small random perturbations of the input,
-$\mathrm{SENS}_{\mathrm{MAX}} = \max_{\|\delta\| \le r} \|\Phi(x + \delta) - \Phi(x)\|$.
+$\mathrm{SENS}_{\mathrm{MAX}} = \max_{\|\delta\| \le b} \|\Phi(x + \delta) - \Phi(x)\|$ for a perturbation bound $b$.
 The Quantus implementation used in this thesis estimates it from $N$
 perturbation samples $\delta_1, \dots, \delta_N$ drawn uniformly with
 magnitude bounded by \texttt{lower\_bound}, and reports the change relative to
@@ -209,11 +211,11 @@ Proposed by Adebayo et al.\ as part of the ``Sanity Checks for Saliency Maps'' s
 where $f^{(\ell)}$ denotes the model with the top $\ell$ layers randomized and $\rho$ is the chosen correlation measure. Lower average correlation indicates a better method -- one that is genuinely sensitive to the model's learned parameters. As discussed in Section~\ref{sec:crisis}, Guided Backpropagation and Guided Grad-CAM fail this test, producing nearly identical maps for trained and randomized models.
 
 \subsubsection{Random Logit Test}
-The Random Logit test complements MPRT by perturbing the explanation target rather than the model weights. The target class index is replaced with a randomly sampled alternative class, and the resulting explanation is compared to the original. The metric computes the correlation between the two explanation maps:
+The Random Logit test complements MPRT by perturbing the explanation target rather than the model weights. The target class index is replaced with a randomly sampled alternative class, and the resulting explanation is compared to the original. Unlike MPRT, the Quantus implementation compares the two maps -- taken in absolute value and normalised -- by the structural similarity index (SSIM) rather than by correlation:
 \begin{equation}
-    \text{RandomLogit}(\Phi) = \rho\bigl(\Phi(f, x, c),\; \Phi(f, x, c')\bigr), \quad c' \neq c.
+    \text{RandomLogit}(\Phi) = \mathrm{SSIM}\bigl(|\Phi(f, x, c)|,\; |\Phi(f, x, c')|\bigr), \quad c' \neq c.
 \end{equation}
-A lower correlation indicates that the explanation is genuinely class-discriminative -- it changes when the target class changes -- rather than merely reflecting generic input features. Both MPRT and Random Logit are implemented in Quantus \cite{hedstrom2023quantus}.
+A lower similarity indicates that the explanation is genuinely class-discriminative -- it changes when the target class changes -- rather than merely reflecting generic input features. Both MPRT and Random Logit are implemented in Quantus \cite{hedstrom2023quantus}.
 
 \subsection{Axiomatic}
 \label{subsec:axiomatic}
@@ -222,9 +224,9 @@ Axiomatic metrics verify whether explanations satisfy formal mathematical axioms
 \subsubsection{Completeness}
 The Completeness axiom, formalized by Sundararajan et al.\ \cite{sundararajan2017axiomatic}, requires that the sum of individual feature attributions equals the difference between the model output at the input $x$ and a baseline $x'$:
 \begin{equation}
-    \left|\sum_{i} E_i - \bigl(f(x) - f(x')\bigr)\right| \approx 0.
+    \left|\sum_{i} E_i - \bigl(f_c(x) - f_c(x')\bigr)\right| \approx 0.
 \end{equation}
-The Quantus implementation used here does not score the magnitude of the deviation: it returns a per-sample Boolean, $1$ where the summed attribution equals $f(x) - f(x')$ under strict floating-point equality and $0$ otherwise (higher is better). As Section~\ref{sec:exp-redundancy} reports, that equality never holds in practice, so the metric is constant at $0$ and carries no ranking signal. Completeness is only meaningful for methods that explicitly satisfy or approximate the completeness property by construction -- specifically Integrated Gradients, DeepLift, and LRP. For other methods, the metric returns NaN and is excluded from aggregation.
+The Quantus implementation used here does not score the magnitude of the deviation: it returns a per-sample Boolean, $1$ where the summed attribution equals $f_c(x) - f_c(x')$ under strict floating-point equality and $0$ otherwise (higher is better). As Section~\ref{sec:exp-redundancy} reports, that equality never holds in practice, so the metric is constant at $0$ and carries no ranking signal. Completeness is only meaningful for methods that explicitly satisfy or approximate the completeness property by construction -- specifically Integrated Gradients, DeepLift, and LRP. For other methods, the metric returns NaN and is excluded from aggregation.
 
 \subsubsection{Non-Sensitivity}
 Non-Sensitivity measures how much attribution a method assigns to features that are provably non-contributory (i.e., features whose removal does not change the model output). A faithful attribution should assign zero relevance to such features. The metric evaluates this by performing a forward pass for each feature (or a downsampled subset thereof) to identify non-contributory features, then measuring the attribution mass on those features. Lower is better.

@@ -312,9 +312,12 @@ map \cite{hedstrom2023quantus}.
 \paragraph{Randomization.}
 ModelParameterRandomisation (MPRT) progressively randomizes model weights
 top-down and measures correlation decay. RandomLogit replaces the target
-class and measures explanation change. Lower correlation is better for both,
-indicating that the explanation genuinely depends on learned parameters and
-the specified target class \cite{hedstrom2023quantus}. As noted above, MPRT
+class and measures explanation change, comparing the two attribution maps by
+structural similarity (SSIM, the Quantus default;
+Section~\ref{subsec:randomization}). Lower values are better for both -- a
+lower correlation for MPRT, a lower similarity for RandomLogit -- indicating
+that the explanation genuinely depends on learned parameters and the
+specified target class \cite{hedstrom2023quantus}. As noted above, MPRT
 is disabled on ISIC~2017 because of a Quantus~0.6.0 incompatibility, leaving
 RandomLogit as the operative Randomization metric.
 
@@ -735,13 +738,19 @@ stages (seeds, metric hyperparameters, and the Quantus version fixed in
 code), the raw result CSVs they produce, and the deterministic
 post-processing scripts under \texttt{experiments/} that regenerate every
 reported table from those CSVs; the exact package environment is recorded
-in \texttt{requirements-lock.txt}.
+in \texttt{requirements-lock.txt}. All of these, together with the \LaTeX{}
+sources of this document, are published in the project repository at
+\url{https://github.com/dawkopagh/fae-metrics-master-thesis}.
 
 \paragraph{Design decision register.} For ease of reference, the design
 decisions cited as D1--D6 throughout Chapters~\ref{ch:experiments}
 and~\ref{ch:discussion} are collected here:
 
-\begin{description}
+% Local: drop the class's dash after each label (it wraps under the
+% label for these short keys) and set the register compactly.
+{\small
+\renewcommand*\descriptionlabel[1]{\hspace\labelsep\normalfont\bfseries #1}
+\begin{description}[leftmargin=2.6em, labelsep=0.5em, itemsep=1pt, parsep=0pt, topsep=3pt]
     \item[D1] Second Moment Scaling as the score normalisation, adopted from
     NormEnsembleXAI (Section~\ref{sec:normalization}).
     \item[D2] Three aggregation operators -- weighted mean, minimum, and
@@ -759,4 +768,4 @@ and~\ref{ch:discussion} are collected here:
     \item[D6] NormEnsembleXAI Mean aggregation with Second Moment
     normalisation as the attribution-ensembling configuration
     (Section~\ref{sec:fae-methods}).
-\end{description}
+\end{description}}
